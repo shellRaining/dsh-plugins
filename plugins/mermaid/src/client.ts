@@ -43,8 +43,7 @@ const ICONS = {
 let unique = 0;
 let runtime: Promise<MermaidRuntime> | null;
 function loadRuntime() {
-  const url = '/dsh-mermaid/mermaid-runtime.js?rev=d7c361216dce';
-  return runtime ||= import(url).then(m=>m.default).catch(error=>{runtime=null;throw error;});
+  return runtime ||= import('mermaid').then(m=>m.default).catch(error=>{runtime=null;throw error;});
 }
 
 export function mount(document: Document, load: () => Promise<MermaidRuntime> = loadRuntime, delay = 450) {

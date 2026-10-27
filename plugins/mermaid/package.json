@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-mermaid",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Token-driven Mermaid code/diagram views for DSH, based on MrmoLabs/dsh-mermaid.",
   "type": "module",
   "license": "MIT",
@@ -24,9 +24,9 @@
     "build": "pnpm run typecheck && node build.mjs"
   },
   "devDependencies": {
-    "typescript": "5.9.3",
     "esbuild": "0.28.2",
-    "happy-dom": "20.11.6"
+    "happy-dom": "20.11.6",
+    "typescript": "5.9.3"
   },
   "engines": {
     "node": ">=22.19.0"
@@ -46,5 +46,8 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "mermaid": "11.17.2"
   }
 }
