@@ -1,0 +1,3 @@
+- insert:
+    - id: inline-code-copy
+      name: '@shellraining/dsh-inline-code-copy'

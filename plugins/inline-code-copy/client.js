@@ -4,7 +4,7 @@
 // Everything lives inside the factory so nothing leaks into the page's
 // global scope (the compiled output is a classic script, not a module).
 window.__ModuleLoader__.load({
-    id: 'dsh-inline-code-copy',
+    id: '@shellraining/dsh-inline-code-copy',
     factory: () => {
         const PLUGIN_ID = 'dsh-inline-code-copy';
         // Assistant turns are flow items keyed by node kind; this attribute is the

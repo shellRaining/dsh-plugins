@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: 'dsh-sidebar-session-preview',
+  id: '@shellraining/dsh-sidebar-session-preview',
   factory: () => {
     const SESSION_ROW = '[data-row-key^="session:"]';
     const ROW = ':is([data-row-key^="session:"], [data-row-key^="workspace:"])';

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+import { runInNewContext } from 'node:vm';
 import { load } from 'js-yaml';
 
 const plugins = new URL('../plugins/', import.meta.url);
@@ -16,7 +17,23 @@ for (const entry of await readdir(plugins, { withFileTypes: true })) {
     throw error;
   }
   const manifest = JSON.parse(source);
+  test(`${manifest.name}: ships its host entry`, async () => {
+    assert.ok((await readFile(new URL(manifest.main, root))).length > 0);
+  });
   const patch = manifest.dsh?.bundle?.patch;
+  test(`${manifest.name}: declares an independently installable bundle`, () => {
+    assert.ok(patch, 'each plugin must declare dsh.bundle.patch');
+  });
+  if (manifest.dsh?.client) {
+    test(`${manifest.name}: client registers its package name`, async () => {
+      const registrations = [];
+      const client = await readFile(new URL(manifest.exports['./client'], root), 'utf8');
+      runInNewContext(client, {
+        window: { __ModuleLoader__: { load: (value) => registrations.push(value) } },
+      }, { timeout: 1000 });
+      assert.deepEqual(registrations.map(value => value.id), [manifest.name]);
+    });
+  }
   if (patch === undefined) continue;
   for (const filename of Array.isArray(patch) ? patch : [patch]) {
     test(`${manifest.name}: ${filename} is a valid YAML overlay`, async () => {
