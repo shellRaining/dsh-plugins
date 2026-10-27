@@ -32,3 +32,17 @@ pnpm build
 按改动验证插件启停、主要交互、会话切换和清理行为；涉及视觉时检查明暗主题，涉及本地化时检查中英文。优先手动验证，不因缺少自动化覆盖自行编写测试。
 
 没有页面控制能力、加载权限或合适环境时，明确写出未完成运行时验证，不把类型检查、构建或结构测试当成页面验证的替代。
+
+## 发布
+
+npm 包由 GitHub Actions 的 [release 流水线](../.github/workflows/release.yml)发布，除新包的首个版本外，不在本机执行 `npm publish`。推送到 main 后，流水线依次安装依赖、类型检查、构建，确认提交进仓库的构建产物与重新构建的结果一致，再运行 `pnpm -r publish`。版本号已在 npm 上的包会跳过，其余包作为 latest 发布。
+
+发版就是修改对应包 `package.json` 的 `version`，和代码一起推送到 main。没改版本号的包不会重新发布。npm 不允许重复发布同一版本，流水线在构建或检查阶段失败时可以修复后再推送；如果 npm 已经接受了某个版本，后续修复要换新版本号。
+
+认证使用 npm trusted publishing（OIDC），仓库里不保存 npm token，发布的包自动附带 provenance。每个包在 npm 上有一条绑定本仓库 `release.yml` 的信任配置。新增插件包时，先手动发布首个版本（包在 npm 上存在后才能配置信任），再用 npm 11.15 以上版本运行下面的命令绑定，并在 48 小时内完成一次流水线发布，否则这条配置会过期失效。重命名工作流文件或迁移仓库后也要重新绑定。
+
+```sh
+npm trust github <包名> --repo shellRaining/dsh-plugins --file release.yml --allow-publish
+```
+
+npm 会在发布后扫描恶意代码，新版本通常要等几分钟才能安装。

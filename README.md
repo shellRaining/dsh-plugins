@@ -29,6 +29,8 @@ pnpm typecheck # 全部插件类型检查
 pnpm build     # 全部插件构建（typecheck + esbuild/tsc）
 ```
 
+发布由 GitHub Actions 完成：修改插件的版本号并推送到 main，流水线会把 npm 上还没有的版本发布出去，细节见 [docs/quality.md](docs/quality.md)。
+
 所有插件业务源码使用 strict TypeScript，生成的 JavaScript 不手工维护。开发入口与约束见 [AGENTS.md](AGENTS.md)，架构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，插件规范见 [docs/plugins.md](docs/plugins.md)，验证与测试权限见 [docs/quality.md](docs/quality.md)。agent 不得自行新增或改写测试。
 
 ## 许可
