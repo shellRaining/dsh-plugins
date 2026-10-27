@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-acrylic-wallpaper",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "本地静态壁纸与克制的 Acrylic 模糊、色调遮罩和噪点",
   "main": "./index.js",

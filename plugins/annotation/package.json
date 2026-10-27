@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-local-annotation",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "原生高亮、就地批注卡片与显式引用插入",
   "main": "./lib/index.js",

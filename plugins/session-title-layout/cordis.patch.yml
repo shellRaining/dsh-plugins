@@ -5,5 +5,5 @@
 
 - insert:
     - id: session-title-layout
-      name: @shellraining/dsh-session-title-layout
+      name: '@shellraining/dsh-session-title-layout'
       config: {}
