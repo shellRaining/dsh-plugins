@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-local-annotation",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "原生高亮与就地批注，批注以输入框引用随消息发送",
   "main": "./lib/index.js",

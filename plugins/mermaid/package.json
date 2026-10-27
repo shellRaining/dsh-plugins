@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-mermaid",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Token-driven Mermaid code/diagram views for DSH, based on MrmoLabs/dsh-mermaid.",
   "type": "module",
   "license": "MIT",

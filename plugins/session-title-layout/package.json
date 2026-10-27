@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-session-title-layout",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "DeepSeek Harness session-title provider with a configurable layout (type, date, summary), separator and summary language.",
   "keywords": [
     "deepseek-harness",
