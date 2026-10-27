@@ -51,7 +51,9 @@ export class Highlights {
   update(sessionId: string, items: readonly Annotation[]): void {
     this.reset();
     this.sessionId = sessionId;
-    items.forEach((item, index) => this.numbers.set(item.id, index + 1));
+    // Saved rows keep their stored number; an unsaved selection previews the next one.
+    const next = items.reduce((max, item) => Math.max(max, item.number), 0) + 1;
+    for (const item of items) this.numbers.set(item.id, item.number || next);
     for (const item of items) {
       const key = sourceKey(item.source);
       let group = this.groups.get(key);

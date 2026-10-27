@@ -1,8 +1,8 @@
 {
   "name": "@shellraining/dsh-local-annotation",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
-  "description": "原生高亮、就地批注卡片与显式引用插入",
+  "description": "原生高亮与就地批注，批注以输入框引用随消息发送",
   "main": "./lib/index.js",
   "exports": {
     ".": "./lib/index.js",
@@ -21,6 +21,7 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.3",
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
     "esbuild": "0.28.2",
@@ -35,7 +36,8 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-session",
         "@deepseek-ai/dsh-client-ui-conversation",
-        "@deepseek-ai/dsh-client-ui-chat"
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-input-trigger"
       ]
     }
   },

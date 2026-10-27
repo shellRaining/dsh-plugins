@@ -1,14 +1,17 @@
-import type { ClientContext } from './host.ts';
+import type { Binding, ClientContext, InputState, Observable, ReferenceSource, SessionScope } from './host.ts';
 import { AppearanceStore, type Appearance } from './appearance.ts';
 import { Highlights } from './highlights.ts';
 import { installSelection } from './selection.ts';
 import { AnnotationStore } from './storage.ts';
 import { MAX_ITEMS, MAX_NOTE, type Annotation } from './model.ts';
+import { CHIP_SOURCE, annotationBlock, annotationChip, attachedIds, chipSpan, chipText, parseChipRef } from './composer.ts';
 
 import { floatingCard, type CardAnchor } from './floating.ts';
 export interface Snapshot {
   sessionId: string | undefined;
   items: readonly Annotation[];
+  /** Annotation ids whose chips the current composer carries, in draft order. */
+  attached: readonly string[];
   pending: Annotation | null;
   error: string;
   loading: boolean;
@@ -16,6 +19,8 @@ export interface Snapshot {
   appearance: Appearance;
   card: { item: Annotation | null; editing: boolean } | null;
 }
+interface Composer { binding: Binding; scope: SessionScope; input: InputState }
+const SENT_CACHE = 64;
 
 export class Controller {
   private store = new AnnotationStore();
@@ -23,7 +28,7 @@ export class Controller {
   private listeners = new Set<() => void>();
   private appearance = new AppearanceStore(appearance => this.patch({ appearance }));
   private state: Snapshot = {
-    sessionId: undefined, items: [], pending: null, error: '', loading: false,
+    sessionId: undefined, items: [], attached: [], pending: null, error: '', loading: false,
     highlightSupported: this.highlights.supported, appearance: this.appearance.getSnapshot(), card: null,
   };
   private pendingBySession = new Map<string, Annotation>();
@@ -31,6 +36,10 @@ export class Controller {
   private disposed = false;
   private disposers: (() => void)[] = [];
   private selection: ReturnType<typeof installSelection>;
+  private input: Observable<InputState | undefined> | undefined;
+  private disposeInput: (() => void) | undefined;
+  /** Model text of chips already sent; a failed send restores chips whose rows are gone. */
+  private sent = new Map<string, string>();
 
   private floating: ReturnType<typeof floatingCard>;
   private anchor: CardAnchor = { range: null, x: 24, y: 64 };
@@ -63,14 +72,17 @@ export class Controller {
     document.addEventListener('click', click);
     this.disposers.push(() => document.removeEventListener('click', click));
     const sync = () => {
-      const id = this.ctx.uiSession.adapter.current.getSnapshot().key;
-      if (id === this.state.sessionId) return;
-      ++this.generation;
-      this.selection.hide();
-      this.close();
-      this.patch({ sessionId: id, items: [], pending: id ? this.pendingBySession.get(id) ?? null : null, error: '', loading: !!id });
-      this.paint();
-      if (id) void this.refresh(id);
+      const binding = this.ctx.uiSession.adapter.current.getSnapshot();
+      const id = binding.key;
+      if (id !== this.state.sessionId) {
+        ++this.generation;
+        this.selection.hide();
+        this.close();
+        this.patch({ sessionId: id, items: [], pending: id ? this.pendingBySession.get(id) ?? null : null, error: '', loading: !!id });
+        this.paint();
+        if (id) void this.refresh(id);
+      }
+      this.watchInput(binding);
     };
     this.disposers.push(ctx.uiSession.adapter.current.subscribe(sync));
     this.disposers.push(this.store.subscribe(id => { if (id === this.state.sessionId) void this.refresh(id); }));
@@ -89,6 +101,21 @@ export class Controller {
     for (const listener of this.listeners) listener();
   }
   private error(error: unknown): void { this.patch({ error: error instanceof Error ? error.message : String(error) }); }
+  /** Follow the current Session's composer; the status chip reads only this state. */
+  private watchInput(binding: Binding): void {
+    const source = binding.key ? binding.hooks.input : undefined;
+    if (source !== this.input) {
+      this.disposeInput?.();
+      this.input = source;
+      this.disposeInput = source?.subscribe(() => this.readInput());
+    }
+    this.readInput();
+  }
+  private readInput(): void {
+    const attached = attachedIds(this.input?.getSnapshot(), this.state.sessionId);
+    const previous = this.state.attached;
+    if (attached.length !== previous.length || attached.some((id, index) => id !== previous[index])) this.patch({ attached });
+  }
   private paint(): void {
     this.highlights.update(this.state.sessionId ?? '', this.state.pending ? [...this.state.items, this.state.pending] : this.state.items);
   }
@@ -157,6 +184,8 @@ export class Controller {
       this.patch({ items, error: '' });
       if (this.state.card?.item?.id === item.id) this.close();
       this.paint();
+      // A new annotation rides the next message; saving is committed even if the composer refuses.
+      if (pending && !this.attach(saved) && this.state.error) this.showError();
       await this.refresh(id);
     } catch (error) { if (id === this.state.sessionId) this.error(error); throw error; }
   }
@@ -173,28 +202,101 @@ export class Controller {
       await this.store.remove(item.sessionId, item.id, item.updatedAt);
       this.drafts.delete(this.draftKey(item));
       if (this.state.card?.item?.id === item.id) this.close();
-      if (item.sessionId === this.state.sessionId) { this.patch({ error: '' }); await this.refresh(item.sessionId); }
+      if (item.sessionId === this.state.sessionId) {
+        this.patch({ error: '' });
+        if (!this.detach(item)) this.error(new Error(`批注 ${item.number} 已删除，但输入框里的引用未能移除，请手动删除。`));
+        await this.refresh(item.sessionId);
+      }
     } catch (error) { if (item.sessionId === this.state.sessionId) this.error(error); throw error; }
   }
 
-  insert(items: readonly Annotation[]): boolean {
+  /** Chips are serialized by this source when the composer submits. */
+  readonly source: ReferenceSource = {
+    trigger: '@', name: CHIP_SOURCE, showGroupTitle: false,
+    candidates: () => Promise.resolve([]),
+    onPick: () => undefined,
+    openReference: (session, { ref }) => {
+      const key = parseChipRef(ref);
+      const item = key?.sessionId === session.sessionId ? this.state.items.find(value => value.id === key.id) : undefined;
+      if (!item) return false;
+      this.showItem(item);
+      return true;
+    },
+    codec: {
+      clipboardText: ref => { const key = parseChipRef(ref); return key ? chipText(key.number) : ref; },
+      serialize: ref => this.serialize(ref),
+    },
+  };
+
+  /** Resolve one chip at submit time, then clear the sent annotation. */
+  private async serialize(ref: string): Promise<string> {
+    const key = parseChipRef(ref);
+    if (!key) throw new Error('批注引用无效，请从输入框删除后重试。');
+    const item = (await this.store.list(key.sessionId)).find(value => value.id === key.id);
+    if (!item) {
+      const sent = this.sent.get(ref);
+      if (sent !== undefined) return sent;
+      throw new Error('有一条批注已被删除，请从输入框删除它的引用后再发送。');
+    }
+    const block = annotationBlock(item);
+    if (!this.sent.has(ref) && this.sent.size >= SENT_CACHE) this.sent.delete(this.sent.keys().next().value!);
+    this.sent.set(ref, block);
+    // The cache keeps a restored chip sendable after the row is gone.
+    void this.store.remove(item.sessionId, item.id).then(() => {
+      this.drafts.delete(this.draftKey(item));
+      if (this.state.card?.item?.id === item.id) this.close();
+    }, (error: unknown) => console.error('清理已发送批注失败', error));
+    return block;
+  }
+
+  private composer(sessionId: string): Composer | undefined {
+    const binding = this.ctx.uiSession.adapter.current.getSnapshot();
+    if (!binding.key || binding.key !== sessionId || binding.key !== this.state.sessionId) return undefined;
+    const input = binding.hooks.input?.getSnapshot();
+    if (!binding.ctx || !input) throw new Error('输入框尚未就绪，请稍后重试。');
+    return { binding, scope: binding.ctx, input };
+  }
+
+  /** Put this annotation's chip after the composer caret; returns whether the draft carries it. */
+  attach(item: Annotation): boolean {
     try {
-      const binding = this.ctx.uiSession.adapter.current.getSnapshot();
-      if (!items.length || !binding.key || binding.key !== this.state.sessionId || items.some(item => item.sessionId !== binding.key)) return false;
+      const composer = this.composer(item.sessionId);
+      if (!composer) return false;
+      const { binding, scope, input } = composer;
+      if (attachedIds(input, binding.key).includes(item.id)) return true;
       const actions = binding.props.inputActions;
-      if (!actions) throw new Error('输入框尚未就绪，请稍后重试。');
-      const span = actions.captureInsertion();
-      // An explicit insertion uses the host's selection/revision and keeps chips and Undo.
-      const text = '\n\n' + items.map((item, index) => {
-        const source = item.source.kind === 'file' ? `文件：${item.source.path}\n` : '';
-        return `批注 ${index + 1}\n${source}${item.text.split('\n').map(line => `> ${line}`).join('\n')}`
-          + (item.note.trim() ? `\n批注：${item.note}` : '');
-      }).join('\n\n') + '\n\n';
-      if (text.length > 256_000) throw new Error('引用总量过大，请分批插入。');
-      if (this.ctx.uiSession.adapter.current.getSnapshot().key !== binding.key || !actions.insertText(text, span)) {
-        throw new Error('输入框正在更新，未插入批注；请稍后重试。');
+      if (!actions || item.number < 1) throw new Error('输入框尚未就绪，请稍后重试。');
+      if (input.phase !== 'plain' || input.claim !== undefined) throw new Error('输入框正在提交或处于命令模式，批注已保存但未附加。');
+      // Insert without replacing a selection; the revision CAS rejects stale spans.
+      const { end, draftRev } = actions.captureInsertion();
+      const applied = scope.bail(scope, 'slash/input-insert-reference', {
+        reference: annotationChip(item), span: { start: end, end, draftRev },
+      });
+      if (applied !== true) throw new Error('输入框正在更新，批注已保存但未附加；请稍后重试。');
+      return true;
+    } catch (error) { this.error(error); return false; }
+  }
+
+  /** Remove this annotation's chips from the composer; returns whether none remain. */
+  detach(item: Annotation): boolean {
+    try {
+      const composer = this.composer(item.sessionId);
+      if (!composer) return true;
+      const { binding, scope } = composer;
+      let input: InputState | undefined = composer.input;
+      for (let guard = 0; input && guard < MAX_ITEMS; guard++) {
+        const chip = input.occurrences.find(occurrence => occurrence.source === CHIP_SOURCE
+          && parseChipRef(occurrence.ref)?.id === item.id);
+        if (!chip) return true;
+        if (input.phase !== 'plain' || input.claim !== undefined) throw new Error('输入框正在提交或处于命令模式，暂时无法移除批注引用。');
+        const span = chipSpan(input, chip);
+        if (scope.bail(scope, 'slash/input-insert-text', { text: '', span: { ...span, draftRev: input.draftRev } }) !== true) {
+          throw new Error('输入框正在更新，未能移除批注引用；请稍后重试。');
+        }
+        const next = binding.hooks.input?.getSnapshot();
+        if (next?.draftRev === input.draftRev) return true;
+        input = next;
       }
-      this.patch({ error: '' });
       return true;
     } catch (error) { this.error(error); return false; }
   }
@@ -206,6 +308,9 @@ export class Controller {
     this.floating.dispose();
     this.drafts.clear();
     for (const dispose of this.disposers) dispose();
+    this.disposeInput?.();
+    this.input = undefined;
+    this.sent.clear();
     this.highlights.dispose();
     this.appearance.dispose();
     this.store.dispose();

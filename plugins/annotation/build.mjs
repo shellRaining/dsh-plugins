@@ -18,7 +18,7 @@ async function output(name, text) {
 const client = await build({
   entryPoints: [fileURLToPath(new URL('src/client.tsx', root))],
   bundle: true, write: false, format: 'cjs', platform: 'browser', target: 'es2022',
-  jsx: 'automatic', charset: 'utf8', external: ['react', 'react/jsx-runtime', 'react-dom/client'],
+  jsx: 'automatic', charset: 'utf8', external: ['react', 'react/jsx-runtime', 'react-dom/client', '@deepseek-ai/dsh-client-ui-primitives'],
 });
 await output('client.js', `${banner}window.__ModuleLoader__.load({
   id: ${JSON.stringify(pkg.name)},

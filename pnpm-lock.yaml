@@ -31,6 +31,9 @@ importers:
 
   plugins/annotation:
     devDependencies:
+      '@deepseek-ai/dsh-client-ui-primitives':
+        specifier: 0.2.1-rc.3
+        version: 0.2.1-rc.3(@deepseek-ai/cordis@4.0.5)
       '@types/react':
         specifier: 18.3.31
         version: 18.3.31

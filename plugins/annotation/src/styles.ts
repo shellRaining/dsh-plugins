@@ -33,7 +33,7 @@ export const STYLE = `
 [data-local-annotation-status] .dla-summary { flex: 1; min-width: 0; padding: 0; text-align: left; font: var(--dsw-font-xxs-12); color: var(--dsw-alias-label-tertiary); overflow-wrap: anywhere; }
 [data-local-annotation-status] .dla-preview-note { display: block; color: var(--dsw-alias-label-secondary); margin: 3px 0 0 22px; }
 [data-local-annotation-status] .dla-number { display: inline-grid; vertical-align: middle; width: 26px; height: 24px; margin-right: 6px; }
-[data-local-annotation-status] .dla-attach { margin-top: 6px; color: var(--dsw-alias-brand-text); }
+[data-local-annotation-panel] .dla-attach { color: var(--dsw-alias-brand-text); }
 [data-local-annotation-marker] { display: grid; width: 26px; height: 24px; padding: 0; border: 0; background: transparent; cursor: pointer; pointer-events: auto; -webkit-app-region: no-drag; }
 :is([data-local-annotation-marker], .dla-number, .dla-marker-sample) {
   position: relative; isolation: isolate; place-items: center; box-sizing: border-box;
@@ -55,7 +55,7 @@ export const STYLE = `
 :is([data-local-annotation-marker], .dla-number, .dla-marker-sample) > span { position: relative; padding-bottom: 2px; }
 :is([data-local-annotation-marker], .dla-number)[data-digits='3'] > span { font-size: 9px; }
 [data-local-annotation-panel] .dla-footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-top: 8px; }
-[data-local-annotation-panel] .dla-save { margin: 0; margin-left: auto; flex: none; }
+[data-local-annotation-panel] .dla-save { display: flex; gap: 4px; margin: 0; margin-left: auto; flex: none; }
 .dla-appearance { min-width: 0; flex: 1; }
 .dla-appearance summary { width: fit-content; padding: 4px 0; cursor: pointer; color: var(--dsw-alias-label-secondary); font: var(--dsw-font-xxs-12); }
 .dla-appearance summary:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }
@@ -73,4 +73,11 @@ ${STROKES.map(option => `.dla-stroke-sample[data-stroke='${option.id}'] { ${high
 .dla-custom-color input:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }
 .dla-marker-sample { display: inline-grid; width: 26px; height: 24px; }
 .dla-appearance-hint { font: var(--dsw-font-xxxs-strong-11); color: var(--dsw-alias-label-tertiary); margin: 4px 0; }
+.dla-sent-chip { margin: 0 2px; color: var(--dsw-alias-state-business-primary); font-weight: 500; cursor: default; border-radius: var(--dsw-radius-sm); }
+.dla-sent-chip:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }
+.dla-sent-card { min-width: 0; font: var(--dsw-font-xs-13); font-family: var(--dsw-font-family); color: var(--dsw-alias-label-primary); text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.dla-sent-card .dla-sent-head { display: flex; gap: 6px; align-items: baseline; min-width: 0; margin-bottom: 6px; font: var(--dsw-font-xs-strong-13); }
+.dla-sent-card .dla-sent-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsw-alias-label-tertiary); font: var(--dsw-font-xxs-12); }
+.dla-sent-card blockquote { margin: 0; padding: 4px 9px; border-left: 2px solid var(--dsw-alias-border-l2); color: var(--dsw-alias-label-tertiary); font: var(--dsw-font-xxs-12); white-space: pre-wrap; }
+.dla-sent-card p { margin: 6px 0 0; white-space: pre-wrap; }
 `;

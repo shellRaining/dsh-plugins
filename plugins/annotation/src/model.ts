@@ -3,6 +3,8 @@ export type Source = { kind: 'message'; key: string } | { kind: 'file'; url: str
 export interface Annotation {
   id: string;
   sessionId: string;
+  /** Session-local label assigned on first save; 0 only for an unsaved selection. */
+  number: number;
   text: string;
   note: string;
   source: Source;
@@ -17,6 +19,7 @@ export interface Annotation {
 export const MAX_ITEMS = 200;
 export const MAX_TEXT = 16000;
 export const MAX_NOTE = 8000;
+const MAX_NUMBER = 1_000_000;
 
 const MAX_ID = 1024;
 const MAX_SOURCE = 8192;
@@ -67,19 +70,22 @@ export function copyAnnotation(value: unknown): Annotation {
   const text = boundedString(item.text, '批注原文', MAX_TEXT, true);
   const start = item.start;
   const end = item.end;
-  const unknownPosition = start === -1 && end === -1;
-  if (!unknownPosition && (typeof start !== 'number' || typeof end !== 'number'
-    || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start)) {
-    throw new TypeError('批注位置必须是有效区间或 -1/-1');
+  if (typeof start !== 'number' || typeof end !== 'number'
+    || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start) {
+    throw new TypeError('批注位置必须是有效区间');
   }
   const createdAt = timestamp(item.createdAt, '创建时间');
   const updatedAt = timestamp(item.updatedAt, '更新时间');
   if (updatedAt < createdAt) throw new TypeError('更新时间不能早于创建时间');
+  const number = item.number;
+  if (typeof number !== 'number' || !Number.isSafeInteger(number) || number < 0 || number > MAX_NUMBER) {
+    throw new TypeError(`批注编号必须是 0 到 ${MAX_NUMBER} 之间的整数`);
+  }
   return {
-    id: annotationKey(item.id, '批注 ID'), sessionId, text,
+    id: annotationKey(item.id, '批注 ID'), sessionId, number, text,
     note: boundedString(item.note, '批注内容', MAX_NOTE),
     source: annotationSource(item.source, sessionId),
-    start: start as number, end: end as number,
+    start, end,
     before: boundedString(item.before, '前文', MAX_TEXT),
     after: boundedString(item.after, '后文', MAX_TEXT),
     createdAt, updatedAt,

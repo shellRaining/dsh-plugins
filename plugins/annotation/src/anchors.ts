@@ -98,7 +98,7 @@ export function capture(range: Range, sessionId: string): Annotation | null {
   if (!text.trim() || range.toString() !== text) return null;
   const now = Date.now();
   return {
-    id: crypto.randomUUID(), sessionId, text, note: '', source: startRoot.source, start, end,
+    id: crypto.randomUUID(), sessionId, number: 0, text, note: '', source: startRoot.source, start, end,
     before: index.text.slice(Math.max(0, start - 32), start), after: index.text.slice(end, end + 32),
     createdAt: now, updatedAt: now,
   };
@@ -114,7 +114,7 @@ export class Anchors {
     if (index === undefined) { index = indexText(root); this.indices.set(root, index); }
     if (!index) return null;
     let start = item.start;
-    if (start < 0 || index.text.slice(start, item.end) !== item.text) {
+    if (index.text.slice(start, item.end) !== item.text) {
       let found = -1;
       let from = 0;
       while (from <= index.text.length) {

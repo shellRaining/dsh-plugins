@@ -59,7 +59,10 @@ function Editor({ controller, item }: { controller: Controller; item: Annotation
       onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} />
     <footer className="dla-footer">
       <AppearancePicker controller={controller} disabled={busy} />
-      <div className="dla-save"><button type="button" disabled={busy || state.loading} onClick={() => { void run(() => controller.save(base, note)); }}>✓ {busy ? '保存中…' : '保存'}</button></div>
+      <div className="dla-save">
+        {!newItem && !state.attached.includes(item.id) ? <button type="button" className="dla-attach" disabled={busy} onClick={() => { if (controller.attach(base)) controller.close(); }}>附加到输入框</button> : null}
+        <button type="button" disabled={busy || state.loading} onClick={() => { void run(() => controller.save(base, note)); }}>✓ {busy ? '保存中…' : '保存'}</button>
+      </div>
     </footer>
     {error || state.error ? <p className="dla-error" role="alert">{error || state.error}</p> : null}
   </section>;
@@ -91,24 +94,23 @@ function AppearancePicker({ controller, disabled }: { controller: Controller; di
   </details>;
 }
 
-// Only present when the current composer has annotations; not a permanent entry button.
+// Mirrors the composer: only present while the draft carries annotation chips.
 export function ComposerStatus({ controller, sessionId }: { controller: Controller; sessionId: string }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => { setOpen(false); setError(''); }, [sessionId, state.sessionId]);
-  if (sessionId !== state.sessionId || !state.items.length) return null;
+  useEffect(() => { setOpen(false); }, [sessionId, state.sessionId]);
+  const items = state.attached.flatMap(id => state.items.filter(item => item.id === id));
+  if (sessionId !== state.sessionId || !items.length) return null;
   return <div data-local-annotation-status="" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}
     onFocus={() => setOpen(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
     onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); } }}>
-    <button type="button" className="dla-chip" aria-expanded={open} onClick={() => setOpen(value => !value)}>批注 ×{state.items.length}</button>
-    {open ? <div className="dla-preview" role="region" aria-label="已保存批注">
-      {state.items.map((item, index) => <div className="dla-preview-item" key={item.id}>
-        <button type="button" className="dla-summary" onClick={() => { setOpen(false); controller.showItem(item); }}><span className="dla-number" data-digits={String(index + 1).length}><span>{index + 1}</span></span>{brief(item.text, 100)}{item.note ? <span className="dla-preview-note">{brief(item.note, 60)}</span> : null}</button>
-        <button type="button" className="dla-icon dla-danger" aria-label={`删除批注 ${index + 1}`} onClick={() => { void controller.remove(item).catch(cause => setError(String(cause))); }}><Trash /></button>
+    <button type="button" className="dla-chip" aria-expanded={open} onClick={() => setOpen(value => !value)}>批注 ×{items.length}</button>
+    {open ? <div className="dla-preview" role="region" aria-label="本条消息附带的批注">
+      {items.map(item => <div className="dla-preview-item" key={item.id}>
+        <button type="button" className="dla-summary" onClick={() => { setOpen(false); controller.showItem(item); }}><span className="dla-number" data-digits={String(item.number).length}><span>{item.number}</span></span>{brief(item.text, 100)}{item.note ? <span className="dla-preview-note">{brief(item.note, 60)}</span> : null}</button>
+        <button type="button" className="dla-icon dla-danger" title="从本条消息移除" aria-label={`从输入框移除批注 ${item.number}`} onClick={() => { controller.detach(item); }}><Close /></button>
       </div>)}
-      <button type="button" className="dla-attach" onClick={() => { if (controller.insert(state.items)) setOpen(false); }}>附加到输入框</button>
-      {error || state.error ? <p className="dla-error" role="alert">{error || state.error}</p> : null}
+      {state.error ? <p className="dla-error" role="alert">{state.error}</p> : null}
     </div> : null}
   </div>;
 }
