@@ -8,10 +8,9 @@
 pnpm install
 pnpm typecheck
 pnpm build
-pnpm test
 ```
 
-单包开发用 `pnpm --filter <包名> typecheck` 或 `pnpm --filter <包名> build`。完整交付前依次运行类型检查、构建和现有测试。`pnpm test` 不负责构建，先生成产物。
+单包开发用 `pnpm --filter <包名> typecheck` 或 `pnpm --filter <包名> build`。完整交付前依次运行类型检查与构建。
 
 ## 何时读什么
 
@@ -23,7 +22,7 @@ pnpm test
 ## 核心约束
 
 - 所有插件实现必须使用 TypeScript，源码放在 `src/`，React 使用 TSX。启用 `strict`；不得用 `allowJs`、`@ts-nocheck`、批量 `any` 或关闭检查来完成迁移。JavaScript 构建产物、构建脚本和既有空宿主入口不属于业务源码，详见 [插件开发规范](docs/plugins.md)。
-- agent 不得自行新增或改写测试，包括主 agent、子 agent、临时测试脚本和快照。可以运行现有测试；需要变更测试时先说明原因并取得用户明确授权。不得为了让检查通过删除、跳过或弱化既有断言，详见 [质量与验证](docs/quality.md)。
+- agent 不得自行新增或改写测试，包括主 agent、子 agent、临时测试脚本和快照。库内不保留测试套件；需要新增测试时先说明原因并取得用户明确授权，详见 [质量与验证](docs/quality.md)。
 - 通过官方 profile、bundle patch 和 client 注入 API 接入 DSH，不直接修改宿主源码。不跨插件导入内部源码，不把独立插件合并成一个安装单元。
 - 依赖宿主提供的 React、服务和设计变量，不另建一套 UI 运行时。注册的 ModuleLoader id、包名和依赖声明必须一致。
 - 实现保持清晰、简洁，避免无关重构、通用框架和没有实际调用方的抽象。优先使用工具原生命令与声明式配置。

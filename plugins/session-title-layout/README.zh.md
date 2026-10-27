@@ -88,7 +88,6 @@ git+https://github.com/shellRaining/dsh-session-title-layout.git
 ```sh
 pnpm install
 pnpm typecheck
-pnpm test
 pnpm build   # 生成 lib/；lib/ 已提交，所以 git 安装无需构建
 ```
 

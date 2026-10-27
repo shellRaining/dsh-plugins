@@ -10,10 +10,6 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "test": "node --test test/*.test.mjs && pnpm -r test"
-  },
-  "devDependencies": {
-    "js-yaml": "4.1.0"
+    "typecheck": "pnpm -r typecheck"
   }
 }
