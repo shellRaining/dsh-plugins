@@ -1240,7 +1240,7 @@ function createReveal(document2, window2, modules) {
         portals.delete(portal);
         continue;
       }
-      if (portal.contains(hit)) continue;
+      if (portal.contains(hit) || portal.closest("[hidden]")) continue;
       const css = window2.getComputedStyle(portal);
       if (css.visibility === "hidden" || css.display === "none" || Number(css.opacity) === 0) continue;
       blockers.push(portal.getBoundingClientRect());
@@ -1335,16 +1335,40 @@ function createReveal(document2, window2, modules) {
   function leave(event) {
     if (!event.relatedTarget) clear();
   }
+  function collectPortals(root) {
+    let found = false;
+    if (root.matches(portalSelector)) {
+      portals.add(root);
+      found = true;
+    }
+    for (const node of root.querySelectorAll(portalSelector)) {
+      portals.add(node);
+      found = true;
+    }
+    return found;
+  }
   const observer = new window2.MutationObserver((records) => {
     let dirty = false;
     for (const record2 of records) {
-      for (const node of record2.removedNodes) if (node instanceof window2.Element && !node.hasAttribute("data-acrylic-reveal")) {
-        portals.delete(node);
-        dirty = true;
+      const target = record2.target;
+      if (!(target instanceof window2.Element) || target.closest(".xterm,.monaco-editor,[data-acrylic-reveal]")) continue;
+      if (record2.type === "attributes") {
+        const known = portals.delete(target);
+        const matches = target.matches(portalSelector);
+        if (matches) portals.add(target);
+        if (known || matches || [...portals].some((portal) => target.contains(portal))) dirty = true;
+        continue;
       }
-      for (const node of record2.addedNodes) if (node instanceof window2.Element && !node.hasAttribute("data-acrylic-reveal")) {
-        if (node.matches(portalSelector)) portals.add(node);
-        dirty = true;
+      if (target.closest(portalSelector)) dirty = true;
+      for (const node of record2.removedNodes) if (node instanceof window2.Element && !node.hasAttribute("data-acrylic-reveal")) {
+        for (const portal of portals) if (node.contains(portal)) {
+          portals.delete(portal);
+          dirty = true;
+        }
+        if ([...overlays.keys()].some((control2) => node.contains(control2))) dirty = true;
+      }
+      for (const node of record2.addedNodes) if (node instanceof window2.Element && !node.matches("[data-acrylic-reveal],.xterm,.monaco-editor")) {
+        if (collectPortals(node)) dirty = true;
       }
     }
     if (dirty) schedule();
@@ -1369,8 +1393,8 @@ function createReveal(document2, window2, modules) {
     on(window2, "resize", schedule);
     if (next) {
       sheet.toggle(true);
-      for (const node of document2.body.children) if (node.matches(portalSelector)) portals.add(node);
-      observer.observe(document2.body, { childList: true });
+      collectPortals(document2.body);
+      observer.observe(document2.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "inert", "aria-hidden", "role", POPUP_ATTRIBUTE] });
     } else {
       observer.disconnect();
       portals.clear();
@@ -1426,9 +1450,33 @@ body[data-acrylic-wallpaper][data-ds-dark-theme] { --acrylic-tint-rgb: ${TINT.da
    palette values that the frame below replaces with transparent. */
 body[data-acrylic-wallpaper] > * { ${CANVAS_RULES.keep} }
 ${FRAME2} { ${CANVAS_RULES.clear} }
-/* Opaque again: frame-hosted overlays, and the terminal, whose emulator theme
-   is resolved from this computed background and must not be transparent. */
+/* Keep terminal palette sampling opaque: the host also uses this color for
+   inverse text, selection and cursor contrast. Paint wallpaper over the fill
+   instead of feeding transparent black into the emulator's theme. */
 ${FRAME2} > [data-shell-overlay], ${FRAME2} :has(> .xterm) { ${CANVAS_RULES.restore} }
+/* Both the host padding and xterm's inline-painted scroll surface need the
+   material. clip-path clips viewport-fixed decoration without changing its
+   containing block; fixed coordinates keep it aligned with the main wallpaper.
+   Only DOM-rendered terminals are supported; never cover canvas renderers. */
+${FRAME2} :has(> .xterm .xterm-rows),
+${FRAME2} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport) {
+  isolation: isolate; clip-path: inset(0);
+}
+${FRAME2} :has(> .xterm .xterm-rows)::before,
+${FRAME2} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)::before {
+  content: ''; position: fixed; inset: var(--acrylic-terminal-inset); z-index: 0; pointer-events: none;
+  background-color: rgb(var(--acrylic-tint-rgb));
+  background-image: var(--acrylic-terminal-image); background-position: center;
+  background-size: var(--acrylic-terminal-size); background-repeat: var(--acrylic-terminal-repeat);
+  filter: blur(var(--acrylic-terminal-blur));
+}
+${FRAME2} :has(> .xterm .xterm-rows)::after,
+${FRAME2} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)::after {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: rgb(var(--acrylic-tint-rgb) / var(--acrylic-terminal-tint));
+}
+${FRAME2} :has(> .xterm .xterm-rows) > .xterm,
+${FRAME2} .xterm:has(.xterm-rows) .xterm-screen { position: relative; z-index: 1; }
 
 /* Reading surfaces (center column, docked panes) gain the same subtle tint. */
 ${FRAME2} > div:nth-child(2),
@@ -1515,10 +1563,12 @@ function createWallpaper(document2, window2) {
   const noiseUrl = createNoise(document2);
   if (noiseUrl) noise.style.backgroundImage = `url("${noiseUrl}")`;
   layer.append(image, tint, noise);
+  const terminalProperties = ["image", "size", "repeat", "inset", "blur", "tint"];
   function hide() {
     layer.remove();
     sheet.toggle(false);
     document2.body.removeAttribute(WALLPAPER_MARKER);
+    for (const name of terminalProperties) document2.body.style.removeProperty(`--acrylic-terminal-${name}`);
   }
   return {
     update(state) {
@@ -1532,6 +1582,8 @@ function createWallpaper(document2, window2) {
       layer.style.setProperty("--acrylic-blur", `${settings.blur}px`);
       layer.style.setProperty("--acrylic-tint", String(settings.tint / 100));
       layer.style.setProperty("--acrylic-noise", String(settings.noise / 100));
+      const terminal = [image.style.backgroundImage, image.style.backgroundSize, image.style.backgroundRepeat, fit === "cover" || fit === "tile" ? `${-3 * settings.blur}px` : "0px", `${settings.blur}px`, String(settings.tint / 100)];
+      terminalProperties.forEach((name, index) => document2.body.style.setProperty(`--acrylic-terminal-${name}`, terminal[index] ?? ""));
       sheet.toggle(true);
       if (!layer.isConnected) document2.body.prepend(layer);
       document2.body.setAttribute(WALLPAPER_MARKER, "");

@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-acrylic-wallpaper",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "本地静态壁纸与克制的 Acrylic 模糊、色调遮罩和噪点",
   "main": "./index.js",
@@ -17,7 +17,8 @@
   "scripts": {
     "host-tokens": "node scripts/host-tokens.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "build": "pnpm run typecheck && node build.mjs"
+    "build": "pnpm run typecheck && node build.mjs",
+    "test": "node --test test/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -27,6 +28,7 @@
     "@deepseek-ai/dsh-client-ui-theme": "0.2.1-rc.3",
     "@types/react": "18.3.31",
     "esbuild": "0.28.2",
+    "happy-dom": "20.11.6",
     "typescript": "5.9.3"
   },
   "dsh": {

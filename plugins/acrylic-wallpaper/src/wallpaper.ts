@@ -43,9 +43,33 @@ body[data-acrylic-wallpaper][data-ds-dark-theme] { --acrylic-tint-rgb: ${TINT.da
    palette values that the frame below replaces with transparent. */
 body[data-acrylic-wallpaper] > * { ${CANVAS_RULES.keep} }
 ${FRAME} { ${CANVAS_RULES.clear} }
-/* Opaque again: frame-hosted overlays, and the terminal, whose emulator theme
-   is resolved from this computed background and must not be transparent. */
+/* Keep terminal palette sampling opaque: the host also uses this color for
+   inverse text, selection and cursor contrast. Paint wallpaper over the fill
+   instead of feeding transparent black into the emulator's theme. */
 ${FRAME} > [data-shell-overlay], ${FRAME} :has(> .xterm) { ${CANVAS_RULES.restore} }
+/* Both the host padding and xterm's inline-painted scroll surface need the
+   material. clip-path clips viewport-fixed decoration without changing its
+   containing block; fixed coordinates keep it aligned with the main wallpaper.
+   Only DOM-rendered terminals are supported; never cover canvas renderers. */
+${FRAME} :has(> .xterm .xterm-rows),
+${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport) {
+  isolation: isolate; clip-path: inset(0);
+}
+${FRAME} :has(> .xterm .xterm-rows)::before,
+${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)::before {
+  content: ''; position: fixed; inset: var(--acrylic-terminal-inset); z-index: 0; pointer-events: none;
+  background-color: rgb(var(--acrylic-tint-rgb));
+  background-image: var(--acrylic-terminal-image); background-position: center;
+  background-size: var(--acrylic-terminal-size); background-repeat: var(--acrylic-terminal-repeat);
+  filter: blur(var(--acrylic-terminal-blur));
+}
+${FRAME} :has(> .xterm .xterm-rows)::after,
+${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)::after {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: rgb(var(--acrylic-tint-rgb) / var(--acrylic-terminal-tint));
+}
+${FRAME} :has(> .xterm .xterm-rows) > .xterm,
+${FRAME} .xterm:has(.xterm-rows) .xterm-screen { position: relative; z-index: 1; }
 
 /* Reading surfaces (center column, docked panes) gain the same subtle tint. */
 ${FRAME} > div:nth-child(2),
@@ -138,9 +162,11 @@ export function createWallpaper(document: Document, window: Window & typeof glob
   const noiseUrl = createNoise(document);
   if (noiseUrl) noise.style.backgroundImage = `url("${noiseUrl}")`;
   layer.append(image, tint, noise);
+  const terminalProperties = ['image', 'size', 'repeat', 'inset', 'blur', 'tint'] as const;
   function hide() {
     layer.remove(); sheet.toggle(false);
     document.body.removeAttribute(WALLPAPER_MARKER);
+    for (const name of terminalProperties) document.body.style.removeProperty(`--acrylic-terminal-${name}`);
   }
   return {
     update(state) {
@@ -155,6 +181,10 @@ export function createWallpaper(document: Document, window: Window & typeof glob
       layer.style.setProperty('--acrylic-blur', `${settings.blur}px`);
       layer.style.setProperty('--acrylic-tint', String(settings.tint / 100));
       layer.style.setProperty('--acrylic-noise', String(settings.noise / 100));
+      // Inherit the same viewport material into terminal padding and scroll
+      // surfaces without observing/mutating terminal rows or emulator options.
+      const terminal = [image.style.backgroundImage, image.style.backgroundSize, image.style.backgroundRepeat, fit === 'cover' || fit === 'tile' ? `${-3 * settings.blur}px` : '0px', `${settings.blur}px`, String(settings.tint / 100)];
+      terminalProperties.forEach((name, index) => document.body.style.setProperty(`--acrylic-terminal-${name}`, terminal[index] ?? ''));
       sheet.toggle(true);
       if (!layer.isConnected) document.body.prepend(layer);
       document.body.setAttribute(WALLPAPER_MARKER, '');

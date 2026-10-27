@@ -133,12 +133,13 @@ export function createReveal(document: Document, window: Window & typeof globalT
     const { x, y, pressed } = point;
     const hit = document.elementFromPoint(x, y);
     const rows: Row[] = [], ancestors = new Map<Element, Ancestor>();
-    // Pointer-transparent tooltips are invisible to hit tests. Track only body
-    // portals and suppress a light whose footprint would cross their content.
+    // Lights are appended to body, outside the target's stacking context.
+    // Even a small popup missed by the visibility probes must block them;
+    // pointer-transparent tooltips cannot be found by hit testing at all.
     const blockers: DOMRect[] = [];
     for (const portal of portals) {
       if (!portal.isConnected) { portals.delete(portal); continue; }
-      if (portal.contains(hit)) continue;
+      if (portal.contains(hit) || portal.closest('[hidden]')) continue;
       const css = window.getComputedStyle(portal);
       if (css.visibility === 'hidden' || css.display === 'none' || Number(css.opacity) === 0) continue;
       blockers.push(portal.getBoundingClientRect());
@@ -217,13 +218,33 @@ export function createReveal(document: Document, window: Window & typeof globalT
     point = { x: event.clientX, y: event.clientY, pressed: event.buttons === 1 }; schedule();
   }
   function leave(event: PointerEvent) { if (!event.relatedTarget) clear(); }
+  function collectPortals(root: Element): boolean {
+    let found = false;
+    if (root.matches(portalSelector)) { portals.add(root); found = true; }
+    for (const node of root.querySelectorAll(portalSelector)) { portals.add(node); found = true; }
+    return found;
+  }
   const observer = new window.MutationObserver(records => {
     let dirty = false;
     for (const record of records) {
-      for (const node of record.removedNodes) if (node instanceof window.Element && !node.hasAttribute('data-acrylic-reveal')) { portals.delete(node); dirty = true; }
-      for (const node of record.addedNodes) if (node instanceof window.Element && !node.hasAttribute('data-acrylic-reveal')) {
-        if (node.matches(portalSelector)) portals.add(node);
-        dirty = true;
+      const target = record.target;
+      // These renderers churn through rows/text continuously and cannot host
+      // reveal controls. Skip their batches before any descendant queries.
+      if (!(target instanceof window.Element) || target.closest('.xterm,.monaco-editor,[data-acrylic-reveal]')) continue;
+      if (record.type === 'attributes') {
+        const known = portals.delete(target);
+        const matches = target.matches(portalSelector);
+        if (matches) portals.add(target);
+        if (known || matches || [...portals].some(portal => target.contains(portal))) dirty = true;
+        continue;
+      }
+      if (target.closest(portalSelector)) dirty = true;
+      for (const node of record.removedNodes) if (node instanceof window.Element && !node.hasAttribute('data-acrylic-reveal')) {
+        for (const portal of portals) if (node.contains(portal)) { portals.delete(portal); dirty = true; }
+        if ([...overlays.keys()].some(control => node.contains(control))) dirty = true;
+      }
+      for (const node of record.addedNodes) if (node instanceof window.Element && !node.matches('[data-acrylic-reveal],.xterm,.monaco-editor')) {
+        if (collectPortals(node)) dirty = true;
       }
     }
     if (dirty) schedule();
@@ -248,8 +269,11 @@ export function createReveal(document: Document, window: Window & typeof globalT
     on(window, 'blur', clear); on(window, 'resize', schedule);
     if (next) {
       sheet.toggle(true);
-      for (const node of document.body.children) if (node.matches(portalSelector)) portals.add(node);
-      observer.observe(document.body, { childList: true });
+      collectPortals(document.body);
+      // React can mount a dialog inside an existing portal wrapper (annotation
+      // cards also reuse a hidden wrapper). Observe insertion and visibility,
+      // not style: our own per-frame light writes must not schedule more frames.
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'inert', 'aria-hidden', 'role', POPUP_ATTRIBUTE] });
     } else { observer.disconnect(); portals.clear(); sheet.toggle(false); clear(); }
   }
   media.forEach(query => query.addEventListener('change', reconcile));
