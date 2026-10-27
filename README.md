@@ -25,9 +25,12 @@ pnpm（v12+）monorepo，Node 20+：
 
 ```sh
 pnpm install
+pnpm typecheck # 全部插件类型检查
 pnpm build     # 全部插件构建（typecheck + esbuild/tsc）
-pnpm test      # 仓库级结构检查
+pnpm test      # 运行现有测试，需先构建
 ```
+
+所有插件业务源码使用 strict TypeScript，生成的 JavaScript 不手工维护。开发入口与约束见 [AGENTS.md](AGENTS.md)，架构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，插件规范见 [docs/plugins.md](docs/plugins.md)，验证与测试权限见 [docs/quality.md](docs/quality.md)。agent 可以运行已有测试，但不得未经用户授权新增或改写测试。
 
 ## 许可
 

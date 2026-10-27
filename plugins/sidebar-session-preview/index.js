@@ -1,3 +1,11 @@
-export const name = 'dsh-sidebar-session-preview';
-export const inject = [];
-export function apply() {}
+// Generated from TypeScript by pnpm run build.
+// src/index.ts
+var name = "dsh-sidebar-session-preview";
+var inject = [];
+function apply() {
+}
+export {
+  apply,
+  inject,
+  name
+};

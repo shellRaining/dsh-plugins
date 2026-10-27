@@ -1,35 +1,65 @@
 import { css } from './styles.js';
 import { themeConfig, sanitizeSvg } from './theme.js';
 
-export const inject = [];
+export const inject: string[] = [];
+type View = 'code' | 'diagram';
+interface MermaidRuntime {
+  initialize(config: ReturnType<typeof themeConfig>): void;
+  render(id: string, source: string): Promise<{ svg: string }>;
+}
+interface EffectContext {
+  effect(callback: () => (() => void) | undefined): unknown;
+}
+interface BlockState {
+  code: Element;
+  pre: HTMLPreElement;
+  wrapper: HTMLDivElement;
+  controls: HTMLDivElement;
+  pane: HTMLDivElement;
+  error: HTMLDivElement;
+  status: HTMLDivElement;
+  buttons: Partial<Record<View, HTMLButtonElement>>;
+  timer: number | null;
+  generation: number;
+  source: string | null;
+  revision: number;
+  view: View;
+  userChoice: View | null;
+  host: HTMLElement;
+  banner: Element | null;
+  surfaces: HTMLElement[];
+}
 const TYPES = new Set('flowchart graph sequenceDiagram classDiagram stateDiagram stateDiagram-v2 erDiagram gantt pie journey timeline mindmap gitGraph quadrantChart requirementDiagram C4Context C4Container C4Component C4Dynamic C4Deployment block-beta packet-beta architecture-beta sankey-beta xychart-beta'.split(' '));
-export function isMermaid(code) {
+export function isMermaid(code: Element) {
   if(!code.closest('pre') || code.closest('[data-dsh-mmd-owned]')) return false;
   const languages = [...code.classList].filter(name=>name.startsWith('language-'));
   if(languages.length) return languages.some(name=>/^language-(mermaid|mermaidjs|mmd)$/i.test(name));
-  return TYPES.has((code.textContent || '').trim().match(/^([\w-]+)/)?.[1]);
+  return TYPES.has((code.textContent || '').trim().match(/^([\w-]+)/)?.[1] ?? '');
 }
 const ICONS = {
   code:'<path d="m8 5-7 7 7 7m8-14 7 7-7 7m-3-18-2 22"/>',
   diagram:'<rect x="8" y="2" width="8" height="5" rx="1"/><rect x="1" y="17" width="8" height="5" rx="1"/><rect x="15" y="17" width="8" height="5" rx="1"/><path d="M12 7v5M5 17v-5h14v5"/>',
 };
 let unique = 0;
-let runtime;
+let runtime: Promise<MermaidRuntime> | null;
 function loadRuntime() {
-  return runtime ||= import('/dsh-mermaid/mermaid-runtime.js?rev=d7c361216dce').then(m=>m.default).catch(error=>{runtime=null;throw error;});
+  const url = '/dsh-mermaid/mermaid-runtime.js?rev=d7c361216dce';
+  return runtime ||= import(url).then(m=>m.default).catch(error=>{runtime=null;throw error;});
 }
 
-export function mount(document, load = loadRuntime, delay = 450) {
-  const window = document.defaultView;
+export function mount(document: Document, load: () => Promise<MermaidRuntime> = loadRuntime, delay = 450) {
+  const view = document.defaultView;
+  if (!view) throw new Error('Mermaid requires a browser document');
+  const window = view;
   let disposed = false, active = false, themeRevision = 0;
-  const states = new Map(), queue = new Set();
+  const states = new Map<Element, BlockState>(), queue = new Set<BlockState>();
   const style = document.createElement('style');
   style.dataset.plugin = 'dsh-mermaid'; style.textContent = css; document.head.append(style);
   const chinese = () => (document.documentElement.lang || window.navigator.language).toLowerCase().startsWith('zh');
-  const label = mode => chinese() ? (mode==='code'?'代码':'图形') : (mode==='code'?'Code':'Diagram');
+  const label = (mode: string) => chinese() ? (mode==='code'?'代码':'图形') : (mode==='code'?'Code':'Diagram');
   const loading = () => chinese()?'正在绘制图表…':'Rendering diagram…';
 
-  function setView(state, view) {
+  function setView(state: BlockState, view: View) {
     state.view = view;
     state.pre.toggleAttribute('data-dsh-mmd-hidden',view==='diagram');
     state.pane.hidden = view==='code';
@@ -38,22 +68,22 @@ export function mount(document, load = loadRuntime, delay = 450) {
     state.wrapper.dataset.view = view;
     for(const [mode,button] of Object.entries(state.buttons)) button.setAttribute('aria-pressed',String(view===mode));
   }
-  function localize(state) {
+  function localize(state: BlockState) {
     state.controls.setAttribute('aria-label',chinese()?'Mermaid 显示模式':'Mermaid view mode');
     for(const [mode,button] of Object.entries(state.buttons)) {
       button.title=label(mode); button.setAttribute('aria-label',label(mode));
     }
   }
-  function invalidate(state) {
-    clearTimeout(state.timer); queue.delete(state); state.generation++;
+  function invalidate(state: BlockState) {
+    window.clearTimeout(state.timer ?? undefined); queue.delete(state); state.generation++;
     // Never leave a previous source's diagram displayed during streaming.
     if(state.source !== state.code.textContent) {state.pane.replaceChildren();state.error.textContent='';setView(state,'code');}
     state.timer = window.setTimeout(()=>{state.timer=null;queue.add(state);drain();},delay);
   }
-  function valid(state,generation,source,revision) {
+  function valid(state: BlockState,generation: number,source: string,revision: number) {
     return !disposed && states.get(state.code)===state && state.code.isConnected && state.wrapper.isConnected && generation===state.generation && source===state.code.textContent && revision===themeRevision;
   }
-  async function render(state) {
+  async function render(state: BlockState) {
     const source=state.code.textContent || '', generation=state.generation, revision=themeRevision;
     if(!source.trim() || !valid(state,generation,source,revision)) return;
     if(state.source===source && state.revision===revision && state.pane.querySelector('svg')) return;
@@ -74,7 +104,7 @@ export function mount(document, load = loadRuntime, delay = 450) {
     } catch(error) {
       if(!valid(state,generation,source,revision)) return;
       state.wrapper.dataset.state='error';state.pane.replaceChildren();
-      state.error.textContent=(chinese()?'图表未能渲染，已保留源码：':'Could not render diagram; source preserved: ')+String(error?.message || error).slice(0,1000);
+      state.error.textContent=(chinese()?'图表未能渲染，已保留源码：':'Could not render diagram; source preserved: ')+String(error instanceof Error ? error.message : error).slice(0,1000);
       state.error.hidden=false;state.status.textContent=state.error.textContent;setView(state,'code');
     }
   }
@@ -83,21 +113,21 @@ export function mount(document, load = loadRuntime, delay = 450) {
     active=true;
     try {
       while(queue.size && !disposed) {
-        const state=queue.values().next().value;queue.delete(state);
+        const state=queue.values().next().value;if (!state) break;queue.delete(state);
         if(states.get(state.code)===state) await render(state);
-        await new Promise(resolve=>window.setTimeout(resolve,0));
+        await new Promise<void>(resolve=>window.setTimeout(resolve,0));
       }
     } finally {active=false;}
   }
-  function cleanup(state) {
-    clearTimeout(state.timer);state.generation++;queue.delete(state);
+  function cleanup(state: BlockState) {
+    window.clearTimeout(state.timer ?? undefined);state.generation++;queue.delete(state);
     state.pre.removeAttribute('data-dsh-mmd-hidden');state.controls.remove();state.wrapper.remove();
     for(const element of state.surfaces) element.removeAttribute('data-dsh-mmd-surface');
     state.banner?.removeAttribute('data-dsh-mmd-banner');
     state.host.removeAttribute('data-dsh-mmd-host');state.host.removeAttribute('data-dsh-mmd-view');
     states.delete(state.code);
   }
-  function mountCode(code) {
+  function mountCode(code: Element) {
     if(states.has(code) || !isMermaid(code)) return;
     const pre=code.closest('pre');if(!pre?.parentElement) return;
     const wrapper=document.createElement('div');wrapper.className='dsh-mmd';wrapper.dataset.dshMmdOwned='';
@@ -105,8 +135,8 @@ export function mount(document, load = loadRuntime, delay = 450) {
     const pane=document.createElement('div');pane.className='dsh-mmd-pane';
     const error=document.createElement('div');error.className='dsh-mmd-error';error.hidden=true;
     const status=document.createElement('div');status.className='dsh-mmd-status';status.setAttribute('role','status');
-    const state={code,pre,wrapper,controls,pane,error,status,buttons:{},timer:null,generation:0,source:null,revision:-1,view:'code',userChoice:null,host:pre.parentElement,banner:null,surfaces:[]};
-    for(const mode of ['code','diagram']) {
+    const state: BlockState={code,pre,wrapper,controls,pane,error,status,buttons:{},timer:null,generation:0,source:null,revision:-1,view:'code',userChoice:null,host:pre.parentElement,banner:null,surfaces:[]};
+    for(const mode of ['code','diagram'] as const) {
       const button=document.createElement('button');button.type='button';button.className='dsh-mmd-button';
       button.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[mode]}</svg>`;
       button.addEventListener('click',()=>{
@@ -117,7 +147,7 @@ export function mount(document, load = loadRuntime, delay = 450) {
     }
     // Hide the entire native header (wrap/copy/title), not just its contents.
     // Keep React's nodes in place; owned markers are removed on disposal.
-    let ancestor=pre.parentElement;
+    let ancestor: HTMLElement | null=pre.parentElement;
     for(let depth=0;ancestor && depth<3;depth++,ancestor=ancestor.parentElement) {
       if(ancestor.querySelectorAll('pre').length!==1) break;
       const banner=ancestor.querySelector('[data-code-block-banner]');
@@ -125,7 +155,7 @@ export function mount(document, load = loadRuntime, delay = 450) {
     }
     state.host.setAttribute('data-dsh-mmd-host','');
     state.banner?.setAttribute('data-dsh-mmd-banner','');
-    for(let element=pre.parentElement;element;element=element.parentElement) {
+    for(let element: HTMLElement | null=pre.parentElement;element;element=element.parentElement) {
       element.setAttribute('data-dsh-mmd-surface','');state.surfaces.push(element);
       if(element===state.host) break;
     }
@@ -133,15 +163,15 @@ export function mount(document, load = loadRuntime, delay = 450) {
     wrapper.append(pane,error,status);pre.before(wrapper);states.set(code,state);
     localize(state);setView(state,'code');invalidate(state);
   }
-  function discover(root) {
-    if(root.nodeType!==1 || root.closest('[data-dsh-mmd-owned]')) return;
+  function discover(root: Node) {
+    if(!(root instanceof window.Element) || root.closest('[data-dsh-mmd-owned]')) return;
     if(root.matches('pre code')) mountCode(root);
     root.querySelectorAll('pre code').forEach(mountCode);
   }
   const observer=new window.MutationObserver(records=>{
-    const changed=new Set();let removed=false;
+    const changed=new Set<Element>();let removed=false;
     for(const record of records) {
-      const element=record.target.nodeType===1?record.target:record.target.parentElement;
+      const element=record.target instanceof window.Element?record.target:record.target.parentElement;
       if(element?.closest('[data-dsh-mmd-owned]')) continue;
       const code=element?.closest('pre code');if(code) changed.add(code);
       for(const node of record.addedNodes) discover(node);
@@ -164,4 +194,4 @@ export function mount(document, load = loadRuntime, delay = 450) {
   document.querySelectorAll('pre code').forEach(mountCode);
   return ()=>{disposed=true;observer.disconnect();themeObserver.disconnect();for(const state of states.values()) cleanup(state);queue.clear();style.remove();};
 }
-export function apply(ctx) {ctx.effect(()=>typeof document==='undefined'?undefined:mount(document));}
+export function apply(ctx: EffectContext) {ctx.effect(()=>typeof document==='undefined'?undefined:mount(document));}

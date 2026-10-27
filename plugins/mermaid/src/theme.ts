@@ -1,12 +1,14 @@
 // Mermaid 11 derives additional colors from hex; resolve CSS tokens first.
-export function themeConfig(document) {
-  const window = document.defaultView;
+export function themeConfig(document: Document) {
+  const view = document.defaultView;
+  if (!view) throw new Error('Mermaid requires a browser document');
+  const window = view;
   const probe = document.createElement('span');
   probe.dataset.dshMmdOwned = '';
   probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none';
   document.body.append(probe);
   const dark = document.body.hasAttribute('data-ds-dark-theme');
-  function color(token, fallback) {
+  function color(token: string, fallback: string) {
     probe.style.color = `var(${token},${fallback})`;
     const value = window.getComputedStyle(probe).color;
     if(/^#[0-9a-f]{6}$/i.test(value)) return value;
@@ -27,11 +29,11 @@ export function themeConfig(document) {
   const fontFamily = window.getComputedStyle(document.body).fontFamily || 'sans-serif';
   probe.remove();
   return {
-    startOnLoad:false, securityLevel:'strict', suppressErrorRendering:true,
-    theme:'base', maxTextSize:50000, maxEdges:2000,
+    startOnLoad:false, securityLevel:'strict' as const, suppressErrorRendering:true,
+    theme:'base' as const, maxTextSize:50000, maxEdges:2000,
     // Keep Mermaid's default secure keys, plus theme and HTML controls.
     secure:['secure','securityLevel','startOnLoad','maxTextSize','suppressErrorRendering','maxEdges','theme','themeVariables','themeCSS','htmlLabels','flowchart'],
-    htmlLabels:false, flowchart:{htmlLabels:false,curve:'linear',nodeSpacing:36,rankSpacing:44,padding:14},
+    htmlLabels:false, flowchart:{htmlLabels:false,curve:'linear' as const,nodeSpacing:36,rankSpacing:44,padding:14},
     themeVariables:{darkMode:dark,fontFamily,fontSize:'14px',background:bg,
       primaryColor:surface,primaryTextColor:text,primaryBorderColor:border,
       secondaryColor:bg,secondaryTextColor:text,secondaryBorderColor:line,
@@ -47,14 +49,17 @@ export function themeConfig(document) {
 
 // Do not bind diagram click handlers. Remove external resources before adopting
 // the SVG. This is defense-in-depth, not a network sandbox for Mermaid itself.
-export function sanitizeSvg(document, source) {
-  const parsed = new document.defaultView.DOMParser().parseFromString(source,'image/svg+xml');
+export function sanitizeSvg(document: Document, source: string) {
+  const view = document.defaultView;
+  if (!view) throw new Error('Mermaid requires a browser document');
+  const window = view;
+  const parsed = new window.DOMParser().parseFromString(source,'image/svg+xml');
   const svg = parsed.documentElement;
   if(svg.localName !== 'svg' || parsed.querySelector('parsererror')) throw new Error('Invalid SVG');
   for(const node of svg.querySelectorAll('script,foreignObject,iframe,object,embed,image,img,audio,video')) node.remove();
   // Conservatively reject CSS escapes/imports and non-fragment URLs. This can
   // discard authored styling; it is deliberately not a complete CSS sandbox.
-  const unsafeCss = value => /\\|@import|@font-face/i.test(value) || /url\s*\(/i.test(value.replace(/url\(\s*(['"]?)#[\w:.-]+\1\s*\)/gi,''));
+  const unsafeCss = (value: string) => /\\|@import|@font-face/i.test(value) || /url\s*\(/i.test(value.replace(/url\(\s*(['"]?)#[\w:.-]+\1\s*\)/gi,''));
   for(const node of svg.querySelectorAll('style')) if(unsafeCss(node.textContent || '')) node.remove();
   for(const node of [svg,...svg.querySelectorAll('*')]) {
     for(const attr of [...node.attributes]) {

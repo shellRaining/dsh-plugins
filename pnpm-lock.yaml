@@ -62,6 +62,9 @@ importers:
       happy-dom:
         specifier: 20.11.6
         version: 20.11.6
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
 
   plugins/session-title-layout:
     devDependencies:
@@ -93,7 +96,17 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  plugins/shellraining-brand: {}
+  plugins/shellraining-brand:
+    devDependencies:
+      '@types/react':
+        specifier: 18.3.31
+        version: 18.3.31
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
 
   plugins/side-chat:
     devDependencies:
@@ -113,7 +126,14 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  plugins/sidebar-session-preview: {}
+  plugins/sidebar-session-preview:
+    devDependencies:
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
 
 packages:
 

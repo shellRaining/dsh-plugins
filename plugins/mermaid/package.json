@@ -20,9 +20,11 @@
     }
   },
   "scripts": {
-    "build": "node build.mjs"
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "pnpm run typecheck && node build.mjs"
   },
   "devDependencies": {
+    "typescript": "5.9.3",
     "esbuild": "0.28.2",
     "happy-dom": "20.11.6"
   },
