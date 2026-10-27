@@ -2,7 +2,9 @@ import { MAX_TEXT, type Annotation, type Source } from './model.ts';
 
 export const MESSAGE = '[data-chat-flow-kind="assistant-step"][data-chat-anchor-key]';
 export const FILE_TEXT = '[data-document-markdown], [data-textpreview-plain], [data-code-preview] [data-code-block-content]';
-const EXCLUDED = 'button,input,textarea,select,[contenteditable="true"],[hidden],[aria-hidden="true"],[data-turn-process-hidden="true"],[data-local-annotation-panel],[data-local-annotation-card],[data-local-annotation-toolbar],[data-local-annotation-markers],[data-local-annotation-status]';
+const EXCLUDED = 'input,textarea,select,[contenteditable="true"],[hidden],[aria-hidden="true"],[data-code-block-banner],[data-turn-process-hidden="true"],[data-local-annotation-panel],[data-local-annotation-card],[data-local-annotation-toolbar],[data-local-annotation-markers],[data-local-annotation-status]';
+const TEXT_BLOCK = 'p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,code';
+const BLOCK = `${TEXT_BLOCK},div,section,article,pre,ul,ol,table,figure`;
 const MAX_SOURCE_TEXT = 2_000_000;
 const MAX_NODES = 50_000;
 
@@ -14,9 +16,19 @@ export function sourceKey(source: Source): string {
   return source.kind === 'message' ? `message:${source.key}` : `file:${source.url}`;
 }
 
+/**
+ * UI chrome never enters a quote. A button whose nearest block is running text,
+ * such as a Markdown file link or file mention, is content; other buttons are chrome.
+ */
+function excluded(element: Element): boolean {
+  if (element.closest(EXCLUDED)) return true;
+  const button = element.closest('button');
+  return button !== null && button.parentElement?.closest(BLOCK)?.matches(TEXT_BLOCK) !== true;
+}
+
 export function sourceOf(node: Node, sessionId: string): SourceRoot | null {
   const element = node instanceof Element ? node : node.parentElement;
-  if (!element || element.closest(EXCLUDED)) return null;
+  if (!element || excluded(element)) return null;
   const file = element.closest<HTMLElement>(FILE_TEXT);
   if (file) {
     const preview = file.closest('[data-textpreview-state="text"][data-textpreview-url]');
@@ -31,7 +43,7 @@ export function sourceOf(node: Node, sessionId: string): SourceRoot | null {
     } catch { return null; }
   }
   const root = element.closest<HTMLElement>(MESSAGE);
-  if (!root || root.dataset.chatGroupPart === 'reasoning' || root.closest(EXCLUDED)) return null;
+  if (!root || root.dataset.chatGroupPart === 'reasoning' || excluded(root)) return null;
   if (root.closest('[data-conversation-session]')?.getAttribute('data-conversation-session') !== sessionId) return null;
   return { root, source: { kind: 'message', key: root.dataset.chatAnchorKey! } };
 }
@@ -49,7 +61,7 @@ export function findRoot(source: Source, sessionId: string): HTMLElement | null 
 
 function indexText(root: HTMLElement): TextIndex | null {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: node => node.parentElement?.closest(EXCLUDED) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+    acceptNode: node => node.parentElement && excluded(node.parentElement) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
   });
   const segments: Segment[] = [];
   const parts: string[] = [];
@@ -94,8 +106,9 @@ export function capture(range: Range, sessionId: string): Annotation | null {
   const start = offsetAt(index, range.startContainer, range.startOffset);
   const end = offsetAt(index, range.endContainer, range.endOffset);
   if (end <= start || end - start > MAX_TEXT) throw new Error(`每条引文最多 ${MAX_TEXT} 个字符。`);
+  // The quote is the indexed text, so chrome inside the selection (code block banners) stays out of it.
   const text = index.text.slice(start, end);
-  if (!text.trim() || range.toString() !== text) return null;
+  if (!text.trim()) return null;
   const now = Date.now();
   return {
     id: crypto.randomUUID(), sessionId, number: 0, text, note: '', source: startRoot.source, start, end,

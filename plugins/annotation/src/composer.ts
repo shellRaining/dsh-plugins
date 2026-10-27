@@ -102,7 +102,11 @@ export const annotationRule = {
       const close = text.indexOf(CLOSE, body);
       if (close < 0) return undefined;
       const data = parseBlock(text.slice(body, close), Number(head[1]));
-      if (data) return { id: CHIP_SOURCE, start: head.index, end: close + CLOSE.length, data };
+      if (!data) continue;
+      // The block's own surrounding newlines exist for the model; the bubble keeps the chip inline as in the composer.
+      const start = head.index > from && text.charAt(head.index - 1) === '\n' ? head.index - 1 : head.index;
+      const end = close + CLOSE.length + (text.charAt(close + CLOSE.length) === '\n' ? 1 : 0);
+      return { id: CHIP_SOURCE, start, end, data };
     }
     return undefined;
   },

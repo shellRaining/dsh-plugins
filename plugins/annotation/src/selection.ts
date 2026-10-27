@@ -87,7 +87,9 @@ export function installSelection(
       const selected = range.cloneRange();
       const item = capture(selected, sessionId);
       hide();
-      if (item) { window.getSelection()?.removeAllRanges(); onSelect(item, selected); }
+      if (!item) throw new Error('这段选区无法批注，请只选择同一条回复或同一个文件里的正文。');
+      window.getSelection()?.removeAllRanges();
+      onSelect(item, selected);
     } catch (error) { hide(); onError(error); }
   }, { signal });
   return { hide, dispose() { hide(); events.abort(); toolbar.remove(); } };
