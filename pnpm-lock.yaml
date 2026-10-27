@@ -51,30 +51,6 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  plugins/kit:
-    dependencies:
-      '@shellraining/dsh-acrylic-wallpaper':
-        specifier: workspace:*
-        version: link:../acrylic-wallpaper
-      '@shellraining/dsh-inline-code-copy':
-        specifier: workspace:*
-        version: link:../inline-code-copy
-      '@shellraining/dsh-local-annotation':
-        specifier: workspace:*
-        version: link:../annotation
-      '@shellraining/dsh-mermaid':
-        specifier: workspace:*
-        version: link:../mermaid
-      '@shellraining/dsh-session-title-layout':
-        specifier: workspace:*
-        version: link:../session-title-layout
-      '@shellraining/dsh-side-chat':
-        specifier: workspace:*
-        version: link:../side-chat
-      '@shellraining/dsh-sidebar-session-preview':
-        specifier: workspace:*
-        version: link:../sidebar-session-preview
-
   plugins/mermaid:
     devDependencies:
       esbuild:

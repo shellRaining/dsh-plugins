@@ -1,14 +1,6 @@
 # dsh-plugins · shellRaining 的 DSH 插件集
 
-[DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 插件合集：壁纸、批注、侧边会话、Mermaid 渲染、会话标题版式等。全部走官方 profile 机制挂载，不改 DSH 源码；可以一条命令装齐，也可以按需单个安装。
-
-## 一键装齐
-
-```sh
-dsh plugin --profile web add @shellraining/dsh-kit
-```
-
-聚合包 `@shellraining/dsh-kit` 会挂载下表除 brand 外的全部插件（brand 会替换 UI 品牌，保持单独安装）。重启 `dsh web` 生效。
+[DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 插件合集：壁纸、批注、侧边会话、Mermaid 渲染、会话标题版式等。全部走官方 profile 机制挂载，不改 DSH 源码；按需单独安装。
 
 ## 插件索引
 

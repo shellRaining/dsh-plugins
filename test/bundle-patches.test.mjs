@@ -7,7 +7,15 @@ const plugins = new URL('../plugins/', import.meta.url);
 for (const entry of await readdir(plugins, { withFileTypes: true })) {
   if (!entry.isDirectory()) continue;
   const root = new URL(`${entry.name}/`, plugins);
-  const manifest = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
+  let source;
+  try {
+    source = await readFile(new URL('package.json', root), 'utf8');
+  } catch (error) {
+    // Removed workspaces can leave an untracked node_modules directory behind.
+    if (error.code === 'ENOENT') continue;
+    throw error;
+  }
+  const manifest = JSON.parse(source);
   const patch = manifest.dsh?.bundle?.patch;
   if (patch === undefined) continue;
   for (const filename of Array.isArray(patch) ? patch : [patch]) {
