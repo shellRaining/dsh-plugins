@@ -26,7 +26,7 @@ pnpm（v12+）monorepo，Node 20+：
 ```sh
 pnpm install
 pnpm build     # 全部插件构建（typecheck + esbuild/tsc）
-pnpm test      # mermaid / session-title-layout 单元测试
+pnpm test      # 仓库级结构检查
 ```
 
 ## 许可

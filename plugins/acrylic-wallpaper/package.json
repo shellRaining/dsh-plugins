@@ -17,8 +17,7 @@
   "scripts": {
     "host-tokens": "node scripts/host-tokens.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "build": "pnpm run typecheck && node build.mjs",
-    "test": "node --test test/*.test.mjs"
+    "build": "pnpm run typecheck && node build.mjs"
   },
   "engines": {
     "node": ">=20"
