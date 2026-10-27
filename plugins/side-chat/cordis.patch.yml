@@ -1,0 +1,3 @@
+- insert:
+    - id: side-chat
+      name: @shellraining/dsh-side-chat

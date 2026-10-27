@@ -1,0 +1,42 @@
+# dsh-plugins · shellRaining 的 DSH 插件集
+
+[DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 插件合集：壁纸、批注、侧边会话、Mermaid 渲染、会话标题版式等。全部走官方 profile 机制挂载，不改 DSH 源码；可以一条命令装齐，也可以按需单个安装。
+
+## 一键装齐
+
+```sh
+dsh plugin --profile web add @shellraining/dsh-kit
+```
+
+聚合包 `@shellraining/dsh-kit` 会挂载下表除 brand 外的全部插件（brand 会替换 UI 品牌，保持单独安装）。重启 `dsh web` 生效。
+
+## 插件索引
+
+| 插件 | 功能 | 安装 |
+| --- | --- | --- |
+| [@shellraining/dsh-acrylic-wallpaper](plugins/acrylic-wallpaper) | 本地静态壁纸 + 克制的 Acrylic 模糊、色调遮罩和噪点 | `dsh plugin --profile web add @shellraining/dsh-acrylic-wallpaper` |
+| [@shellraining/dsh-local-annotation](plugins/annotation) | 原生高亮、就地批注卡片与显式引用插入（IndexedDB 本地存储） | `dsh plugin --profile web add @shellraining/dsh-local-annotation` |
+| [@shellraining/dsh-side-chat](plugins/side-chat) | 右侧边栏派生当前会话的临时对话，可真实修改工作区文件，不污染主会话 | `dsh plugin --profile web add @shellraining/dsh-side-chat` |
+| [@shellraining/dsh-mermaid](plugins/mermaid) | Mermaid 代码/图表双视图渲染（fork 自 [MrmoLabs/dsh-mermaid](https://github.com/MrmoLabs/dsh-mermaid)，集成主题与设计变量） | `dsh plugin --profile web add @shellraining/dsh-mermaid` |
+| [@shellraining/dsh-session-title-layout](plugins/session-title-layout) | 会话标题版式定制：`<type>：<摘要>`，可配分隔符与摘要语言 | `dsh plugin --profile web add @shellraining/dsh-session-title-layout` |
+| [@shellraining/dsh-sidebar-session-preview](plugins/sidebar-session-preview) | 侧栏会话悬浮预览 | `dsh plugin --profile web add @shellraining/dsh-sidebar-session-preview` |
+| [@shellraining/dsh-inline-code-copy](plugins/inline-code-copy) | 点击助手输出中的行内代码即复制 | `dsh plugin --profile web add @shellraining/dsh-inline-code-copy` |
+| [@shellraining/dsh-brand](plugins/shellraining-brand) | 个人品牌层：替换侧栏与 Hero 的 logo/产品名。fork 它换成你自己的品牌 | `dsh plugin --profile web add @shellraining/dsh-brand` |
+
+## 兼容性
+
+插件按 DSH `0.2.1-rc.x`（`@deepseek-ai/dsh-client-ui-* 0.2.1-rc.3`）开发与验证；DSH 的 client 注入 API 仍在 rc 阶段，升级 DSH 后如插件报 token 缺失，等待本仓库适配即可。
+
+## 开发
+
+pnpm（v12+）monorepo，Node 20+：
+
+```sh
+pnpm install
+pnpm build     # 全部插件构建（typecheck + esbuild/tsc）
+pnpm test      # mermaid / session-title-layout 单元测试
+```
+
+## 许可
+
+MIT。`plugins/mermaid` 基于 [MrmoLabs/dsh-mermaid](https://github.com/MrmoLabs/dsh-mermaid)（MIT，Mrmo072），沿用其许可并保留署名。

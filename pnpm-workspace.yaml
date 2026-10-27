@@ -1,0 +1,5 @@
+packages:
+  - "plugins/*"
+allowBuilds:
+  # The platform binary arrives as an optional dependency; the install script is not needed.
+  esbuild: false

@@ -1,0 +1,38 @@
+{
+  "name": "@shellraining/dsh-sidebar-session-preview",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  },
+  "description": "Hover preview of sessions in the DSH sidebar",
+  "license": "MIT",
+  "author": "shellRaining",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shellRaining/dsh-plugins.git",
+    "directory": "plugins/sidebar-session-preview"
+  },
+  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/sidebar-session-preview#readme",
+  "bugs": "https://github.com/shellRaining/dsh-plugins/issues",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "@shellraining/dsh-acrylic-wallpaper",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "本地静态壁纸与克制的 Acrylic 模糊、色调遮罩和噪点",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml"
+  ],
+  "scripts": {
+    "host-tokens": "node scripts/host-tokens.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "pnpm run typecheck && node build.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-theme": "0.2.1-rc.3",
+    "@types/react": "18.3.31",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-theme"
+      ]
+    }
+  },
+  "license": "MIT",
+  "author": "shellRaining",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shellRaining/dsh-plugins.git",
+    "directory": "plugins/acrylic-wallpaper"
+  },
+  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/acrylic-wallpaper#readme",
+  "bugs": "https://github.com/shellRaining/dsh-plugins/issues",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

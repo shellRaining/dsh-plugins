@@ -1,0 +1,49 @@
+{
+  "name": "@shellraining/dsh-mermaid",
+  "version": "0.5.0",
+  "description": "Token-driven Mermaid code/diagram views for DSH, based on MrmoLabs/dsh-mermaid.",
+  "type": "module",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "happy-dom": "20.11.6"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "author": "shellRaining",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shellRaining/dsh-plugins.git",
+    "directory": "plugins/mermaid"
+  },
+  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/mermaid#readme",
+  "bugs": "https://github.com/shellRaining/dsh-plugins/issues",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

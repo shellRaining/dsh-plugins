@@ -1,0 +1,9 @@
+# DSH allows one asynchronous session-title provider at a time, so the
+# shipped model-backed provider is switched off in favour of this one.
+- id: session-title-llm
+  disabled: true
+
+- insert:
+    - id: session-title-layout
+      name: @shellraining/dsh-session-title-layout
+      config: {}

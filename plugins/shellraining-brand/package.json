@@ -1,0 +1,39 @@
+{
+  "name": "@shellraining/dsh-brand",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  },
+  "description": "Personal brand layer (logo, product name) for the DSH web UI; fork it to apply your own brand",
+  "license": "MIT",
+  "author": "shellRaining",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shellRaining/dsh-plugins.git",
+    "directory": "plugins/shellraining-brand"
+  },
+  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/shellraining-brand#readme",
+  "bugs": "https://github.com/shellRaining/dsh-plugins/issues",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

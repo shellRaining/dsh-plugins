@@ -1,0 +1,42 @@
+{
+  "name": "@shellraining/dsh-kit",
+  "version": "0.1.0",
+  "description": "Aggregate installer for the shellRaining DSH plugin family: one bundle patch mounts every plugin (brand stays opt-in).",
+  "keywords": [
+    "dsh",
+    "deepseek",
+    "deepseek-harness",
+    "dsh-plugin",
+    "aggregate",
+    "bundle"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "author": "shellRaining",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shellRaining/dsh-plugins.git",
+    "directory": "plugins/kit"
+  },
+  "homepage": "https://github.com/shellRaining/dsh-plugins#readme",
+  "bugs": "https://github.com/shellRaining/dsh-plugins/issues",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "engines": { "node": ">=20" },
+  "publishConfig": { "access": "public" },
+  "dependencies": {
+    "@shellraining/dsh-acrylic-wallpaper": "workspace:*",
+    "@shellraining/dsh-inline-code-copy": "workspace:*",
+    "@shellraining/dsh-local-annotation": "workspace:*",
+    "@shellraining/dsh-mermaid": "workspace:*",
+    "@shellraining/dsh-session-title-layout": "workspace:*",
+    "@shellraining/dsh-side-chat": "workspace:*",
+    "@shellraining/dsh-sidebar-session-preview": "workspace:*"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  }
+}
