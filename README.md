@@ -13,7 +13,7 @@
 | [@shellraining/dsh-session-title-layout](plugins/session-title-layout) | 会话标题版式定制：`<type>：<摘要>`，可配分隔符与摘要语言 | `dsh plugin --profile web add @shellraining/dsh-session-title-layout` |
 | [@shellraining/dsh-sidebar-session-preview](plugins/sidebar-session-preview) | 侧栏会话悬浮预览 | `dsh plugin --profile web add @shellraining/dsh-sidebar-session-preview` |
 | [@shellraining/dsh-inline-code-copy](plugins/inline-code-copy) | 点击助手输出中的行内代码即复制 | `dsh plugin --profile web add @shellraining/dsh-inline-code-copy` |
-| [@shellraining/dsh-plugin-updates](plugins/plugin-updates) | 插件页的「更新」标签：检查 npm 来源插件的新版本，一键更新或安装指定版本 | `dsh plugin --profile web add @shellraining/dsh-plugin-updates` |
+| [@shellraining/dsh-plugin-updates](plugins/plugin-updates) | 在插件页检查 npm 来源插件的新版本，一键更新或安装指定版本 | `dsh plugin --profile web add @shellraining/dsh-plugin-updates` |
 | [@shellraining/dsh-brand](plugins/shellraining-brand) | 个人品牌层：替换侧栏与 Hero 的 logo/产品名。fork 它换成你自己的品牌 | `dsh plugin --profile web add @shellraining/dsh-brand` |
 
 ## 兼容性

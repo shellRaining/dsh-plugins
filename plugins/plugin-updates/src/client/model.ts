@@ -55,10 +55,7 @@ export interface Operation {
 
 export interface UpdatesState {
   readonly status: 'idle' | 'loading' | 'ready' | 'error';
-  readonly error?: string;
   readonly candidates: readonly Candidate[];
-  /** Installed bundles that are not npm-installed, so not checked. */
-  readonly skipped: number;
   readonly lookups: Readonly<Record<string, Lookup>>;
   readonly operation?: Operation | undefined;
 }
@@ -114,7 +111,7 @@ function runtimeVersion(ctx: ClientContext): string | undefined {
 }
 
 export class UpdatesStore implements Source<UpdatesState> {
-  private state: UpdatesState = { status: 'idle', candidates: [], skipped: 0, lookups: {} };
+  private state: UpdatesState = { status: 'idle', candidates: [], lookups: {} };
   private readonly listeners = new Set<() => void>();
   private generation = 0;
   private disposed = false;
@@ -145,26 +142,23 @@ export class UpdatesStore implements Source<UpdatesState> {
     this.patch({ lookups: { ...this.state.lookups, [name]: lookup } });
   }
 
-  /** A page opened: read the list the first time, and again once a lookup is older than the cache. */
+  /** A page opened: read the list the first time, after a failure, and once a lookup is older than the cache. */
   readonly ensure = (): void => {
     const now = Date.now();
     const stale = Object.values(this.state.lookups).some(lookup => lookup.status === 'ready' && now - lookup.at > CACHE_MS);
-    if (this.state.status === 'idle' || (this.state.status === 'ready' && stale)) void this.load(false);
+    if (this.state.status === 'idle' || this.state.status === 'error' || (this.state.status === 'ready' && stale)) void this.load();
   };
-
-  /** Re-read the list and every lookup. */
-  readonly refresh = (): void => { void this.load(true); };
 
   /** Re-read the list after a Host change; lookups stay cached. */
   readonly bundlesChanged = (): void => {
-    if (this.state.status !== 'idle') void this.load(false);
+    if (this.state.status !== 'idle') void this.load();
   };
 
-  private async load(force: boolean): Promise<void> {
+  private async load(): Promise<void> {
     const generation = ++this.generation;
     this.patch({ status: this.state.status === 'ready' ? 'ready' : 'loading' });
     const pm = this.ctx.remote.pluginManager;
-    if (force || this.registries === undefined) {
+    if (this.registries === undefined) {
       const [registries, exemptions] = await Promise.all([pm.registries(), pm.listVersionExemptions()]);
       if (registries.ok) {
         const first = registries.value.registry ?? registries.value.resolved ?? DEFAULT_REGISTRY;
@@ -175,7 +169,7 @@ export class UpdatesStore implements Source<UpdatesState> {
     const listed = await pm.listBundles();
     if (generation !== this.generation) return;
     if (!listed.ok) {
-      this.patch({ status: 'error', error: listed.error.message });
+      this.patch({ status: 'error' });
       return;
     }
     const resolve = (text: string | Readonly<Record<string, string>> | undefined): string | undefined =>
@@ -191,13 +185,12 @@ export class UpdatesStore implements Source<UpdatesState> {
         ...icon === undefined ? {} : { icon },
       };
     }).sort((a, b) => a.title.localeCompare(b.title));
-    const others = listed.value.filter(bundle => bundle.installed && !bundle.official && bundle.availability === 'profile');
-    this.patch({ status: 'ready', candidates, skipped: others.length - npm.length });
+    this.patch({ status: 'ready', candidates });
     const now = Date.now();
     for (const candidate of candidates) {
       const lookup = this.state.lookups[candidate.name];
       const stale = lookup === undefined || lookup.status === 'error' || (lookup.status === 'ready' && now - lookup.at > CACHE_MS);
-      if (force || stale) void this.lookup(candidate.name);
+      if (stale) void this.lookup(candidate.name);
     }
   }
 

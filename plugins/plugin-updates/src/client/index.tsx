@@ -1,12 +1,12 @@
-// Client entry: an "Updates" tab on the Plugins page plus a badge, an update
-// action and a version list on each npm-installed plugin's detail page. All
-// package operations go through the host's plugin manager.
+// Client entry: update buttons on the Plugins page's installed list, plus a
+// badge, an update action and a version list on each npm-installed plugin's
+// detail page. All package operations go through the host's plugin manager.
 import type { ComponentType } from 'react';
 import type { ClientContext, DetailSubject, UseSource } from './host.ts';
 import { EN, LOCALE_NS, ZH } from './locale.ts';
 import { UpdatesStore, type UpdatesState } from './model.ts';
 import { installStyle } from './styles.ts';
-import { DetailAction, DetailBadge, DetailSection, ListControls, OperationToast, UpdatesTab, type Actions } from './view.tsx';
+import { DetailAction, DetailBadge, DetailSection, ListControls, OperationToast, type Actions } from './view.tsx';
 
 export const name = '@shellraining/dsh-plugin-updates';
 export const inject = ['slots', 'locale', 'remote', 'remote.pluginManager'];
@@ -34,7 +34,6 @@ export function apply(ctx: ClientContext): void {
     hooks: { updates: store },
     actions: {
       ensure: store.ensure,
-      refresh: store.refresh,
       install: store.install,
       updateAll: store.updateAll,
       restore: store.restore,
@@ -42,14 +41,6 @@ export function apply(ctx: ClientContext): void {
       toastDone: store.toastDone,
     },
   };
-  ctx.slots.inject('plugins.tab', () => ctx.slots.register({
-    name: 'plugins.tab',
-    id: 'updates',
-    order: 10,
-    label: () => t('tab'),
-    locale: LOCALE_NS,
-    inject: () => face,
-  }, UpdatesTab as Bound<{ readonly openPackage: (name: string) => void }>));
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',
     id: 'plugin-updates.toast',

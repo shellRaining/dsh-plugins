@@ -1,7 +1,8 @@
-// React views for the Updates tab and the three plugin-detail slots. All
-// controls are host primitives; the plugin owns no popups.
-import { Button, PluginArtworkDefault, Tag, Toast, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives';
-import { IconDownloadOutlineRegular, IconRefreshOutlineRegular, IconWarningOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
+// React views: update controls on the Plugins page's installed list, the
+// three plugin-detail slots and the outcome toast. All controls are host
+// primitives; the plugin owns no popups.
+import { Button, Tag, Toast, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconDownloadOutlineRegular, IconWarningOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { NO_ANCHORS, watchAnchors, type Anchors } from './anchors.ts';
@@ -10,7 +11,6 @@ import { isBusy, SELF, updateTarget, type Candidate, type Lookup, type Operation
 
 export interface Actions {
   readonly ensure: () => void;
-  readonly refresh: () => void;
   readonly install: (name: string, version: string) => Promise<boolean>;
   readonly updateAll: () => Promise<void>;
   readonly restore: () => Promise<void>;
@@ -34,24 +34,6 @@ function selfCommand(version: string): string {
 
 function dateText(stamp: number | undefined): string {
   return stamp === undefined ? '' : new Date(stamp).toLocaleDateString();
-}
-
-function Artwork({ src }: { readonly src: string | undefined }): ReactNode {
-  const [broken, setBroken] = useState(false);
-  return (
-    <span className="dpu-icon" aria-hidden="true">
-      {src === undefined || broken ? <PluginArtworkDefault size={28} /> : <img src={src} alt="" onError={() => setBroken(true)} />}
-    </span>
-  );
-}
-
-function StatusTag({ t, candidate, lookup }: { readonly t: Translate; readonly candidate: Candidate; readonly lookup: Lookup | undefined }): ReactNode {
-  if (lookup === undefined || lookup.status === 'loading') return <Tag tone="quiet">{t('status.checking')}</Tag>;
-  if (lookup.status === 'error') return <Tag tone="warning">{t('status.failed')}</Tag>;
-  const target = updateTarget(candidate, lookup);
-  return target === undefined
-    ? <Tag tone="quiet">{t('status.latest')}</Tag>
-    : <Tag tone="info">{t('status.update', { version: target })}</Tag>;
 }
 
 function SelfNotice({ t, version }: { readonly t: Translate; readonly version: string }): ReactNode {
@@ -126,78 +108,6 @@ function OperationBanner({ t, operation, actions }: { readonly t: Translate; rea
   );
 }
 
-interface TabProps extends Shared {
-  readonly openPackage: (name: string) => void;
-}
-
-export function UpdatesTab({ t, useUpdates, actions, openPackage }: TabProps): ReactNode {
-  const state = useUpdates(snapshot => snapshot);
-  useEffect(() => { actions.ensure(); }, [actions]);
-  const busy = isBusy(state.operation);
-  const lookups = Object.values(state.lookups);
-  const checking = state.status === 'loading' || lookups.some(lookup => lookup.status === 'loading');
-  const outdated = state.candidates.filter(item => updateTarget(item, state.lookups[item.name]) !== undefined);
-  const pending = outdated.filter(item => item.name !== SELF);
-  const self = outdated.find(item => item.name === SELF);
-  const selfTarget = self === undefined ? undefined : updateTarget(self, state.lookups[SELF]);
-  let summary: string;
-  if (state.status === 'idle' || (state.status === 'loading' && state.candidates.length === 0)) summary = t('summary.loading');
-  else if (state.candidates.length === 0) summary = t('summary.empty');
-  else if (outdated.length > 0) summary = t('summary.some', { count: outdated.length });
-  else summary = checking ? t('summary.loading') : t('summary.none');
-  return (
-    <section className="dpu-tab" aria-busy={checking}>
-      <div className="dpu-head">
-        <span className="dpu-summary" role="status">{summary}</span>
-        <Button size="sm" variant="outline" icon={<IconRefreshOutlineRegular size={13} />} disabled={checking || busy} onClick={actions.refresh}>
-          {t('refresh')}
-        </Button>
-        {pending.length > 0
-          ? <Button size="sm" variant="primary" disabled={busy} onClick={() => { void actions.updateAll(); }}>{t('updateAll')}</Button>
-          : null}
-      </div>
-      {state.operation === undefined ? null : <OperationBanner t={t} operation={state.operation} actions={actions} />}
-      {state.status === 'error' ? (
-        <div className="dpu-banner" data-tone="error" role="alert">
-          <div className="dpu-banner-row">
-            <span>{t('loadFailed', { reason: state.error ?? '' })}</span>
-            <Button size="sm" variant="outline" onClick={actions.refresh}>{t('retry')}</Button>
-          </div>
-        </div>
-      ) : null}
-      <ul className="dpu-list">
-        {state.candidates.map(candidate => {
-          const lookup = state.lookups[candidate.name];
-          const target = updateTarget(candidate, lookup);
-          return (
-            <li key={candidate.name} className="dpu-card" data-plugin-updates-package={candidate.name}>
-              <Artwork src={candidate.icon} />
-              <div className="dpu-main">
-                <div className="dpu-name-row">
-                  <button type="button" className="dpu-name" title={candidate.name} onClick={() => openPackage(candidate.name)}>{candidate.title}</button>
-                  <StatusTag t={t} candidate={candidate} lookup={lookup} />
-                </div>
-                <span className="dpu-meta">
-                  <span className="dpu-mono">{target === undefined ? candidate.version : t('version.arrow', { from: candidate.version, to: target })}</span>
-                  {lookup?.status === 'error' ? ` · ${lookup.reason}` : ''}
-                </span>
-              </div>
-              <div className="dpu-end">
-                {target !== undefined && candidate.name !== SELF
-                  ? <Button size="sm" variant="outline" icon={<IconDownloadOutlineRegular size={13} />} disabled={busy} onClick={() => { void actions.install(candidate.name, target); }}>{t('update')}</Button>
-                  : null}
-                <Button size="sm" variant="ghost" onClick={() => openPackage(candidate.name)}>{t('details')}</Button>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      {state.skipped > 0 ? <span className="dpu-caption">{t('summary.skipped', { count: state.skipped })}</span> : null}
-      {selfTarget === undefined ? null : <SelfNotice t={t} version={selfTarget} />}
-    </section>
-  );
-}
-
 interface DetailProps extends Shared {
   readonly subject: DetailSubject;
 }
@@ -264,7 +174,7 @@ export function DetailSection(props: DetailProps): ReactNode {
   const self = candidate.name === SELF;
   const target = updateTarget(candidate, lookup);
   let body: ReactNode;
-  if (lookup === undefined || lookup.status === 'loading') body = <span className="dpu-caption">{t('summary.loading')}</span>;
+  if (lookup === undefined || lookup.status === 'loading') body = <span className="dpu-caption">{t('versions.loading')}</span>;
   else if (lookup.status === 'error') body = <span className="dpu-error">{t('versions.failed', { reason: lookup.reason })}</span>;
   else if (lookup.versions.length === 0) body = <span className="dpu-caption">{t('versions.empty')}</span>;
   else {
