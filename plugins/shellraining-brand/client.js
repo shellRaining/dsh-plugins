@@ -49,6 +49,7 @@ var FONT_STACK = '"VictorMono Nerd Font", "Victor Mono", "JetBrainsMono Nerd Fon
 var CYCLE_MS = 7e3;
 var DRAW_SHARE = 0.42;
 var DRAW_END = 0.42;
+var FRAME_RATE = 30;
 var GLYPH_DATA = {
   upem: 1100,
   ink: [-3, -206, 7166, 859],
@@ -335,6 +336,59 @@ function ShellRainingWordmark({ size, hero }) {
     }
     setDrawKey(1);
   }, []);
+  React.useEffect(() => {
+    const node = ref.current;
+    if (drawKey !== 1 || node === null) return;
+    const interval = 1e3 / FRAME_RATE;
+    let animations = [];
+    let timer;
+    let playhead = 0;
+    let origin = 0;
+    let onScreen = true;
+    const seek = () => {
+      playhead = performance.now() - origin;
+      for (const animation of animations) {
+        animation.currentTime = playhead;
+      }
+    };
+    const tick = () => {
+      seek();
+      timer = setTimeout(tick, interval - playhead % interval);
+    };
+    const stop = () => {
+      if (timer !== void 0) {
+        clearTimeout(timer);
+        timer = void 0;
+      }
+    };
+    const sync = () => {
+      stop();
+      animations = node.getAnimations({ subtree: true });
+      for (const animation of animations) {
+        animation.pause();
+      }
+      if (animations.length === 0 || document.hidden || !onScreen) return;
+      origin = performance.now() - playhead;
+      tick();
+    };
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const observer = typeof IntersectionObserver === "function" ? new IntersectionObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      if (entry === void 0) return;
+      onScreen = entry.isIntersecting;
+      sync();
+    }) : void 0;
+    document.addEventListener("visibilitychange", sync);
+    motion.addEventListener("change", sync);
+    observer?.observe(node);
+    sync();
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", sync);
+      motion.removeEventListener("change", sync);
+      observer?.disconnect();
+    };
+  }, [drawKey]);
   const children = GLYPH_DATA.glyphs.map(
     (d, i) => h("g", { key: i }, [
       h("path", { key: "f", className: "sr-fill", d }),
