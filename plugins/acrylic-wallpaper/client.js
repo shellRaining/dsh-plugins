@@ -579,9 +579,9 @@ var FLUENT_SHAPE = Object.freeze({
 
 // src/elevation.ts
 var ramp = (alpha, [y1, b1], [y2, b2]) => `0 ${y1}px ${b1}px 0 rgb(0 0 0 / ${alpha[0]}), 0 ${y2}px ${b2}px 0 rgb(0 0 0 / ${alpha[1]})`;
-var depth = (strong, ...geometry) => Object.freeze({
-  light: ramp(strong ? [0.22, 0.18] : [0.132, 0.108], ...geometry),
-  dark: ramp(strong ? [0.44, 0.36] : [0.264, 0.216], ...geometry)
+var depth = (strong, ...geometry2) => Object.freeze({
+  light: ramp(strong ? [0.22, 0.18] : [0.132, 0.108], ...geometry2),
+  dark: ramp(strong ? [0.44, 0.36] : [0.264, 0.216], ...geometry2)
 });
 var DEPTH = Object.freeze({
   4: depth(false, [1.6, 3.6], [0.3, 0.9]),
@@ -932,14 +932,14 @@ function ghostBackings(view, template, root) {
     return clone;
   });
 }
-function slideFrom(rect, point) {
+function slideFrom(rect, point2) {
   const slack = 4;
   let direction = [0, 1];
-  if (point) {
-    if (rect.top >= point.y - slack) direction = [0, 1];
-    else if (rect.bottom <= point.y + slack) direction = [0, -1];
-    else if (rect.left >= point.x - slack) direction = [1, 0];
-    else if (rect.right <= point.x + slack) direction = [-1, 0];
+  if (point2) {
+    if (rect.top >= point2.y - slack) direction = [0, 1];
+    else if (rect.bottom <= point2.y + slack) direction = [0, -1];
+    else if (rect.left >= point2.x - slack) direction = [1, 0];
+    else if (rect.right <= point2.x + slack) direction = [-1, 0];
   }
   const extent = direction[1] ? rect.height : rect.width;
   return { direction, distance: Math.round(Math.min(24, Math.max(8, extent * 0.15))) };
@@ -1161,7 +1161,7 @@ function createPressLight(document2, window2, overlay, onFinish) {
   overlay.append(root);
   let held = true, disposed = false, phase = "pressing", revision = 0;
   let animations = [];
-  const releaseEase = "cubic-bezier(.33,0,.67,1)";
+  const releaseEase2 = "cubic-bezier(.33,0,.67,1)";
   function cancel() {
     revision++;
     for (const animation of animations) animation.cancel();
@@ -1196,8 +1196,8 @@ function createPressLight(document2, window2, overlay, onFinish) {
       const from = values[index];
       if (!from) continue;
       animations.push(
-        node.animate([{ opacity: from.opacity }, { opacity: 0 }], { duration: index === 0 ? fast ? 200 : 1e3 : duration, easing: releaseEase, fill: "forwards" }),
-        node.animate([{ scale: from.scale }, { scale: 4.44 }], { duration, easing: releaseEase, fill: "forwards" })
+        node.animate([{ opacity: from.opacity }, { opacity: 0 }], { duration: index === 0 ? fast ? 200 : 1e3 : duration, easing: releaseEase2, fill: "forwards" }),
+        node.animate([{ scale: from.scale }, { scale: 4.44 }], { duration, easing: releaseEase2, fill: "forwards" })
       );
     }
     settle(finish);
@@ -1217,17 +1217,78 @@ function createPressLight(document2, window2, overlay, onFinish) {
   };
 }
 
-// src/reveal.ts
-var REVEAL_FIELDS = 'input:not([type="hidden"]):not([type="file"]):not([type="range"]):not([type="color"]),textarea,select,[role="textbox"],[role="searchbox"],[role="combobox"],[contenteditable="true"]';
-var REVEAL_TARGETS = [
+// src/interaction.ts
+var ACTION_TARGETS = [
   "button,summary",
   '[role="button"],[role="tab"],[role="switch"],[role="checkbox"],[role="radio"]',
   '[role="menuitem"],[role="menuitemcheckbox"],[role="menuitemradio"],[role="option"]',
-  '[role="treeitem"][data-row-key]',
-  // Sidebar search results lack it; resolved in createReveal.
+  '[role="treeitem"][data-row-key],[role="treeitem"][tabindex][aria-level]',
+  '[role="gridcell"][tabindex][aria-selected]',
   'nav a[href],[role="navigation"] a[href]',
-  REVEAL_FIELDS
+  'tr[data-trajectory-row-key][tabindex="0"]'
 ].join(",");
+var ACTION_FIELDS = 'input,textarea,select,[role="textbox"],[role="searchbox"],[role="combobox"],[contenteditable]:not([contenteditable="false"])';
+var ACTION_EXCLUDED = '[hidden],[inert],[aria-hidden="true"],[data-closing],[data-acrylic-ghost],[data-acrylic-reveal],[data-width-handle],[data-dockkit-divider],[data-dockkit-float-resize],.monaco-editor,.xterm';
+var ACTION_DISABLED = ':disabled,[aria-disabled="true"],[aria-busy="true"],[data-unavailable]';
+function actionSelector(modules) {
+  const search = modules.select("searchResultRow");
+  return search ? `${ACTION_TARGETS},${search}` : ACTION_TARGETS;
+}
+
+// src/press-geometry.ts
+function depression(width, height, u, v) {
+  const angle = (d) => d > 925 ? 0 : Math.max(0, -7e-8 * d ** 3 + 15904e-8 * d ** 2 - 0.12506463 * d + 35.27311191);
+  u = Math.max(0, Math.min(1, u));
+  v = Math.max(0, Math.min(1, v));
+  return { scale: 0.97 + 0.03 * (Math.abs(u - 0.5) + Math.abs(v - 0.5)), x: -(v - 0.5) * angle(height), y: (u - 0.5) * angle(width) };
+}
+var projections = /* @__PURE__ */ new WeakMap();
+function forgetProjection(target) {
+  projections.delete(target);
+}
+function insideProjection(target) {
+  for (let parent = target.parentElement; parent; parent = parent.parentElement) if (projections.has(parent)) return true;
+  return false;
+}
+function project(window2, target, width, height, pose, amount) {
+  const camera = new window2.DOMMatrix();
+  camera.m34 = -1 / 999;
+  const rotation = new window2.DOMMatrix().rotate(pose.x * amount, pose.y * amount).scale(1 + (pose.scale - 1) * amount);
+  const m = camera.multiply(rotation);
+  const matrix = new window2.DOMMatrix([m.m11, m.m12, 0, m.m14, m.m21, m.m22, 0, m.m24, 0, 0, 1, 0, 0, 0, 0, 1]);
+  const projection = { width, height, matrix, inverse: matrix.inverse(), transform: matrix.toString() };
+  projections.set(target, projection);
+  return projection;
+}
+function point(matrix, width, height, x, y) {
+  const p = matrix.transformPoint({ x: x - width / 2, y: y - height / 2 });
+  return { x: p.x / p.w + width / 2, y: p.y / p.w + height / 2 };
+}
+function pressGeometry(target, bounds) {
+  const projection = projections.get(target);
+  if (!projection) return null;
+  const { matrix, inverse, width, height, transform } = projection;
+  const corners = [[0, 0], [width, 0], [width, height], [0, height]].map(([x = 0, y = 0]) => point(matrix, width, height, x, y));
+  const left = bounds.left - Math.min(...corners.map((p) => p.x));
+  const top = bounds.top - Math.min(...corners.map((p) => p.y));
+  return { left, top, width, height, transform, local: (x, y) => point(inverse, width, height, x - left, y - top) };
+}
+function releaseEase(time) {
+  if (time <= 0) return 0;
+  if (time >= 1) return 1;
+  const curve = (t, a, b) => 3 * (1 - t) ** 2 * t * a + 3 * (1 - t) * t ** 2 * b + t ** 3;
+  let low = 0, high = 1;
+  for (let i = 0; i < 12; i++) {
+    const mid = (low + high) / 2;
+    if (curve(mid, 0.1, 0.75) < time) low = mid;
+    else high = mid;
+  }
+  return curve((low + high) / 2, 0.25, 0.9);
+}
+
+// src/reveal.ts
+var REVEAL_FIELDS = 'input:not([type="hidden"]):not([type="file"]):not([type="range"]):not([type="color"]),textarea,select,[role="textbox"],[role="searchbox"],[role="combobox"],[contenteditable="true"]';
+var REVEAL_TARGETS = `${ACTION_TARGETS},${REVEAL_FIELDS}`;
 var REVEAL_LAYERS = `[${POPUP_ATTRIBUTE}],[data-menu-material],[role="menu"],[role="dialog"],[role="alertdialog"],[role="listbox"],[role="tooltip"],[data-composer-overlay],[data-dockkit-float],[style*="--dsh-hover-preview-fade"]`;
 var REVEAL_EXCLUDED = `[${NO_REVEAL_ATTRIBUTE}],[hidden],[inert],[aria-hidden="true"],[data-closing],[data-acrylic-ghost],[data-acrylic-reveal],[data-width-handle],[data-dockkit-divider],[data-dockkit-float-resize],.monaco-editor,.xterm`;
 var REVEAL_CSS = `
@@ -1245,7 +1306,7 @@ function revealStrength(x, y, rect) {
 function createReveal(document2, window2, modules) {
   const media = [window2.matchMedia("(prefers-reduced-motion: reduce)"), window2.matchMedia("(forced-colors: active)"), window2.matchMedia("(hover: hover) and (pointer: fine)")];
   let requested = false, running = false, disposed = false, frame = 0;
-  let point = null;
+  let point2 = null;
   let press = null;
   function cancelPress() {
     press?.light?.dispose();
@@ -1254,8 +1315,7 @@ function createReveal(document2, window2, modules) {
   let controls = REVEAL_TARGETS, quiet = null;
   let surfaces = COMPOSER_CARD;
   function resolve2() {
-    const rows = modules.select("searchResultRow");
-    controls = rows ? `${REVEAL_TARGETS},${rows}` : REVEAL_TARGETS;
+    controls = `${actionSelector(modules)},${REVEAL_FIELDS}`;
     const bubble = modules.select("userBubble");
     surfaces = `${COMPOSER_CARD},[data-testid="todo-panel"],[data-side-chat] .dsc-bubble:not([data-pending])${bubble ? `,:is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) ${bubble}` : ""}`;
     quiet = modules.select("turnRail");
@@ -1288,7 +1348,7 @@ function createReveal(document2, window2, modules) {
   function clear() {
     if (frame) window2.cancelAnimationFrame(frame);
     frame = 0;
-    point = null;
+    point2 = null;
     cancelPress();
     activeObserver.disconnect();
     sizes.disconnect();
@@ -1331,8 +1391,8 @@ function createReveal(document2, window2, modules) {
   }
   function draw() {
     frame = 0;
-    if (!point || !running || document2.hidden) return clear();
-    const { x, y } = point;
+    if (!point2 || !running || document2.hidden) return clear();
+    const { x, y } = point2;
     const hit = document2.elementFromPoint(x, y);
     if (press && (!press.target.isConnected || control(hit) !== press.target || borderOnly(press.target))) cancelPress();
     const rows = [], ancestors = /* @__PURE__ */ new Map();
@@ -1347,14 +1407,14 @@ function createReveal(document2, window2, modules) {
       if (css.visibility === "hidden" || css.display === "none" || Number(css.opacity) === 0) continue;
       blockers.push(portal.getBoundingClientRect());
     }
-    function geometry(element) {
+    function geometry2(element) {
       const known = ancestors.get(element);
       if (known) return known;
       {
         const css = window2.getComputedStyle(element);
         const clipsX = /(auto|scroll|hidden|clip)/.test(css.overflowX);
         const clipsY = /(auto|scroll|hidden|clip)/.test(css.overflowY);
-        const entry = { clipsX, clipsY, opacity: Number(css.opacity), z: css.zIndex === "auto" ? 0 : Number(css.zIndex), context: css.zIndex !== "auto" || Number(css.opacity) < 1 || css.transform !== "none" || css.filter !== "none" || css.backdropFilter !== "none" || css.isolation === "isolate" || /(paint|layout|strict|content)/.test(css.contain) || css.position === "fixed" || css.position === "sticky", bounds: clipsX || clipsY ? element.getBoundingClientRect() : null };
+        const entry = { clipsX, clipsY, opacity: Number(css.opacity), z: css.zIndex === "auto" ? 0 : Number(css.zIndex), context: css.zIndex !== "auto" || Number(css.opacity) < 1 || css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.translate !== "none" || css.filter !== "none" || css.backdropFilter !== "none" || css.isolation === "isolate" || /(paint|layout|strict|content)/.test(css.contain) || css.position === "fixed" || css.position === "sticky", bounds: clipsX || clipsY ? element.getBoundingClientRect() : null };
         ancestors.set(element, entry);
         return entry;
       }
@@ -1363,7 +1423,7 @@ function createReveal(document2, window2, modules) {
     const found = quiet && hit?.closest(quiet) ? [] : candidates(x, y, hit);
     for (const target of found) {
       if (rows.length >= 4 || inspected++ >= 10) break;
-      if (!target.isConnected || target.matches(':disabled,[aria-disabled="true"],[aria-invalid="true"],[readonly]') || target.closest(REVEAL_EXCLUDED)) continue;
+      if (!target.isConnected || insideProjection(target) || target.matches(':disabled,[aria-disabled="true"],[aria-invalid="true"],[readonly]') || target.closest(REVEAL_EXCLUDED)) continue;
       const rect = target.getBoundingClientRect();
       if (!rect.width || !rect.height || rect.bottom < 0 || rect.top > window2.innerHeight || rect.right < 0 || rect.left > window2.innerWidth) continue;
       const strength = revealStrength(x, y, rect);
@@ -1375,7 +1435,7 @@ function createReveal(document2, window2, modules) {
       let left = Math.max(0, rect.left, x - footprint), top = Math.max(0, rect.top, y - footprint);
       let right = Math.min(window2.innerWidth, rect.right, x + footprint), bottom = Math.min(window2.innerHeight, rect.bottom, y + footprint);
       for (let parent = target.parentElement; parent && parent !== document2.body; parent = parent.parentElement) {
-        const { clipsX, clipsY, bounds, opacity: alpha, context, z: parentZ } = geometry(parent);
+        const { clipsX, clipsY, bounds, opacity: alpha, context, z: parentZ } = geometry2(parent);
         opacity *= alpha;
         if (context) z = parentZ;
         if (bounds && clipsX) {
@@ -1399,7 +1459,12 @@ function createReveal(document2, window2, modules) {
       const probes = [[left + inset, top + inset], [right - inset, top + inset], [left + inset, bottom - inset], [right - inset, bottom - inset], [(left + right) / 2, (top + bottom) / 2]];
       if (!probes.every(([px, py]) => owns(px, py))) continue;
       if (computed.display === "inline" && target.getClientRects().length > 1) continue;
-      rows.push({ target, rect, strength, borderOnly: borderOnly(target), z, hover: hit === target || target.contains(hit), radius: computed.borderRadius, clip: `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)` });
+      const projection = pressGeometry(target, rect);
+      const polygon = projection ? [[left, top], [right, top], [right, bottom], [left, bottom]].map(([px = 0, py = 0]) => {
+        const local = projection.local(px, py);
+        return `${local.x}px ${local.y}px`;
+      }).join(",") : null;
+      rows.push({ target, rect, strength, borderOnly: borderOnly(target), z, hover: hit === target || target.contains(hit), radius: computed.borderRadius, projection, clip: polygon ? `polygon(${polygon})` : `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)` });
     }
     const active = new Set(rows.map((row) => row.target));
     if (press && !active.has(press.target)) cancelPress();
@@ -1408,7 +1473,7 @@ function createReveal(document2, window2, modules) {
       node.remove();
       overlays.delete(target);
     }
-    for (const { target, rect, strength, hover, borderOnly: borderOnly2, radius, clip, z } of rows) {
+    for (const { target, rect, strength, hover, borderOnly: borderOnly2, radius, clip, z, projection } of rows) {
       let node = overlays.get(target);
       if (!node) {
         node = document2.createElement("div");
@@ -1417,11 +1482,13 @@ function createReveal(document2, window2, modules) {
         document2.body.append(node);
         overlays.set(target, node);
       }
-      Object.assign(node.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, clipPath: clip });
+      const box = projection ?? rect;
+      const local = projection?.local(x, y) ?? { x: x - rect.left, y: y - rect.top };
+      Object.assign(node.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, clipPath: clip, transform: projection?.transform ?? "none", transformOrigin: "50% 50%" });
       node.style.setProperty("--reveal-z", String(z));
       node.style.setProperty("--reveal-radius", radius);
-      node.style.setProperty("--reveal-x", `${x - rect.left}px`);
-      node.style.setProperty("--reveal-y", `${y - rect.top}px`);
+      node.style.setProperty("--reveal-x", `${local.x}px`);
+      node.style.setProperty("--reveal-y", `${local.y}px`);
       node.style.setProperty("--reveal-border", String(strength * (borderOnly2 ? 0.48 : 0.38)));
       node.style.setProperty("--reveal-surface", String(!borderOnly2 && hover ? 0.045 : 0));
       const current = press;
@@ -1437,13 +1504,13 @@ function createReveal(document2, window2, modules) {
     if (changed) watchActive();
   }
   function schedule() {
-    if (running && point && !frame) frame = window2.requestAnimationFrame(draw);
+    if (running && point2 && !frame) frame = window2.requestAnimationFrame(draw);
   }
   function pointer(event) {
     if (event.pointerType !== "mouse" && event.pointerType !== "pen") return clear();
     if (!event.isPrimary || press && press.pointerId !== event.pointerId) return;
-    point = { x: event.clientX, y: event.clientY };
-    const target = control(document2.elementFromPoint(point.x, point.y));
+    point2 = { x: event.clientX, y: event.clientY };
+    const target = control(document2.elementFromPoint(point2.x, point2.y));
     if (press && target !== press.target) cancelPress();
     if (event.type === "pointerdown") {
       cancelPress();
@@ -1548,11 +1615,287 @@ function createReveal(document2, window2, modules) {
     },
     // Entering popups settle without pointer movement; redraw once they stop.
     refresh: schedule,
+    sync() {
+      if (!running || !point2) return;
+      if (frame) window2.cancelAnimationFrame(frame);
+      draw();
+    },
     dispose() {
       disposed = true;
       unsubscribe();
       reconcile();
       media.forEach((query) => query.removeEventListener("change", reconcile));
+      sheet.dispose();
+    }
+  };
+}
+
+// src/press-motion.ts
+var MARKER = "data-acrylic-press-motion";
+var INVERSE = "--acrylic-press-inverse";
+var SIDES = ["top", "right", "bottom", "left"];
+var CSS = `
+[${MARKER}="static"] { position:relative; }
+[${MARKER}]::after {
+  content:''; position:absolute; display:block; pointer-events:auto; z-index:-1;
+  inset:var(--acrylic-press-top) var(--acrylic-press-right) var(--acrylic-press-bottom) var(--acrylic-press-left);
+  transform:var(${INVERSE}); transform-origin:50% 50%; transform-box:border-box;
+  border-radius:inherit; background:transparent; border:0; padding:0; margin:0;
+}
+`;
+var GEOMETRY = ["display", "visibility", "pointer-events", "position", "scale", "rotate", "translate", "transform-origin", "transform-box", "zoom", "overflow-x", "overflow-y", "clip-path", "mask-image", "contain", "anchor-name", ...SIDES.map((side) => `border-${side}-width`)];
+var geometry = (css) => GEOMETRY.map((name) => css.getPropertyValue(name)).join(";");
+var pseudoGeometry = (css) => ["content", "position", "display", "pointer-events", "z-index", "top", "right", "bottom", "left", "width", "height", "transform-origin", "background-image", "background-color", "border-width"].map((name) => css.getPropertyValue(name)).join(";");
+function createPressMotion(document2, window2, modules, refresh) {
+  const reduced = window2.matchMedia("(prefers-reduced-motion: reduce)");
+  const sheet = createStyleSheet(document2, "dsh-acrylic-wallpaper-press-motion", CSS);
+  let requested = false, running = false, disposed = false, frame = 0, timer = 0;
+  let press = null;
+  function resolve2(node) {
+    if (!(node instanceof window2.Element) || node.closest(ACTION_FIELDS)) return null;
+    const quiet = modules.select("turnRail");
+    if (quiet && node.closest(quiet)) return null;
+    const target = node.closest(actionSelector(modules));
+    return target instanceof window2.HTMLElement ? target : null;
+  }
+  function available(target) {
+    return target.isConnected && !target.matches(ACTION_DISABLED) && !target.closest(ACTION_EXCLUDED) && window2.getComputedStyle(target).getPropertyValue("-webkit-app-region") !== "drag";
+  }
+  function childrenSafe(target, positioned) {
+    const children = target.querySelectorAll("*");
+    if (children.length > 160 || target.querySelector(ACTION_FIELDS)) return false;
+    for (const child of children) {
+      const css = window2.getComputedStyle(child);
+      if (css.display === "none") continue;
+      if (/^(fixed|sticky)$/.test(css.position)) return false;
+      if (css.position === "absolute" && !positioned) {
+        const clippedLabel = parseFloat(css.width) <= 1 && parseFloat(css.height) <= 1 && (css.clip !== "auto" || css.clipPath !== "none");
+        const contained = child instanceof window2.HTMLElement && child.offsetParent && target.contains(child.offsetParent);
+        if (!clippedLabel && !contained) return false;
+      }
+    }
+    return true;
+  }
+  function moving(target) {
+    return target.getAnimations().some((animation) => animation.playState === "running" && animation.effect instanceof window2.KeyframeEffect && animation.effect.getKeyframes().some((key) => ["transform", "scale", "rotate", "translate", "width", "height", "opacity"].some((name) => key[name] !== void 0)));
+  }
+  function flatAncestors(target) {
+    for (let parent = target.parentElement; parent; parent = parent.parentElement) {
+      const css = window2.getComputedStyle(parent);
+      if (css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.perspective !== "none" || !["", "1", "normal"].includes(css.getPropertyValue("zoom"))) return false;
+    }
+    return true;
+  }
+  function canTransform(target, css) {
+    if (target.hasAttribute(MARKER) || css.display.startsWith("table") || css.display === "inline" || css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.translate !== "none" || css.clipPath !== "none" || css.maskImage !== "none" || css.overflowX !== "visible" || css.overflowY !== "visible" || /paint|strict|content/.test(css.contain) || css.animationName !== "none" || !["", "1", "normal"].includes(css.getPropertyValue("zoom")) || css.getPropertyValue("anchor-name").trim() && css.getPropertyValue("anchor-name").trim() !== "none" || moving(target) || css.transitionDuration.split(",").some((value) => parseFloat(value) > 0) && css.transitionProperty.split(",").some((name) => /^(all|scale|transform)$/.test(name.trim()))) return false;
+    const pseudo = window2.getComputedStyle(target, "::after");
+    if (pseudo.content !== "none" && pseudo.content !== "normal") return false;
+    return flatAncestors(target) && childrenSafe(target, css.position !== "static");
+  }
+  function own2(current, name, value, priority = "") {
+    const style = current.target.style;
+    if (!current.saved.has(name)) current.saved.set(name, [style.getPropertyValue(name), style.getPropertyPriority(name)]);
+    style.setProperty(name, value, priority);
+    current.owned.set(name, [style.getPropertyValue(name), style.getPropertyPriority(name)]);
+  }
+  function hostStyle(current) {
+    const style = current.target.style;
+    return [...style].filter((name) => !current.owned.has(name)).sort().map((name) => `${name}:${style.getPropertyValue(name)}!${style.getPropertyPriority(name)}`).join(";");
+  }
+  function intact(current) {
+    return [...current.owned].every(([name, [value, priority]]) => current.target.style.getPropertyValue(name) === value && current.target.style.getPropertyPriority(name) === priority);
+  }
+  function clear() {
+    if (frame) window2.cancelAnimationFrame(frame);
+    if (timer) window2.clearTimeout(timer);
+    frame = 0;
+    timer = 0;
+    observer.disconnect();
+    sizes.disconnect();
+    const current = press;
+    press = null;
+    if (!current) return;
+    forgetProjection(current.target);
+    if (current.geometric) current.target.removeAttribute(MARKER);
+    for (const [name, [value, priority]] of current.saved) {
+      const owned = current.owned.get(name);
+      if (!owned || current.target.style.getPropertyValue(name) !== owned[0] || current.target.style.getPropertyPriority(name) !== owned[1]) continue;
+      if (value) current.target.style.setProperty(name, value, priority);
+      else current.target.style.removeProperty(name);
+    }
+    refresh();
+  }
+  function paint(current, amount) {
+    current.amount = amount;
+    if (current.geometric) {
+      const projection = project(window2, current.target, current.width, current.height, current.pose, amount);
+      own2(current, "transform", projection.transform, "important");
+      own2(current, INVERSE, projection.inverse.toString());
+    } else {
+      const tint = `color-mix(in srgb,var(--dsw-alias-interactive-bg-active) ${Math.round(amount * 100)}%,transparent)`;
+      own2(current, "background-image", `linear-gradient(${tint},${tint}),${current.background}`, "important");
+    }
+    refresh();
+  }
+  function tick(now) {
+    frame = 0;
+    const current = press;
+    if (!current) return;
+    if (!available(current.target) || document2.hidden) return clear();
+    const progress = Math.max(0, Math.min(1, (now - current.releasedAt - 150) / 200));
+    if (progress === 1) return clear();
+    paint(current, 1 - releaseEase(progress));
+    frame = window2.requestAnimationFrame(tick);
+  }
+  function release() {
+    const current = press;
+    if (!current?.held) return;
+    current.held = false;
+    if (timer) window2.clearTimeout(timer);
+    timer = 0;
+    if (!current.geometric) return clear();
+    if (!current.amount) return clear();
+    current.releasedAt = window2.performance.now();
+    timer = window2.setTimeout(() => {
+      timer = 0;
+      if (press === current) frame = window2.requestAnimationFrame(tick);
+    }, 150);
+  }
+  function begin(target, input) {
+    clear();
+    if (!available(target)) return;
+    const css = window2.getComputedStyle(target), rect = target.getBoundingClientRect();
+    if (!rect.width || !rect.height || css.visibility !== "visible" || css.pointerEvents === "none") return;
+    const geometric = !reduced.matches && canTransform(target, css);
+    const borders = SIDES.map((side) => css.getPropertyValue(`border-${side}-width`));
+    const position = css.position;
+    const u = "pointerId" in input ? (input.x - rect.left) / rect.width : 0.5;
+    const v = "pointerId" in input ? (input.y - rect.top) / rect.height : 0.5;
+    const current = { target, input, held: true, geometric, drag: Boolean(target.closest('[draggable="true"],[data-dockkit-tab]')), width: rect.width, height: rect.height, pose: depression(rect.width, rect.height, u, v), amount: 0, releasedAt: 0, saved: /* @__PURE__ */ new Map(), owned: /* @__PURE__ */ new Map(), geometry: "", pseudo: "", hostStyle: "", background: css.backgroundImage };
+    press = current;
+    if (geometric) {
+      own2(current, "transform-origin", "50% 50%", "important");
+      own2(current, "transform-box", "border-box", "important");
+      SIDES.forEach((side, index) => own2(current, `--acrylic-press-${side}`, `-${borders[index]}`));
+      target.setAttribute(MARKER, position === "static" ? "static" : "");
+      paint(current, 0);
+      if (position === "static" && window2.getComputedStyle(target).position !== "relative") return clear();
+    }
+    if (!geometric) paint(current, 1);
+    current.geometry = geometry(window2.getComputedStyle(target));
+    current.pseudo = pseudoGeometry(window2.getComputedStyle(target, "::after"));
+    current.hostStyle = hostStyle(current);
+    sizes.observe(target, { box: "border-box" });
+    observer.observe(document2.documentElement, { subtree: true, childList: true, attributes: true });
+    if (!geometric) return;
+    timer = window2.setTimeout(() => {
+      timer = 0;
+      if (press === current && current.held && available(target)) paint(current, 1);
+    }, 10);
+  }
+  const sizes = new window2.ResizeObserver((entries) => {
+    const current = press;
+    if (!current?.geometric) return;
+    const entry = entries.find((entry2) => entry2.target === current.target);
+    const box = entry?.borderBoxSize[0];
+    if (!box) return;
+    const vertical = window2.getComputedStyle(current.target).writingMode.startsWith("vertical");
+    const width = vertical ? box.blockSize : box.inlineSize, height = vertical ? box.inlineSize : box.blockSize;
+    if (Math.abs(width - current.width) > 0.1 || Math.abs(height - current.height) > 0.1) clear();
+  });
+  const observer = new window2.MutationObserver((records) => {
+    const current = press;
+    if (!current) return;
+    if (!available(current.target) || !intact(current)) return clear();
+    const relevant = records.filter((record2) => record2.attributeName !== MARKER && record2.target instanceof window2.Element && (record2.target.contains(current.target) || current.target.contains(record2.target)));
+    const related = relevant.length > 0;
+    if (!related) return;
+    const css = window2.getComputedStyle(current.target);
+    if (geometry(css) !== current.geometry || css.visibility !== "visible" || css.display === "none") return clear();
+    if (current.geometric && (hostStyle(current) !== current.hostStyle || relevant.some((record2) => record2.target !== current.target || record2.attributeName !== "style"))) {
+      const marker = current.target.getAttribute(MARKER);
+      current.target.removeAttribute(MARKER);
+      const hostContent = window2.getComputedStyle(current.target, "::after").content;
+      if (marker !== null) current.target.setAttribute(MARKER, marker);
+      if (hostContent !== "none" && hostContent !== "normal") return clear();
+      if (!childrenSafe(current.target, true) || !flatAncestors(current.target) || moving(current.target) || pseudoGeometry(window2.getComputedStyle(current.target, "::after")) !== current.pseudo) return clear();
+      current.hostStyle = hostStyle(current);
+    }
+    if (records.some((record2) => record2.attributeName === "aria-expanded" && record2.target === current.target && current.target.getAttribute("aria-expanded") === "true")) clear();
+  });
+  function down(event) {
+    if (!event.isPrimary || event.button !== 0 || document2.hidden) return;
+    const target = resolve2(event.target);
+    if (target) begin(target, { pointerId: event.pointerId, x: event.clientX, y: event.clientY });
+    else clear();
+  }
+  function up(event) {
+    if (press && "pointerId" in press.input && press.input.pointerId === event.pointerId) release();
+  }
+  function move(event) {
+    if (!press?.held || !("pointerId" in press.input) || press.input.pointerId !== event.pointerId) return;
+    if (press.drag && (Math.abs(event.clientX - press.input.x) >= 4 || Math.abs(event.clientY - press.input.y) >= 4)) return clear();
+    if (!(event.buttons & 1) || resolve2(document2.elementFromPoint(event.clientX, event.clientY)) !== press.target) clear();
+  }
+  function out(event) {
+    if (press?.held && "pointerId" in press.input && press.input.pointerId === event.pointerId && resolve2(event.relatedTarget) !== press.target) clear();
+  }
+  function cancel(event) {
+    if (press?.held && "pointerId" in press.input && press.input.pointerId === event.pointerId) clear();
+  }
+  function keydown(event) {
+    if (event.key === "Escape") return clear();
+    if (event.repeat || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || ![" ", "Enter"].includes(event.key)) return;
+    const target = resolve2(event.target);
+    if (target && document2.activeElement === target) begin(target, { key: event.key });
+  }
+  function keyup(event) {
+    if (press && "key" in press.input && press.input.key === event.key) release();
+  }
+  function focusout(event) {
+    if (press && "key" in press.input && event.target === press.target) clear();
+  }
+  function click() {
+    if (press?.target.matches('[aria-haspopup]:not([aria-haspopup="false"]),[aria-expanded],[popovertarget]')) clear();
+  }
+  const events = [
+    ["pointerdown", down],
+    ["pointerup", up],
+    ["pointermove", move],
+    ["pointerout", out],
+    ["pointercancel", cancel],
+    ["lostpointercapture", cancel],
+    ["keydown", keydown],
+    ["keyup", keyup],
+    ["focusout", focusout],
+    ["click", click],
+    ["dragstart", clear],
+    ["visibilitychange", clear],
+    ["scroll", clear]
+  ];
+  function reconcile() {
+    const next = requested && !disposed;
+    if (next === running) return;
+    running = next;
+    const method = next ? "addEventListener" : "removeEventListener";
+    for (const [type, listener] of events) document2[method](type, listener, true);
+    window2[method]("blur", clear);
+    window2[method]("resize", clear);
+    if (!next) clear();
+    sheet.toggle(next);
+  }
+  const unsubscribe = modules.subscribe(clear);
+  reduced.addEventListener("change", clear);
+  return {
+    update(enabled) {
+      requested = enabled;
+      reconcile();
+    },
+    dispose() {
+      disposed = true;
+      reconcile();
+      unsubscribe();
+      reduced.removeEventListener("change", clear);
       sheet.dispose();
     }
   };
@@ -1740,6 +2083,7 @@ function createAppearance(document2, window2, theme) {
   const adapters = createAdapters(document2, modules);
   const elevation = createElevation(document2);
   const reveal = createReveal(document2, window2, modules);
+  const pressMotion = createPressMotion(document2, window2, modules, reveal.sync);
   const motion = createMotion(document2, window2, { onSettle: reveal.refresh });
   const wallpaper = createWallpaper(document2, window2);
   const media = [window2.matchMedia("(forced-colors: active)"), window2.matchMedia("(prefers-reduced-transparency: reduce)")];
@@ -1755,6 +2099,7 @@ function createAppearance(document2, window2, theme) {
     adapters.update(win10);
     elevation.update(win10);
     motion.update(win10);
+    pressMotion.update(win10);
     reveal.update(Boolean(win10 && settings?.reveal));
     wallpaper.update(on && snapshot?.url && settings ? { url: snapshot.url, settings } : null);
   }
@@ -1767,7 +2112,7 @@ function createAppearance(document2, window2, theme) {
     dispose() {
       disposed = true;
       media.forEach((query) => query.removeEventListener("change", render));
-      for (const feature of [fluent, adapters, elevation, motion, reveal, wallpaper]) feature.dispose();
+      for (const feature of [fluent, adapters, elevation, motion, pressMotion, reveal, wallpaper]) feature.dispose();
       modules.dispose();
       document2.body.removeAttribute(FLUENT_MARKER);
       snapshot = null;

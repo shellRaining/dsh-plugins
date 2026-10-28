@@ -12,7 +12,7 @@ dsh plugin --profile web add @shellraining/dsh-acrylic-wallpaper
 
 开启「Win10 风格」和「悬停与按压光效」后，鼠标或笔靠近控件时会照亮边缘，悬停时显示局部表面光。主聊天已发送的用户消息（含 steering 消息）、侧边聊天消息、输入卡片和待办卡片只显示边缘光，不改变文本选择、复制或焦点行为。
 
-按钮、菜单项等可交互控件还会显示独立的按压光：短按后扩散淡出，持续按住时缓慢扩散，松手后加快消退。光效参考 [WinUI 2 的 Reveal 实现](https://github.com/microsoft/microsoft-ui-xaml/blob/17bf1fc470bae72749998f2350cf19c9534da3f7/dev/Lights/RevealHoverLight.cpp)，采用 66ms 点亮、200/266ms 快速淡出及 1000/1500ms 慢速淡出；网页渐变的半径和亮度是近似值。离开控件、取消操作、失焦或关闭插件会清理按压光，不添加卡片缩放或倾斜。
+按钮、菜单项等可交互控件还会显示独立的按压光：短按后扩散淡出，持续按住时缓慢扩散，松手后加快消退。光效参考 [WinUI 2 的 Reveal 实现](https://github.com/microsoft/microsoft-ui-xaml/blob/17bf1fc470bae72749998f2350cf19c9534da3f7/dev/Lights/RevealHoverLight.cpp)，采用 66ms 点亮、200/266ms 快速淡出及 1000/1500ms 慢速淡出；网页渐变的半径和亮度是近似值。离开控件、取消操作、失焦或关闭插件会清理按压光。光效与下文的实体按压反馈独立。
 
 光效跟随明暗主题。减少动态效果、高对比度或减少透明度模式下会关闭；触摸和键盘操作不触发装饰光，保留宿主原有反馈。现有 `reveal` 设置同时控制悬停与按压，无需迁移配置。
 
@@ -20,7 +20,24 @@ dsh plugin --profile web add @shellraining/dsh-acrylic-wallpaper
 
 「Win10 风格」还会补齐宿主 outline、toolbar 和 primary 按钮缺少的 Pressed 底色。底色由原生 `:active` 状态控制，按住时保持、松开时恢复，与短暂的按压光独立；关闭光效或开启减少动态效果后，按钮仍保留底色反馈。ghost 按钮沿用宿主已有的 active 配色，不重复叠色。toolbar 保留原有底色并叠加状态色；primary 没有专用 pressed token，暂用原底色与前景色的小比例混合作为网页近似，仍需在实际主题下检查对比度。消息正文和输入框不增加按压底色。
 
-微软的[普通按钮模板](https://github.com/microsoft/microsoft-ui-xaml/blob/17bf1fc470bae72749998f2350cf19c9534da3f7/dev/CommonStyles/Button_themeresources_v1.xaml)使用独立的背景、边框和前景状态资源；[ButtonRevealStyle](https://github.com/microsoft/microsoft-ui-xaml/blob/17bf1fc470bae72749998f2350cf19c9534da3f7/dev/Materials/Reveal/RevealBrush_rs2_themeresources_v1.xaml)还包含 PointerDown/PointerUp 形变动画。本插件目前只补缺失的底色，不覆盖宿主边框、文字色和焦点环，也不宣称完整复刻该模板。宿主按钮没有统一的内容容器，直接缩放按钮会改变命中区域和固定定位后代，因此暂不添加通用缩放或倾斜。
+实体反馈参考微软的 PointerDown/PointerUp 主题动画：按压靠左、靠右或靠边时，对应一侧向内倾斜；中心按压以轻微收缩为主。旋转中心始终在控件中心，方向取首次按下的位置，按住后不追随鼠标拖动。控件越大，倾角越小；缩放比例由中心的 97% 过渡到角落的 100%。键盘操作使用居中反馈。
+
+依据是[微软公开的原生实现](https://github.com/microsoft/microsoft-ui-xaml/blob/4a5d99f46230f25599a190b12d34ccb7daaeaaa8/dxaml/xcp/dxaml/lib/ThemeAnimations.cpp#L239-L391)和[指针位置插值](https://github.com/microsoft/microsoft-ui-xaml/blob/4a5d99f46230f25599a190b12d34ccb7daaeaaa8/dxaml/xcp/core/animation/PointerAnimationUsingKeyFrames.cpp#L202-L306)。源码将这套行为标注为从 Windows 10 开始的调整，但它来自较新的公开原生代码，不代表逐一验证了所有 Win10 系统版本。插件沿用其中的尺寸曲线、10ms 按下延迟及松手后的 150ms 保持、200ms 恢复，恢复曲线为 `cubic-bezier(.1,.25,.75,.9)`。CSS 透视采用 999px 近似，没有完整移植原生相机矩阵；早于按下延迟就释放的操作不会补播形变。普通 WinUI 按钮也不全都使用倾斜动画，因此这里是统一交互风格，不宣称所有控件都与系统默认模板一致。
+
+覆盖按操作语义统一识别，不再依赖基础 Button 类名：
+
+| 元素 | 处理 |
+| --- | --- |
+| 普通按钮、工具栏图标、个人菜单、确认卡片选项 | 同一套按压生命周期，适合变换时使用方向性形变 |
+| 侧边栏会话与项目行、搜索结果、文件按钮、子任务树行 | 整行或实际按钮响应；行内按钮优先，不同时按下父行 |
+| 菜单项、选项、导航链接、标签页、日历日期格 | 按语义接入；已有下划线伪元素、裁剪或变换时保留几何并补底色 |
+| 会话拖拽行、Dock 标签 | 按下可以反馈；移动达到每轴 4px 阈值或实际开始拖拽时立即清理 |
+| 轨迹表行、市场卡片的扩展点击区域、固定定位后代等不适合变换的结构 | 使用瞬时按压底色，不替换宿主伪元素或强行变形 |
+| 消息正文、输入框、原生表单字段、编辑器、拖拽空白区和尺寸手柄 | 不添加实体形变，不改变选择、编辑或拖拽行为 |
+
+形变跟随「Win10 风格」，独立于光效开关；减少动态效果时只保留底色反馈。鼠标、笔、触摸和聚焦操作元素的空格 / Enter 键均可触发，不阻止默认事件、不合成点击、不接管指针捕获。关闭插件、失焦、取消、移除控件或布局变化时清理临时样式。
+
+Reveal 与控件使用同一透视映射，光点转换到控件局部坐标。透明逆变换伪元素保留外层原始命中边界，但行内子按钮仍随外观移动，并不保证各个子节点的命中区域固定。带弹出层或展开语义的触发器在宿主处理点击前恢复，避免用形变后的边界定位；没有这些语义的自定义弹出层仍需实际验证。宿主列表没有统一的内容容器，因此这里变换整行，而原生 ListViewItemPresenter 可以只变换内容子层，这也是网页近似的边界。
 
 ## 开发
 

@@ -4,19 +4,14 @@ import { createStyleSheet } from './style.ts';
 import { COMPOSER_CARD, COMPOSER_INPUT } from './composer.ts';
 import type { HostModules } from './host/modules.ts';
 import { createPressLight, PRESS_CSS, PRESS_RADIUS, type PressLight } from './press.ts';
+import { ACTION_TARGETS, actionSelector } from './interaction.ts';
+import { insideProjection, pressGeometry } from './press-geometry.ts';
 
 // Resolve real controls at the pointer, not component names or whole DOM lists.
 // Host nodes/pseudo-elements/event handlers stay untouched, including titlebar
 // drag regions whose attribute mutations are monitored by the desktop host.
 const REVEAL_FIELDS = 'input:not([type="hidden"]):not([type="file"]):not([type="range"]):not([type="color"]),textarea,select,[role="textbox"],[role="searchbox"],[role="combobox"],[contenteditable="true"]';
-export const REVEAL_TARGETS = [
-  'button,summary',
-  '[role="button"],[role="tab"],[role="switch"],[role="checkbox"],[role="radio"]',
-  '[role="menuitem"],[role="menuitemcheckbox"],[role="menuitemradio"],[role="option"]',
-  '[role="treeitem"][data-row-key]', // Sidebar search results lack it; resolved in createReveal.
-  'nav a[href],[role="navigation"] a[href]',
-  REVEAL_FIELDS,
-].join(',');
+export const REVEAL_TARGETS = `${ACTION_TARGETS},${REVEAL_FIELDS}`;
 const REVEAL_LAYERS = `[${POPUP_ATTRIBUTE}],[data-menu-material],[role="menu"],[role="dialog"],[role="alertdialog"],[role="listbox"],[role="tooltip"],[data-composer-overlay],[data-dockkit-float],[style*="--dsh-hover-preview-fade"]`;
 // Opted out by other plugins (contract.ts), or not a live control.
 const REVEAL_EXCLUDED = `[${NO_REVEAL_ATTRIBUTE}],[hidden],[inert],[aria-hidden="true"],[data-closing],[data-acrylic-ghost],[data-acrylic-reveal],[data-width-handle],[data-dockkit-divider],[data-dockkit-float-resize],.monaco-editor,.xterm`;
@@ -37,11 +32,13 @@ export function revealStrength(x: number, y: number, rect: Box): number {
 }
 
 interface Ancestor { clipsX: boolean; clipsY: boolean; opacity: number; z: number; context: boolean; bounds: DOMRect | null }
-interface Row { target: Element; rect: DOMRect; strength: number; borderOnly: boolean; z: number; hover: boolean; radius: string; clip: string }
+interface Row { target: Element; rect: DOMRect; strength: number; borderOnly: boolean; z: number; hover: boolean; radius: string; clip: string; projection: ReturnType<typeof pressGeometry> }
 
 /** Reveal is a Win10 feature with a refresh hook for popups that settle without pointer movement. */
 export interface Reveal extends Feature<boolean> {
   refresh(): void;
+  /** Redraw after button geometry changes, within the same animation frame. */
+  sync(): void;
 }
 
 export function createReveal(document: Document, window: Window & typeof globalThis, modules: HostModules): Reveal {
@@ -57,8 +54,7 @@ export function createReveal(document: Document, window: Window & typeof globalT
   let controls = REVEAL_TARGETS, quiet: string | null = null;
   let surfaces = COMPOSER_CARD;
   function resolve() {
-    const rows = modules.select('searchResultRow');
-    controls = rows ? `${REVEAL_TARGETS},${rows}` : REVEAL_TARGETS;
+    controls = `${actionSelector(modules)},${REVEAL_FIELDS}`;
     const bubble = modules.select('userBubble');
     surfaces = `${COMPOSER_CARD},[data-testid="todo-panel"],[data-side-chat] .dsc-bubble:not([data-pending])${bubble ? `,:is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) ${bubble}` : ''}`;
     quiet = modules.select('turnRail');
@@ -159,7 +155,7 @@ export function createReveal(document: Document, window: Window & typeof globalT
         const css = window.getComputedStyle(element);
         const clipsX = /(auto|scroll|hidden|clip)/.test(css.overflowX);
         const clipsY = /(auto|scroll|hidden|clip)/.test(css.overflowY);
-        const entry: Ancestor = { clipsX, clipsY, opacity: Number(css.opacity), z: css.zIndex === 'auto' ? 0 : Number(css.zIndex), context: css.zIndex !== 'auto' || Number(css.opacity) < 1 || css.transform !== 'none' || css.filter !== 'none' || css.backdropFilter !== 'none' || css.isolation === 'isolate' || /(paint|layout|strict|content)/.test(css.contain) || css.position === 'fixed' || css.position === 'sticky', bounds: clipsX || clipsY ? element.getBoundingClientRect() : null };
+        const entry: Ancestor = { clipsX, clipsY, opacity: Number(css.opacity), z: css.zIndex === 'auto' ? 0 : Number(css.zIndex), context: css.zIndex !== 'auto' || Number(css.opacity) < 1 || css.transform !== 'none' || css.scale !== 'none' || css.rotate !== 'none' || css.translate !== 'none' || css.filter !== 'none' || css.backdropFilter !== 'none' || css.isolation === 'isolate' || /(paint|layout|strict|content)/.test(css.contain) || css.position === 'fixed' || css.position === 'sticky', bounds: clipsX || clipsY ? element.getBoundingClientRect() : null };
         ancestors.set(element, entry);
         return entry;
       }
@@ -168,7 +164,7 @@ export function createReveal(document: Document, window: Window & typeof globalT
     const found = quiet && hit?.closest(quiet) ? [] : candidates(x, y, hit);
     for (const target of found) {
       if (rows.length >= 4 || inspected++ >= 10) break;
-      if (!target.isConnected || target.matches(':disabled,[aria-disabled="true"],[aria-invalid="true"],[readonly]') || target.closest(REVEAL_EXCLUDED)) continue;
+      if (!target.isConnected || insideProjection(target) || target.matches(':disabled,[aria-disabled="true"],[aria-invalid="true"],[readonly]') || target.closest(REVEAL_EXCLUDED)) continue;
       const rect = target.getBoundingClientRect();
       if (!rect.width || !rect.height || rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth) continue;
       const strength = revealStrength(x, y, rect);
@@ -201,21 +197,29 @@ export function createReveal(document: Document, window: Window & typeof globalT
       // Multiline inline file links are real buttons too; their union box may
       // cover unrelated prose. Keep the host's underline rather than light it.
       if (computed.display === 'inline' && target.getClientRects().length > 1) continue;
-      rows.push({ target, rect, strength, borderOnly: borderOnly(target), z, hover: hit === target || target.contains(hit), radius: computed.borderRadius, clip: `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)` });
+      const projection = pressGeometry(target, rect);
+      // Perspective turns a rectangle into a quadrilateral. Map viewport clip
+      // corners back through the same homography instead of outlining its AABB.
+      const polygon = projection ? [[left,top],[right,top],[right,bottom],[left,bottom]].map(([px = 0,py = 0]) => {
+        const local = projection.local(px, py); return `${local.x}px ${local.y}px`;
+      }).join(',') : null;
+      rows.push({ target, rect, strength, borderOnly: borderOnly(target), z, hover: hit === target || target.contains(hit), radius: computed.borderRadius, projection, clip: polygon ? `polygon(${polygon})` : `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)` });
     }
     // Batch geometry reads above, then overlay writes. No host style mutation.
     const active = new Set(rows.map(row => row.target));
     if (press && !active.has(press.target)) cancelPress();
     const changed = active.size !== overlays.size || [...active].some(target => !overlays.has(target));
     for (const [target, node] of overlays) if (!active.has(target)) { node.remove(); overlays.delete(target); }
-    for (const { target, rect, strength, hover, borderOnly, radius, clip, z } of rows) {
+    for (const { target, rect, strength, hover, borderOnly, radius, clip, z, projection } of rows) {
       let node = overlays.get(target);
       if (!node) { node = document.createElement('div'); node.setAttribute('data-acrylic-reveal', ''); node.setAttribute('aria-hidden', 'true'); document.body.append(node); overlays.set(target, node); }
-      Object.assign(node.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, clipPath: clip });
+      const box = projection ?? rect;
+      const local = projection?.local(x, y) ?? { x: x - rect.left, y: y - rect.top };
+      Object.assign(node.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, clipPath: clip, transform: projection?.transform ?? 'none', transformOrigin: '50% 50%' });
       node.style.setProperty('--reveal-z', String(z));
       node.style.setProperty('--reveal-radius', radius);
-      node.style.setProperty('--reveal-x', `${x - rect.left}px`);
-      node.style.setProperty('--reveal-y', `${y - rect.top}px`);
+      node.style.setProperty('--reveal-x', `${local.x}px`);
+      node.style.setProperty('--reveal-y', `${local.y}px`);
       node.style.setProperty('--reveal-border', String(strength * (borderOnly ? .48 : .38)));
       node.style.setProperty('--reveal-surface', String(!borderOnly && hover ? .045 : 0));
       const current = press;
@@ -323,6 +327,11 @@ export function createReveal(document: Document, window: Window & typeof globalT
     update(enabled) { requested = enabled; reconcile(); },
     // Entering popups settle without pointer movement; redraw once they stop.
     refresh: schedule,
+    sync() {
+      if (!running || !point) return;
+      if (frame) window.cancelAnimationFrame(frame);
+      draw();
+    },
     dispose() { disposed = true; unsubscribe(); reconcile(); media.forEach(query => query.removeEventListener('change', reconcile)); sheet.dispose(); },
   };
 }
