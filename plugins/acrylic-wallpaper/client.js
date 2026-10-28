@@ -431,6 +431,13 @@ var NO_REVEAL_ATTRIBUTE = "data-acrylic-no-reveal";
 
 // src/host/modules.ts
 var HOST_CLASSES = {
+  // Only these primitive variants lack the ghost button's native :active fill.
+  button: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "button"],
+  buttonOutline: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "outline"],
+  buttonToolbar: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "toolbar"],
+  buttonPrimary: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "primary"],
+  // Sent user text, excluding attachments, timestamps and row actions.
+  userBubble: ["@deepseek-ai/dsh-client-ui-chat/MessageItem.module.css", "bubble"],
   // Right-hand turn rail (an outline next to the conversation).
   turnRail: ["@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css", "frame"],
   // Sidebar search results: tree rows without data-row-key.
@@ -703,8 +710,21 @@ html[data-platform="darwin"] body[data-acrylic-fluent][data-ds-dark-theme] [data
   background: #202020;
 }
 `;
+function buttonStateCss(modules) {
+  const button = modules.select("button");
+  if (!button) return "";
+  const active = (variant) => `body[data-acrylic-fluent] button${button}${variant}:active:not(:disabled):not([aria-disabled="true"]):not([aria-busy="true"])`;
+  const outline = modules.select("buttonOutline"), toolbar = modules.select("buttonToolbar"), primary = modules.select("buttonPrimary");
+  return `
+@media (forced-colors: none) {
+${outline ? `${active(outline)} { background:var(--dsw-alias-interactive-bg-active); }` : ""}
+${toolbar ? `${active(toolbar)} { background:linear-gradient(var(--dsw-alias-interactive-bg-active),var(--dsw-alias-interactive-bg-active)),var(--dsw-alias-button-tool-bar-fill); }` : ""}
+${primary ? `${active(primary)} { background:color-mix(in srgb,var(--dsw-alias-button-primary-fill) 88%,var(--dsw-alias-label-primary-foreground)); }` : ""}
+}
+`;
+}
 function createAdapters(document2, modules) {
-  const render = () => adapterCss(modules.select("searchResultRow"));
+  const render = () => adapterCss(modules.select("searchResultRow")) + buttonStateCss(modules);
   const sheet = createStyleSheet(document2, "dsh-acrylic-wallpaper-adapters", render());
   const unsubscribe = modules.subscribe(() => sheet.set(render()));
   return { update: sheet.toggle, dispose() {
@@ -1126,6 +1146,77 @@ function createMotion(document2, window2, { onSettle } = {}) {
   } };
 }
 
+// src/press.ts
+var PRESS_RADIUS = 210;
+var PRESS_CSS = `
+[data-acrylic-press] { position:absolute;inset:-1px;border-radius:inherit;overflow:hidden;pointer-events:none; }
+[data-acrylic-press] > i { position:absolute;left:var(--reveal-x);top:var(--reveal-y);width:94.5px;height:94.5px;margin:-47.25px;border-radius:50%;opacity:0;scale:1;pointer-events:none;background:radial-gradient(47.25px circle,rgb(var(--reveal-rgb) / .065),transparent 70%); }
+[data-acrylic-press] > i + i { background:radial-gradient(47.25px circle,rgb(var(--reveal-rgb) / .055),transparent); }
+`;
+function createPressLight(document2, window2, overlay, onFinish) {
+  const root = document2.createElement("div");
+  root.setAttribute("data-acrylic-press", "");
+  const inner = document2.createElement("i"), outer = document2.createElement("i");
+  root.append(inner, outer);
+  overlay.append(root);
+  let held = true, disposed = false, phase = "pressing", revision = 0;
+  let animations = [];
+  const releaseEase = "cubic-bezier(.33,0,.67,1)";
+  function cancel() {
+    revision++;
+    for (const animation of animations) animation.cancel();
+    animations = [];
+  }
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    cancel();
+    root.remove();
+  }
+  function finish() {
+    dispose();
+    onFinish();
+  }
+  function settle(done) {
+    const current = revision;
+    void Promise.all(animations.map((animation) => animation.finished)).then(() => {
+      if (!disposed && current === revision) done();
+    }, () => {
+    });
+  }
+  function fade(fast) {
+    const values = [inner, outer].map((node) => {
+      const css = window2.getComputedStyle(node);
+      return { opacity: css.opacity, scale: css.scale };
+    });
+    cancel();
+    phase = fast ? "fast" : "slow";
+    const duration = fast ? 266 : 1500;
+    for (const [index, node] of [inner, outer].entries()) {
+      const from = values[index];
+      if (!from) continue;
+      animations.push(
+        node.animate([{ opacity: from.opacity }, { opacity: 0 }], { duration: index === 0 ? fast ? 200 : 1e3 : duration, easing: releaseEase, fill: "forwards" }),
+        node.animate([{ scale: from.scale }, { scale: 4.44 }], { duration, easing: releaseEase, fill: "forwards" })
+      );
+    }
+    settle(finish);
+  }
+  animations = [
+    inner.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 66, easing: "linear", fill: "forwards" }),
+    outer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 66, easing: "cubic-bezier(.5,0,.6,1)", fill: "forwards" })
+  ];
+  settle(() => fade(!held));
+  return {
+    release() {
+      if (disposed || !held) return;
+      held = false;
+      if (phase === "slow") fade(true);
+    },
+    dispose
+  };
+}
+
 // src/reveal.ts
 var REVEAL_FIELDS = 'input:not([type="hidden"]):not([type="file"]):not([type="range"]):not([type="color"]),textarea,select,[role="textbox"],[role="searchbox"],[role="combobox"],[contenteditable="true"]';
 var REVEAL_TARGETS = [
@@ -1140,10 +1231,10 @@ var REVEAL_TARGETS = [
 var REVEAL_LAYERS = `[${POPUP_ATTRIBUTE}],[data-menu-material],[role="menu"],[role="dialog"],[role="alertdialog"],[role="listbox"],[role="tooltip"],[data-composer-overlay],[data-dockkit-float],[style*="--dsh-hover-preview-fade"]`;
 var REVEAL_EXCLUDED = `[${NO_REVEAL_ATTRIBUTE}],[hidden],[inert],[aria-hidden="true"],[data-closing],[data-acrylic-ghost],[data-acrylic-reveal],[data-width-handle],[data-dockkit-divider],[data-dockkit-float-resize],.monaco-editor,.xterm`;
 var REVEAL_CSS = `
-[data-acrylic-reveal] { position:fixed;pointer-events:none;z-index:var(--reveal-z,0);box-sizing:border-box;border:1px solid transparent;border-radius:var(--reveal-radius,2px);background:radial-gradient(72px circle at var(--reveal-x) var(--reveal-y),rgb(255 255 255 / var(--reveal-surface)),transparent) padding-box; }
-[data-acrylic-reveal]::before { content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:radial-gradient(80px circle at var(--reveal-x) var(--reveal-y),rgb(255 255 255 / var(--reveal-border)),transparent);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude; }
-body:not([data-ds-dark-theme]) [data-acrylic-reveal] { background:radial-gradient(72px circle at var(--reveal-x) var(--reveal-y),rgb(0 0 0 / var(--reveal-surface)),transparent) padding-box; }
-body:not([data-ds-dark-theme]) [data-acrylic-reveal]::before { background:radial-gradient(80px circle at var(--reveal-x) var(--reveal-y),rgb(0 0 0 / var(--reveal-border)),transparent); }
+[data-acrylic-reveal] { --reveal-rgb:255 255 255;position:fixed;pointer-events:none;z-index:var(--reveal-z,0);box-sizing:border-box;border:1px solid transparent;border-radius:var(--reveal-radius,2px);background:radial-gradient(72px circle at var(--reveal-x) var(--reveal-y),rgb(var(--reveal-rgb) / var(--reveal-surface)),transparent) padding-box; }
+[data-acrylic-reveal]::before { content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:radial-gradient(80px circle at var(--reveal-x) var(--reveal-y),rgb(var(--reveal-rgb) / var(--reveal-border)),transparent);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude; }
+body:not([data-ds-dark-theme]) [data-acrylic-reveal] { --reveal-rgb:0 0 0; }
+${PRESS_CSS}
 @media (prefers-reduced-motion:reduce),(forced-colors:active) { [data-acrylic-reveal]{display:none} }
 `;
 function revealStrength(x, y, rect) {
@@ -1155,12 +1246,21 @@ function createReveal(document2, window2, modules) {
   const media = [window2.matchMedia("(prefers-reduced-motion: reduce)"), window2.matchMedia("(forced-colors: active)"), window2.matchMedia("(hover: hover) and (pointer: fine)")];
   let requested = false, running = false, disposed = false, frame = 0;
   let point = null;
+  let press = null;
+  function cancelPress() {
+    press?.light?.dispose();
+    press = null;
+  }
   let controls = REVEAL_TARGETS, quiet = null;
+  let surfaces = COMPOSER_CARD;
   function resolve2() {
     const rows = modules.select("searchResultRow");
     controls = rows ? `${REVEAL_TARGETS},${rows}` : REVEAL_TARGETS;
+    const bubble = modules.select("userBubble");
+    surfaces = `${COMPOSER_CARD},[data-testid="todo-panel"],[data-side-chat] .dsc-bubble:not([data-pending])${bubble ? `,:is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) ${bubble}` : ""}`;
     quiet = modules.select("turnRail");
   }
+  const borderOnly = (target) => target.matches(`${REVEAL_FIELDS},${surfaces}`);
   resolve2();
   const unsubscribe = modules.subscribe(() => {
     resolve2();
@@ -1189,6 +1289,7 @@ function createReveal(document2, window2, modules) {
     if (frame) window2.cancelAnimationFrame(frame);
     frame = 0;
     point = null;
+    cancelPress();
     activeObserver.disconnect();
     sizes.disconnect();
     for (const node of overlays.values()) node.remove();
@@ -1204,7 +1305,7 @@ function createReveal(document2, window2, modules) {
     if (target) return target;
     const labelControl = node.closest("label")?.control;
     if (labelControl?.matches('input:is([type="checkbox"],[type="radio"])')) return labelControl;
-    return node.closest(COMPOSER_CARD);
+    return node.closest(surfaces);
   }
   function layer(node) {
     return node?.closest(REVEAL_LAYERS) ?? document2.body;
@@ -1212,8 +1313,8 @@ function createReveal(document2, window2, modules) {
   function candidates(x, y, hit) {
     const targets = /* @__PURE__ */ new Set(), surface = layer(hit), direct = control(hit);
     if (direct) targets.add(direct);
-    const composer = hit?.closest(COMPOSER_CARD);
-    if (composer && layer(composer) === surface) targets.add(composer);
+    const content = hit?.closest(surfaces);
+    if (content && layer(content) === surface) targets.add(content);
     for (const target of overlays.keys()) if (target.isConnected && layer(target) === surface) targets.add(target);
     for (const dx of [0, -48, 48]) for (const dy of [0, -48, 48]) {
       const node = dx || dy ? document2.elementFromPoint(x + dx, y + dy) : hit;
@@ -1222,8 +1323,8 @@ function createReveal(document2, window2, modules) {
       if (target && !(direct && target !== direct && target.contains(direct))) targets.add(target);
     }
     for (const target of targets) {
-      if (target === direct || target.matches(COMPOSER_CARD)) continue;
-      if (direct && !direct.matches(COMPOSER_CARD) && (target.contains(direct) || direct.contains(target))) targets.delete(target);
+      if (target === direct || target.matches(surfaces)) continue;
+      if (direct && !direct.matches(surfaces) && (target.contains(direct) || direct.contains(target))) targets.delete(target);
       else if ([...targets].some((other) => other !== target && target.contains(other))) targets.delete(target);
     }
     return targets;
@@ -1231,8 +1332,9 @@ function createReveal(document2, window2, modules) {
   function draw() {
     frame = 0;
     if (!point || !running || document2.hidden) return clear();
-    const { x, y, pressed } = point;
+    const { x, y } = point;
     const hit = document2.elementFromPoint(x, y);
+    if (press && (!press.target.isConnected || control(hit) !== press.target || borderOnly(press.target))) cancelPress();
     const rows = [], ancestors = /* @__PURE__ */ new Map();
     const blockers = [];
     for (const portal of portals) {
@@ -1269,8 +1371,9 @@ function createReveal(document2, window2, modules) {
       const computed = window2.getComputedStyle(target);
       if (computed.visibility !== "visible" || computed.pointerEvents === "none") continue;
       let opacity = Number(computed.opacity), z = computed.zIndex === "auto" ? 0 : Number(computed.zIndex);
-      let left = Math.max(0, rect.left, x - 84), top = Math.max(0, rect.top, y - 84);
-      let right = Math.min(window2.innerWidth, rect.right, x + 84), bottom = Math.min(window2.innerHeight, rect.bottom, y + 84);
+      const footprint = press?.target === target ? PRESS_RADIUS + 2 : 84;
+      let left = Math.max(0, rect.left, x - footprint), top = Math.max(0, rect.top, y - footprint);
+      let right = Math.min(window2.innerWidth, rect.right, x + footprint), bottom = Math.min(window2.innerHeight, rect.bottom, y + footprint);
       for (let parent = target.parentElement; parent && parent !== document2.body; parent = parent.parentElement) {
         const { clipsX, clipsY, bounds, opacity: alpha, context, z: parentZ } = geometry(parent);
         opacity *= alpha;
@@ -1296,16 +1399,16 @@ function createReveal(document2, window2, modules) {
       const probes = [[left + inset, top + inset], [right - inset, top + inset], [left + inset, bottom - inset], [right - inset, bottom - inset], [(left + right) / 2, (top + bottom) / 2]];
       if (!probes.every(([px, py]) => owns(px, py))) continue;
       if (computed.display === "inline" && target.getClientRects().length > 1) continue;
-      const borderOnly = target.matches(`${REVEAL_FIELDS},input:is([type="checkbox"],[type="radio"]),[data-testid="todo-panel"]`) || target.matches(COMPOSER_CARD);
-      rows.push({ target, rect, strength, borderOnly, z, hover: hit === target || target.contains(hit), radius: computed.borderRadius, clip: `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)` });
+      rows.push({ target, rect, strength, borderOnly: borderOnly(target), z, hover: hit === target || target.contains(hit), radius: computed.borderRadius, clip: `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)` });
     }
     const active = new Set(rows.map((row) => row.target));
+    if (press && !active.has(press.target)) cancelPress();
     const changed = active.size !== overlays.size || [...active].some((target) => !overlays.has(target));
     for (const [target, node] of overlays) if (!active.has(target)) {
       node.remove();
       overlays.delete(target);
     }
-    for (const { target, rect, strength, hover, borderOnly, radius, clip, z } of rows) {
+    for (const { target, rect, strength, hover, borderOnly: borderOnly2, radius, clip, z } of rows) {
       let node = overlays.get(target);
       if (!node) {
         node = document2.createElement("div");
@@ -1319,8 +1422,17 @@ function createReveal(document2, window2, modules) {
       node.style.setProperty("--reveal-radius", radius);
       node.style.setProperty("--reveal-x", `${x - rect.left}px`);
       node.style.setProperty("--reveal-y", `${y - rect.top}px`);
-      node.style.setProperty("--reveal-border", String(strength * (pressed && hover ? 0.65 : borderOnly ? 0.48 : 0.38)));
-      node.style.setProperty("--reveal-surface", String(!borderOnly && hover ? pressed ? 0.1 : 0.045 : 0));
+      node.style.setProperty("--reveal-border", String(strength * (borderOnly2 ? 0.48 : 0.38)));
+      node.style.setProperty("--reveal-surface", String(!borderOnly2 && hover ? 0.045 : 0));
+      const current = press;
+      if (current?.target === target && !current.light) {
+        current.light = createPressLight(document2, window2, node, () => {
+          if (press !== current) return;
+          press = null;
+          schedule();
+        });
+        if (current.released) current.light.release();
+      }
     }
     if (changed) watchActive();
   }
@@ -1329,11 +1441,36 @@ function createReveal(document2, window2, modules) {
   }
   function pointer(event) {
     if (event.pointerType !== "mouse" && event.pointerType !== "pen") return clear();
-    point = { x: event.clientX, y: event.clientY, pressed: event.buttons === 1 };
+    if (!event.isPrimary || press && press.pointerId !== event.pointerId) return;
+    point = { x: event.clientX, y: event.clientY };
+    const target = control(document2.elementFromPoint(point.x, point.y));
+    if (press && target !== press.target) cancelPress();
+    if (event.type === "pointerdown") {
+      cancelPress();
+      if (event.button === 0 && target && !borderOnly(target)) {
+        press = { target, pointerId: event.pointerId, released: false, light: null };
+      }
+    } else if (press && !press.released && !(event.buttons & 1)) {
+      press.released = true;
+      press.light?.release();
+    }
     schedule();
   }
   function leave(event) {
-    if (!event.relatedTarget) clear();
+    if (!event.relatedTarget) return clear();
+    if (press && event.pointerId === press.pointerId) {
+      const next = event.relatedTarget instanceof window2.Element ? event.relatedTarget : null;
+      if (control(next) !== press.target) {
+        cancelPress();
+        schedule();
+      }
+    }
+  }
+  function lostCapture(event) {
+    if (press?.pointerId === event.pointerId && !press.released) {
+      cancelPress();
+      schedule();
+    }
   }
   function collectPortals(root) {
     let found = false;
@@ -1383,6 +1520,7 @@ function createReveal(document2, window2, modules) {
     for (const type of ["pointermove", "pointerdown", "pointerup"]) on(document2, type, pointer, true);
     on(document2, "pointerout", leave, true);
     on(document2, "pointercancel", clear, true);
+    on(document2, "lostpointercapture", lostCapture, true);
     on(document2, "keydown", clear, true);
     on(document2, "dragstart", clear, true);
     on(document2, "scroll", schedule, true);
@@ -1706,7 +1844,7 @@ function createSettingsPanel(controller) {
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "壁纸" }),
       toggle("enabled", "显示壁纸"),
       toggle("fluent", "Win10 风格"),
-      toggle("reveal", "悬停光效", locked || !state.settings.fluent),
+      toggle("reveal", "悬停与按压光效", locked || !state.settings.fluent),
       state.url ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { className: "acrylic-preview", src: state.url, alt: "壁纸预览" }) : null,
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "acrylic-filename", children: state.name || "未选择图片" }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(

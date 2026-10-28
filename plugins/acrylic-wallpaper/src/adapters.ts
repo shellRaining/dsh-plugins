@@ -77,8 +77,28 @@ html[data-platform="darwin"] body[data-acrylic-fluent][data-ds-dark-theme] [data
 }
 `;
 
+// Persistent Pressed paint is separate from the short-lived Reveal light.
+// Ghost already consumes the host active token; do not darken it a second time.
+// Match only verified primitive variants, not every clickable DOM element.
+function buttonStateCss(modules: HostModules): string {
+  const button = modules.select('button');
+  if (!button) return '';
+  const active = (variant: string) => `body[data-acrylic-fluent] button${button}${variant}:active:not(:disabled):not([aria-disabled="true"]):not([aria-busy="true"])`;
+  const outline = modules.select('buttonOutline'), toolbar = modules.select('buttonToolbar'), primary = modules.select('buttonPrimary');
+  // Toolbar keeps its original fill underneath the state tint. Primary has no
+  // pressed token: a small mix toward its own foreground works for dark and
+  // light fills; this is a web approximation, not a WinUI resource value.
+  return `
+@media (forced-colors: none) {
+${outline ? `${active(outline)} { background:var(--dsw-alias-interactive-bg-active); }` : ''}
+${toolbar ? `${active(toolbar)} { background:linear-gradient(var(--dsw-alias-interactive-bg-active),var(--dsw-alias-interactive-bg-active)),var(--dsw-alias-button-tool-bar-fill); }` : ''}
+${primary ? `${active(primary)} { background:color-mix(in srgb,var(--dsw-alias-button-primary-fill) 88%,var(--dsw-alias-label-primary-foreground)); }` : ''}
+}
+`;
+}
+
 export function createAdapters(document: Document, modules: HostModules): Feature<boolean> {
-  const render = () => adapterCss(modules.select('searchResultRow'));
+  const render = () => adapterCss(modules.select('searchResultRow')) + buttonStateCss(modules);
   const sheet = createStyleSheet(document, 'dsh-acrylic-wallpaper-adapters', render());
   const unsubscribe = modules.subscribe(() => sheet.set(render()));
   return { update: sheet.toggle, dispose() { unsubscribe(); sheet.dispose(); } };

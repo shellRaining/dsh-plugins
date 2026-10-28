@@ -3,6 +3,7 @@ import type { Feature } from './feature.ts';
 import { createStyleSheet } from './style.ts';
 import { COMPOSER_CARD, COMPOSER_INPUT } from './composer.ts';
 import type { HostModules } from './host/modules.ts';
+import { createPressLight, PRESS_CSS, PRESS_RADIUS, type PressLight } from './press.ts';
 
 // Resolve real controls at the pointer, not component names or whole DOM lists.
 // Host nodes/pseudo-elements/event handlers stay untouched, including titlebar
@@ -20,10 +21,10 @@ const REVEAL_LAYERS = `[${POPUP_ATTRIBUTE}],[data-menu-material],[role="menu"],[
 // Opted out by other plugins (contract.ts), or not a live control.
 const REVEAL_EXCLUDED = `[${NO_REVEAL_ATTRIBUTE}],[hidden],[inert],[aria-hidden="true"],[data-closing],[data-acrylic-ghost],[data-acrylic-reveal],[data-width-handle],[data-dockkit-divider],[data-dockkit-float-resize],.monaco-editor,.xterm`;
 export const REVEAL_CSS = `
-[data-acrylic-reveal] { position:fixed;pointer-events:none;z-index:var(--reveal-z,0);box-sizing:border-box;border:1px solid transparent;border-radius:var(--reveal-radius,2px);background:radial-gradient(72px circle at var(--reveal-x) var(--reveal-y),rgb(255 255 255 / var(--reveal-surface)),transparent) padding-box; }
-[data-acrylic-reveal]::before { content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:radial-gradient(80px circle at var(--reveal-x) var(--reveal-y),rgb(255 255 255 / var(--reveal-border)),transparent);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude; }
-body:not([data-ds-dark-theme]) [data-acrylic-reveal] { background:radial-gradient(72px circle at var(--reveal-x) var(--reveal-y),rgb(0 0 0 / var(--reveal-surface)),transparent) padding-box; }
-body:not([data-ds-dark-theme]) [data-acrylic-reveal]::before { background:radial-gradient(80px circle at var(--reveal-x) var(--reveal-y),rgb(0 0 0 / var(--reveal-border)),transparent); }
+[data-acrylic-reveal] { --reveal-rgb:255 255 255;position:fixed;pointer-events:none;z-index:var(--reveal-z,0);box-sizing:border-box;border:1px solid transparent;border-radius:var(--reveal-radius,2px);background:radial-gradient(72px circle at var(--reveal-x) var(--reveal-y),rgb(var(--reveal-rgb) / var(--reveal-surface)),transparent) padding-box; }
+[data-acrylic-reveal]::before { content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:radial-gradient(80px circle at var(--reveal-x) var(--reveal-y),rgb(var(--reveal-rgb) / var(--reveal-border)),transparent);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude; }
+body:not([data-ds-dark-theme]) [data-acrylic-reveal] { --reveal-rgb:0 0 0; }
+${PRESS_CSS}
 @media (prefers-reduced-motion:reduce),(forced-colors:active) { [data-acrylic-reveal]{display:none} }
 `;
 
@@ -46,17 +47,23 @@ export interface Reveal extends Feature<boolean> {
 export function createReveal(document: Document, window: Window & typeof globalThis, modules: HostModules): Reveal {
   const media = [window.matchMedia('(prefers-reduced-motion: reduce)'), window.matchMedia('(forced-colors: active)'), window.matchMedia('(hover: hover) and (pointer: fine)')];
   let requested = false, running = false, disposed = false, frame = 0;
-  let point: { x: number; y: number; pressed: boolean } | null = null;
+  let point: { x: number; y: number } | null = null;
+  let press: { target: Element; pointerId: number; released: boolean; light: PressLight | null } | null = null;
+  function cancelPress() { press?.light?.dispose(); press = null; }
   // Host components without semantic anchors, resolved when their modules
   // load (host/modules.ts). The turn rail's 2px marks sit in 28x10 hit areas
   // next to a pointer-transparent preview: an outline, not a Win10 control
   // surface, so it never lights and hovering it lights nothing nearby.
   let controls = REVEAL_TARGETS, quiet: string | null = null;
+  let surfaces = COMPOSER_CARD;
   function resolve() {
     const rows = modules.select('searchResultRow');
     controls = rows ? `${REVEAL_TARGETS},${rows}` : REVEAL_TARGETS;
+    const bubble = modules.select('userBubble');
+    surfaces = `${COMPOSER_CARD},[data-testid="todo-panel"],[data-side-chat] .dsc-bubble:not([data-pending])${bubble ? `,:is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) ${bubble}` : ''}`;
     quiet = modules.select('turnRail');
   }
+  const borderOnly = (target: Element) => target.matches(`${REVEAL_FIELDS},${surfaces}`);
   resolve();
   const unsubscribe = modules.subscribe(() => { resolve(); schedule(); });
   const overlays = new Map<Element, HTMLDivElement>();
@@ -79,7 +86,7 @@ export function createReveal(document: Document, window: Window & typeof globalT
   const sheet = createStyleSheet(document, 'dsh-acrylic-wallpaper-reveal', REVEAL_CSS);
   function clear() {
     if (frame) window.cancelAnimationFrame(frame);
-    frame = 0; point = null;
+    frame = 0; point = null; cancelPress();
     activeObserver.disconnect(); sizes.disconnect();
     for (const node of overlays.values()) node.remove();
     overlays.clear();
@@ -99,18 +106,18 @@ export function createReveal(document: Document, window: Window & typeof globalT
     if (target) return target;
     const labelControl = node.closest('label')?.control;
     if (labelControl?.matches('input:is([type="checkbox"],[type="radio"])')) return labelControl;
-    return node.closest(COMPOSER_CARD);
+    return node.closest(surfaces);
   }
   function layer(node: Element | null | undefined): Element { return node?.closest(REVEAL_LAYERS) ?? document.body; }
   // Nine candidate samples, followed by bounded visibility probes, independent
   // of history/list length. The innermost
-  // control wins over its containing tree row or tab; the composer may add an
-  // independent border, never a fill across its text editing surface.
+  // control wins over its containing tree row or tab; content cards may add an
+  // independent border, never a fill across their text.
   function candidates(x: number, y: number, hit: Element | null): Set<Element> {
     const targets = new Set<Element>(), surface = layer(hit), direct = control(hit);
     if (direct) targets.add(direct);
-    const composer = hit?.closest(COMPOSER_CARD);
-    if (composer && layer(composer) === surface) targets.add(composer);
+    const content = hit?.closest(surfaces);
+    if (content && layer(content) === surface) targets.add(content);
     // Retain the last few targets through the full proximity falloff, so
     // leaving a narrow button/card does not abruptly lose its sampled edge.
     for (const target of overlays.keys()) if (target.isConnected && layer(target) === surface) targets.add(target);
@@ -121,8 +128,8 @@ export function createReveal(document: Document, window: Window & typeof globalT
       if (target && !(direct && target !== direct && target.contains(direct))) targets.add(target);
     }
     for (const target of targets) {
-      if (target === direct || target.matches(COMPOSER_CARD)) continue;
-      if (direct && !direct.matches(COMPOSER_CARD) && (target.contains(direct) || direct.contains(target))) targets.delete(target);
+      if (target === direct || target.matches(surfaces)) continue;
+      if (direct && !direct.matches(surfaces) && (target.contains(direct) || direct.contains(target))) targets.delete(target);
       else if ([...targets].some(other => other !== target && target.contains(other))) targets.delete(target);
     }
     return targets;
@@ -130,8 +137,9 @@ export function createReveal(document: Document, window: Window & typeof globalT
   function draw() {
     frame = 0;
     if (!point || !running || document.hidden) return clear();
-    const { x, y, pressed } = point;
+    const { x, y } = point;
     const hit = document.elementFromPoint(x, y);
+    if (press && (!press.target.isConnected || control(hit) !== press.target || borderOnly(press.target))) cancelPress();
     const rows: Row[] = [], ancestors = new Map<Element, Ancestor>();
     // Lights are appended to body, outside the target's stacking context.
     // Even a small popup missed by the visibility probes must block them;
@@ -169,8 +177,9 @@ export function createReveal(document: Document, window: Window & typeof globalT
       if (computed.visibility !== 'visible' || computed.pointerEvents === 'none') continue;
       let opacity = Number(computed.opacity), z = computed.zIndex === 'auto' ? 0 : Number(computed.zIndex);
       // Paint only the light's local footprint, not a screen-sized editor/row.
-      let left = Math.max(0, rect.left, x - 84), top = Math.max(0, rect.top, y - 84);
-      let right = Math.min(window.innerWidth, rect.right, x + 84), bottom = Math.min(window.innerHeight, rect.bottom, y + 84);
+      const footprint = press?.target === target ? PRESS_RADIUS + 2 : 84;
+      let left = Math.max(0, rect.left, x - footprint), top = Math.max(0, rect.top, y - footprint);
+      let right = Math.min(window.innerWidth, rect.right, x + footprint), bottom = Math.min(window.innerHeight, rect.bottom, y + footprint);
       for (let parent = target.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
         const { clipsX, clipsY, bounds, opacity: alpha, context, z: parentZ } = geometry(parent);
         opacity *= alpha;
@@ -192,11 +201,11 @@ export function createReveal(document: Document, window: Window & typeof globalT
       // Multiline inline file links are real buttons too; their union box may
       // cover unrelated prose. Keep the host's underline rather than light it.
       if (computed.display === 'inline' && target.getClientRects().length > 1) continue;
-      const borderOnly = target.matches(`${REVEAL_FIELDS},input:is([type="checkbox"],[type="radio"]),[data-testid="todo-panel"]`) || target.matches(COMPOSER_CARD);
-      rows.push({ target, rect, strength, borderOnly, z, hover: hit === target || target.contains(hit), radius: computed.borderRadius, clip: `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)` });
+      rows.push({ target, rect, strength, borderOnly: borderOnly(target), z, hover: hit === target || target.contains(hit), radius: computed.borderRadius, clip: `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)` });
     }
     // Batch geometry reads above, then overlay writes. No host style mutation.
     const active = new Set(rows.map(row => row.target));
+    if (press && !active.has(press.target)) cancelPress();
     const changed = active.size !== overlays.size || [...active].some(target => !overlays.has(target));
     for (const [target, node] of overlays) if (!active.has(target)) { node.remove(); overlays.delete(target); }
     for (const { target, rect, strength, hover, borderOnly, radius, clip, z } of rows) {
@@ -207,17 +216,49 @@ export function createReveal(document: Document, window: Window & typeof globalT
       node.style.setProperty('--reveal-radius', radius);
       node.style.setProperty('--reveal-x', `${x - rect.left}px`);
       node.style.setProperty('--reveal-y', `${y - rect.top}px`);
-      node.style.setProperty('--reveal-border', String(strength * (pressed && hover ? .65 : borderOnly ? .48 : .38)));
-      node.style.setProperty('--reveal-surface', String(!borderOnly && hover ? pressed ? .10 : .045 : 0));
+      node.style.setProperty('--reveal-border', String(strength * (borderOnly ? .48 : .38)));
+      node.style.setProperty('--reveal-surface', String(!borderOnly && hover ? .045 : 0));
+      const current = press;
+      if (current?.target === target && !current.light) {
+        current.light = createPressLight(document, window, node, () => {
+          if (press !== current) return;
+          press = null; schedule();
+        });
+        if (current.released) current.light.release();
+      }
     }
     if (changed) watchActive();
   }
   function schedule() { if (running && point && !frame) frame = window.requestAnimationFrame(draw); }
   function pointer(event: PointerEvent) {
     if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return clear();
-    point = { x: event.clientX, y: event.clientY, pressed: event.buttons === 1 }; schedule();
+    if (!event.isPrimary || (press && press.pointerId !== event.pointerId)) return;
+    point = { x: event.clientX, y: event.clientY };
+    const target = control(document.elementFromPoint(point.x, point.y));
+    if (press && target !== press.target) cancelPress();
+    if (event.type === 'pointerdown') {
+      cancelPress();
+      if (event.button === 0 && target && !borderOnly(target)) {
+        press = { target, pointerId: event.pointerId, released: false, light: null };
+      }
+    } else if (press && !press.released && !(event.buttons & 1)) {
+      press.released = true;
+      press.light?.release();
+    }
+    schedule();
   }
-  function leave(event: PointerEvent) { if (!event.relatedTarget) clear(); }
+  function leave(event: PointerEvent) {
+    if (!event.relatedTarget) return clear();
+    if (press && event.pointerId === press.pointerId) {
+      const next = event.relatedTarget instanceof window.Element ? event.relatedTarget : null;
+      if (control(next) !== press.target) { cancelPress(); schedule(); }
+    }
+  }
+  function lostCapture(event: PointerEvent) {
+    // Normal pointerup also releases host capture. Let its release light finish;
+    // only losing capture while still held is an interruption.
+    if (press?.pointerId === event.pointerId && !press.released) { cancelPress(); schedule(); }
+  }
   function collectPortals(root: Element): boolean {
     let found = false;
     if (root.matches(portalSelector)) { portals.add(root); found = true; }
@@ -259,6 +300,7 @@ export function createReveal(document: Document, window: Window & typeof globalT
     for (const type of ['pointermove', 'pointerdown', 'pointerup']) on(document, type, pointer as EventListener, true);
     on(document, 'pointerout', leave as EventListener, true);
     on(document, 'pointercancel', clear, true);
+    on(document, 'lostpointercapture', lostCapture as EventListener, true);
     on(document, 'keydown', clear, true);
     on(document, 'dragstart', clear, true);
     on(document, 'scroll', schedule, true);

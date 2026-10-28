@@ -9,6 +9,13 @@ import type { Dispose } from './context.ts';
 
 /** Host components without a semantic anchor, as [module id, local class]. */
 export const HOST_CLASSES = {
+  // Only these primitive variants lack the ghost button's native :active fill.
+  button: ['@deepseek-ai/dsh-client-ui-primitives/Button.module.css', 'button'],
+  buttonOutline: ['@deepseek-ai/dsh-client-ui-primitives/Button.module.css', 'outline'],
+  buttonToolbar: ['@deepseek-ai/dsh-client-ui-primitives/Button.module.css', 'toolbar'],
+  buttonPrimary: ['@deepseek-ai/dsh-client-ui-primitives/Button.module.css', 'primary'],
+  // Sent user text, excluding attachments, timestamps and row actions.
+  userBubble: ['@deepseek-ai/dsh-client-ui-chat/MessageItem.module.css', 'bubble'],
   // Right-hand turn rail (an outline next to the conversation).
   turnRail: ['@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css', 'frame'],
   // Sidebar search results: tree rows without data-row-key.
