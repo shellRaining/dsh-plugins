@@ -1,0 +1,63 @@
+{
+  "name": "@shellraining/dsh-plugin-updates",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "插件页的「更新」标签：检查 npm 来源插件的新版本，一键更新或安装指定版本",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "pnpm run typecheck && node build.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.3",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@types/semver": "7.8.0",
+    "esbuild": "0.28.2",
+    "semver": "7.8.5",
+    "typescript": "5.9.3"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
+      ]
+    }
+  },
+  "license": "MIT",
+  "author": "shellRaining",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shellRaining/dsh-plugins.git",
+    "directory": "plugins/plugin-updates"
+  },
+  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/plugin-updates#readme",
+  "bugs": "https://github.com/shellRaining/dsh-plugins/issues",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
