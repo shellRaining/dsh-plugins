@@ -202,6 +202,9 @@ export const CSS = `
 
 /* Usage dock under the composer, styled like the main chat's stat pills. */
 .dsc-dock {
+  box-sizing: border-box;
+  /* Reserve one row, including item padding and the gap above, before usage arrives. */
+  min-height: calc(var(--dsc-secondary-line) + 6px);
   display: flex;
   flex-wrap: wrap;
   align-items: center;

@@ -306,7 +306,7 @@ const exact = (value: number): string => Math.max(0, Math.round(value)).toLocale
 
 function UsageDock({ metrics, contextWindow, t }: { metrics: Metrics | null; contextWindow: number | null; t: Translate }): ReactNode {
   const occupancy = useMemo(() => occupancyOf(metrics, contextWindow), [metrics, contextWindow]);
-  if (metrics === null) return null;
+  if (metrics === null) return <div className="dsc-dock" aria-hidden="true" />;
   const usage = t(metrics.cacheWriteTokens > 0 ? 'dock.usageTitleWithWrite' : 'dock.usageTitle', {
     input: exact(metrics.uncachedInputTokens),
     cacheRead: exact(metrics.cacheReadTokens),
