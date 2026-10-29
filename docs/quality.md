@@ -17,7 +17,7 @@ pnpm typecheck
 pnpm build
 ```
 
-`pnpm typecheck` 检查各包的类型，`pnpm build` 生成实际入口和客户端 bundle。仓库当前不含自动化测试套件，也没有 `pnpm test` 命令。
+`pnpm typecheck` 先检查共享工具和各包构建脚本，再检查各包的类型，`pnpm build` 生成实际入口和客户端 bundle。仓库当前不含自动化测试套件，也没有 `pnpm test` 命令。
 
 当前仓库没有统一 lint / format 命令，不要在交付说明里声称通过了未配置的检查。构建成功只说明静态产物可生成，类型检查和构建都不等于浏览器交互已验证。
 
@@ -35,7 +35,7 @@ pnpm build
 
 ## 发布
 
-npm 包由 GitHub Actions 的 [release 流水线](../.github/workflows/release.yml)发布，除新包的首个版本外，不在本机执行 `npm publish`。推送到 main 后，流水线依次安装依赖、类型检查、构建，确认提交进仓库的构建产物与重新构建的结果一致，再运行 `pnpm -r publish`。版本号已在 npm 上的包会跳过，其余包作为 latest 发布。
+npm 包由 GitHub Actions 的 [release 流水线](../.github/workflows/release.yml)发布，除新包的首个版本外，不在本机执行发布。含 `catalog:` 的源码目录必须用 `pnpm publish`，或用 `pnpm pack` 后发布生成的 tarball，不能直接用 `npm publish` 跳过 catalog 转换。推送到 main 后，流水线依次安装依赖、类型检查、构建，确认提交进仓库的构建产物与重新构建的结果一致，再运行 `pnpm -r publish`。版本号已在 npm 上的包会跳过，其余包作为 latest 发布。
 
 发版就是修改对应包 `package.json` 的 `version`，和代码一起推送到 main。没改版本号的包不会重新发布。npm 不允许重复发布同一版本，流水线在构建或检查阶段失败时可以修复后再推送；如果 npm 已经接受了某个版本，后续修复要换新版本号。
 

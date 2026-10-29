@@ -4,652 +4,703 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     var module = { exports: {} };
     var exports = module.exports;
-"use strict";
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-// src/client.ts
-var client_exports = {};
-__export(client_exports, {
-  apply: () => apply,
-  inject: () => inject
-});
-module.exports = __toCommonJS(client_exports);
-
+Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+let react = require("react");
+let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+let react_jsx_runtime = require("react/jsx-runtime");
 // src/settings.ts
 var PLUGIN_ID = "dsh-acrylic-wallpaper";
-var FITS = Object.freeze(["cover", "contain", "stretch", "tile"]);
-var LIMITS = Object.freeze({ blur: 64, tint: 95, noise: 8 });
-var SWITCHES = ["enabled", "fluent", "reveal"];
-var DEFAULT_SETTINGS = Object.freeze({ enabled: true, blur: 32, tint: 72, noise: 3, fit: "cover", fluent: true, reveal: true });
+var FITS = Object.freeze([
+	"cover",
+	"contain",
+	"stretch",
+	"tile"
+]);
+var LIMITS = Object.freeze({
+	blur: 64,
+	tint: 95,
+	noise: 8
+});
+var SWITCHES = [
+	"enabled",
+	"fluent",
+	"reveal"
+];
+var DEFAULT_SETTINGS = Object.freeze({
+	enabled: true,
+	blur: 32,
+	tint: 72,
+	noise: 3,
+	fit: "cover",
+	fluent: true,
+	reveal: true
+});
 var own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 var object = (value) => value !== null && typeof value === "object" ? value : {};
 var isFit = (value) => FITS.includes(value);
 function normalizeSettings(input) {
-  const value = object(input);
-  const result = { ...DEFAULT_SETTINGS };
-  for (const key of SWITCHES) {
-    const candidate = value[key];
-    if (own(value, key) && typeof candidate === "boolean") result[key] = candidate;
-  }
-  for (const [key, max] of Object.entries(LIMITS)) {
-    const candidate = value[key];
-    if (own(value, key) && typeof candidate === "number" && Number.isFinite(candidate)) {
-      result[key] = Math.max(0, Math.min(max, candidate));
-    }
-  }
-  if (isFit(value.fit)) result.fit = value.fit;
-  return result;
+	const value = object(input);
+	const result = { ...DEFAULT_SETTINGS };
+	for (const key of SWITCHES) {
+		const candidate = value[key];
+		if (own(value, key) && typeof candidate === "boolean") result[key] = candidate;
+	}
+	for (const [key, max] of Object.entries(LIMITS)) {
+		const candidate = value[key];
+		if (own(value, key) && typeof candidate === "number" && Number.isFinite(candidate)) result[key] = Math.max(0, Math.min(max, candidate));
+	}
+	if (isFit(value.fit)) result.fit = value.fit;
+	return result;
 }
-
 // src/style.ts
-function createStyleSheet(document2, id, css) {
-  const node = document2.createElement("style");
-  node.dataset.plugin = id;
-  node.textContent = css;
-  return {
-    toggle(enabled) {
-      if (!enabled) node.remove();
-      else if (!node.isConnected) document2.head.append(node);
-    },
-    set(next) {
-      if (node.textContent !== next) node.textContent = next;
-    },
-    dispose() {
-      node.remove();
-    }
-  };
+function createStyleSheet(document, id, css) {
+	const node = document.createElement("style");
+	node.dataset.plugin = id;
+	node.textContent = css;
+	return {
+		toggle(enabled) {
+			if (!enabled) node.remove();
+			else if (!node.isConnected) document.head.append(node);
+		},
+		set(next) {
+			if (node.textContent !== next) node.textContent = next;
+		},
+		dispose() {
+			node.remove();
+		}
+	};
 }
-
 // src/storage.ts
 function record(input) {
-  const value = object(input);
-  const revision = value.imageRevision;
-  return {
-    settings: normalizeSettings(value.settings),
-    image: value.image instanceof Blob ? value.image : null,
-    name: typeof value.name === "string" ? value.name : "",
-    imageRevision: Number.isSafeInteger(revision) && revision >= 0 ? revision : 0
-  };
+	const value = object(input);
+	const revision = value.imageRevision;
+	return {
+		settings: normalizeSettings(value.settings),
+		image: value.image instanceof Blob ? value.image : null,
+		name: typeof value.name === "string" ? value.name : "",
+		imageRevision: Number.isSafeInteger(revision) && revision >= 0 ? revision : 0
+	};
 }
 function createStorage(indexedDB = globalThis.indexedDB) {
-  function open() {
-    return new Promise((resolve2, reject) => {
-      if (!indexedDB) return reject(new Error("IndexedDB is unavailable"));
-      let settled = false;
-      const request = indexedDB.open(PLUGIN_ID, 1);
-      request.onupgradeneeded = () => {
-        if (settled) return request.transaction?.abort();
-        request.result.createObjectStore("state");
-      };
-      request.onerror = () => {
-        settled = true;
-        reject(request.error || new Error("Cannot open wallpaper storage"));
-      };
-      request.onblocked = () => {
-        settled = true;
-        reject(new Error("Wallpaper storage upgrade is blocked"));
-      };
-      request.onsuccess = () => {
-        const db = request.result;
-        if (settled) return db.close();
-        settled = true;
-        db.onversionchange = () => db.close();
-        resolve2(db);
-      };
-    });
-  }
-  async function transact(patch) {
-    const db = await open();
-    try {
-      return await new Promise((resolve2, reject) => {
-        const tx = db.transaction("state", patch ? "readwrite" : "readonly");
-        let result;
-        let failure;
-        tx.oncomplete = () => resolve2(result ?? record(void 0));
-        tx.onabort = () => reject(failure || tx.error || new Error("Wallpaper storage transaction aborted"));
-        tx.onerror = () => {
-          failure ||= tx.error;
-        };
-        const store = tx.objectStore("state");
-        const request = store.get("current");
-        request.onsuccess = () => {
-          try {
-            const current = record(request.result);
-            result = current;
-            if (!patch) return;
-            current.settings = normalizeSettings({ ...current.settings, ...patch.settings });
-            if (patch.image !== void 0) {
-              current.image = patch.image;
-              current.imageRevision = current.imageRevision < Number.MAX_SAFE_INTEGER ? current.imageRevision + 1 : 0;
-            }
-            if (patch.name !== void 0) current.name = patch.name;
-            if (current.image === null) current.name = "";
-            store.put(current, "current");
-          } catch (error) {
-            failure = error;
-            tx.abort();
-          }
-        };
-      });
-    } finally {
-      db.close();
-    }
-  }
-  const read = () => transact();
-  const update = async (input = {}) => {
-    const value = object(input);
-    const patch = { settings: {} };
-    const settings = object(value.settings);
-    const accepted = patch.settings;
-    for (const key of Object.keys(DEFAULT_SETTINGS)) {
-      if (own(settings, key)) accepted[key] = settings[key];
-    }
-    if (own(value, "image")) {
-      if (value.image !== null && !(value.image instanceof Blob)) throw new TypeError("image must be a Blob or null");
-      patch.image = value.image;
-    }
-    if (own(value, "name")) {
-      if (typeof value.name !== "string") throw new TypeError("name must be a string");
-      patch.name = value.name;
-    }
-    return transact(patch);
-  };
-  return { read, update };
+	function open() {
+		return new Promise((resolve, reject) => {
+			if (!indexedDB) return reject(/* @__PURE__ */ new Error("IndexedDB is unavailable"));
+			let settled = false;
+			const request = indexedDB.open(PLUGIN_ID, 1);
+			request.onupgradeneeded = () => {
+				if (settled) return request.transaction?.abort();
+				request.result.createObjectStore("state");
+			};
+			request.onerror = () => {
+				settled = true;
+				reject(request.error || /* @__PURE__ */ new Error("Cannot open wallpaper storage"));
+			};
+			request.onblocked = () => {
+				settled = true;
+				reject(/* @__PURE__ */ new Error("Wallpaper storage upgrade is blocked"));
+			};
+			request.onsuccess = () => {
+				const db = request.result;
+				if (settled) return db.close();
+				settled = true;
+				db.onversionchange = () => db.close();
+				resolve(db);
+			};
+		});
+	}
+	async function transact(patch) {
+		const db = await open();
+		try {
+			return await new Promise((resolve, reject) => {
+				const tx = db.transaction("state", patch ? "readwrite" : "readonly");
+				let result;
+				let failure;
+				tx.oncomplete = () => resolve(result ?? record(void 0));
+				tx.onabort = () => reject(failure || tx.error || /* @__PURE__ */ new Error("Wallpaper storage transaction aborted"));
+				tx.onerror = () => {
+					failure ||= tx.error;
+				};
+				const store = tx.objectStore("state");
+				const request = store.get("current");
+				request.onsuccess = () => {
+					try {
+						const current = record(request.result);
+						result = current;
+						if (!patch) return;
+						current.settings = normalizeSettings({
+							...current.settings,
+							...patch.settings
+						});
+						if (patch.image !== void 0) {
+							current.image = patch.image;
+							current.imageRevision = current.imageRevision < Number.MAX_SAFE_INTEGER ? current.imageRevision + 1 : 0;
+						}
+						if (patch.name !== void 0) current.name = patch.name;
+						if (current.image === null) current.name = "";
+						store.put(current, "current");
+					} catch (error) {
+						failure = error;
+						tx.abort();
+					}
+				};
+			});
+		} finally {
+			db.close();
+		}
+	}
+	const read = () => transact();
+	const update = async (input = {}) => {
+		const value = object(input);
+		const patch = { settings: {} };
+		const settings = object(value.settings);
+		const accepted = patch.settings;
+		for (const key of Object.keys(DEFAULT_SETTINGS)) if (own(settings, key)) accepted[key] = settings[key];
+		if (own(value, "image")) {
+			if (value.image !== null && !(value.image instanceof Blob)) throw new TypeError("image must be a Blob or null");
+			patch.image = value.image;
+		}
+		if (own(value, "name")) {
+			if (typeof value.name !== "string") throw new TypeError("name must be a string");
+			patch.name = value.name;
+		}
+		return transact(patch);
+	};
+	return {
+		read,
+		update
+	};
 }
-
 // src/image.ts
-var MAX_BYTES = 20 * 1024 * 1024;
+var MAX_BYTES = 20971520;
 var MAX_PIXELS = 4e7;
 var MAX_SIDE = 16384;
 var MAX_EDGE = 3840;
 function dimensions(type, width, height) {
-  if (!width || !height || width > MAX_SIDE || height > MAX_SIDE || width * height > MAX_PIXELS) {
-    throw new Error("Image exceeds dimension limits (16384 per side, 40 million pixels)");
-  }
-  return { type, width, height };
+	if (!width || !height || width > MAX_SIDE || height > MAX_SIDE || width * height > MAX_PIXELS) throw new Error("Image exceeds dimension limits (16384 per side, 40 million pixels)");
+	return {
+		type,
+		width,
+		height
+	};
 }
 function validateImageHeader(input) {
-  const bytes = input instanceof Uint8Array ? input : input instanceof ArrayBuffer ? new Uint8Array(input) : null;
-  if (!bytes) throw new TypeError("Expected ArrayBuffer or Uint8Array");
-  if (!bytes.length || bytes.length > MAX_BYTES) throw new Error("Image must be between 1 byte and 20 MiB");
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const byte = (offset) => bytes[offset] ?? 0;
-  const text = (offset, value) => [...value].every((char, i) => bytes[offset + i] === char.charCodeAt(0));
-  const invalid = () => {
-    throw new Error("Invalid or unsupported image header; use PNG, JPEG or WebP");
-  };
-  if (byte(0) === 137 && text(1, "PNG\r\n\n")) {
-    if (bytes.length < 33 || view.getUint32(8) !== 13 || !text(12, "IHDR")) return invalid();
-    return dimensions("image/png", view.getUint32(16), view.getUint32(20));
-  }
-  if (byte(0) === 255 && byte(1) === 216) {
-    let offset = 2;
-    for (let markers = 0; markers < 4096 && offset < bytes.length; markers++) {
-      if (bytes[offset++] !== 255) return invalid();
-      while (offset < bytes.length && bytes[offset] === 255) offset++;
-      if (offset >= bytes.length) return invalid();
-      const marker = byte(offset++);
-      if (marker === 0 || marker === 216 || marker === 217 || marker === 218) return invalid();
-      if (marker === 1 || marker >= 208 && marker <= 215) continue;
-      if (offset + 2 > bytes.length) return invalid();
-      const length = view.getUint16(offset);
-      if (length < 2 || offset + length > bytes.length) return invalid();
-      if ([192, 193, 194, 195, 197, 198, 199, 201, 202, 203, 205, 206, 207].includes(marker)) {
-        if (length < 8 || !byte(offset + 7) || length !== 8 + 3 * byte(offset + 7)) return invalid();
-        return dimensions("image/jpeg", view.getUint16(offset + 5), view.getUint16(offset + 3));
-      }
-      offset += length;
-    }
-    return invalid();
-  }
-  if (bytes.length >= 12 && text(0, "RIFF") && text(8, "WEBP")) {
-    const end = view.getUint32(4, true) + 8;
-    if (end !== bytes.length) return invalid();
-    for (let offset = 12, chunks = 0; offset + 8 <= end && chunks < 4096; chunks++) {
-      const size = view.getUint32(offset + 4, true);
-      const start = offset + 8;
-      if (start + size + (size & 1) > end) return invalid();
-      if (text(offset, "VP8X")) {
-        if (size !== 10) return invalid();
-        const uint24 = (i) => byte(i) + byte(i + 1) * 256 + byte(i + 2) * 65536;
-        return dimensions("image/webp", uint24(start + 4) + 1, uint24(start + 7) + 1);
-      }
-      if (text(offset, "VP8 ")) {
-        if (size < 10 || byte(start) & 1 || !text(start + 3, "*")) return invalid();
-        return dimensions("image/webp", view.getUint16(start + 6, true) & 16383, view.getUint16(start + 8, true) & 16383);
-      }
-      if (text(offset, "VP8L")) {
-        if (size < 5 || byte(start) !== 47 || byte(start + 4) >> 5) return invalid();
-        const bits = view.getUint32(start + 1, true);
-        return dimensions("image/webp", (bits & 16383) + 1, (bits >>> 14 & 16383) + 1);
-      }
-      offset = start + size + (size & 1);
-    }
-  }
-  return invalid();
+	const bytes = input instanceof Uint8Array ? input : input instanceof ArrayBuffer ? new Uint8Array(input) : null;
+	if (!bytes) throw new TypeError("Expected ArrayBuffer or Uint8Array");
+	if (!bytes.length || bytes.length > MAX_BYTES) throw new Error("Image must be between 1 byte and 20 MiB");
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	const byte = (offset) => bytes[offset] ?? 0;
+	const text = (offset, value) => [...value].every((char, i) => bytes[offset + i] === char.charCodeAt(0));
+	const invalid = () => {
+		throw new Error("Invalid or unsupported image header; use PNG, JPEG or WebP");
+	};
+	if (byte(0) === 137 && text(1, "PNG\r\n\n")) {
+		if (bytes.length < 33 || view.getUint32(8) !== 13 || !text(12, "IHDR")) return invalid();
+		return dimensions("image/png", view.getUint32(16), view.getUint32(20));
+	}
+	if (byte(0) === 255 && byte(1) === 216) {
+		let offset = 2;
+		for (let markers = 0; markers < 4096 && offset < bytes.length; markers++) {
+			if (bytes[offset++] !== 255) return invalid();
+			while (offset < bytes.length && bytes[offset] === 255) offset++;
+			if (offset >= bytes.length) return invalid();
+			const marker = byte(offset++);
+			if (marker === 0 || marker === 216 || marker === 217 || marker === 218) return invalid();
+			if (marker === 1 || marker >= 208 && marker <= 215) continue;
+			if (offset + 2 > bytes.length) return invalid();
+			const length = view.getUint16(offset);
+			if (length < 2 || offset + length > bytes.length) return invalid();
+			if ([
+				192,
+				193,
+				194,
+				195,
+				197,
+				198,
+				199,
+				201,
+				202,
+				203,
+				205,
+				206,
+				207
+			].includes(marker)) {
+				if (length < 8 || !byte(offset + 7) || length !== 8 + 3 * byte(offset + 7)) return invalid();
+				return dimensions("image/jpeg", view.getUint16(offset + 5), view.getUint16(offset + 3));
+			}
+			offset += length;
+		}
+		return invalid();
+	}
+	if (bytes.length >= 12 && text(0, "RIFF") && text(8, "WEBP")) {
+		const end = view.getUint32(4, true) + 8;
+		if (end !== bytes.length) return invalid();
+		for (let offset = 12, chunks = 0; offset + 8 <= end && chunks < 4096; chunks++) {
+			const size = view.getUint32(offset + 4, true);
+			const start = offset + 8;
+			if (start + size + (size & 1) > end) return invalid();
+			if (text(offset, "VP8X")) {
+				if (size !== 10) return invalid();
+				const uint24 = (i) => byte(i) + byte(i + 1) * 256 + byte(i + 2) * 65536;
+				return dimensions("image/webp", uint24(start + 4) + 1, uint24(start + 7) + 1);
+			}
+			if (text(offset, "VP8 ")) {
+				if (size < 10 || byte(start) & 1 || !text(start + 3, "*")) return invalid();
+				return dimensions("image/webp", view.getUint16(start + 6, true) & 16383, view.getUint16(start + 8, true) & 16383);
+			}
+			if (text(offset, "VP8L")) {
+				if (size < 5 || byte(start) !== 47 || byte(start + 4) >> 5) return invalid();
+				const bits = view.getUint32(start + 1, true);
+				return dimensions("image/webp", (bits & 16383) + 1, (bits >>> 14 & 16383) + 1);
+			}
+			offset = start + size + (size & 1);
+		}
+	}
+	return invalid();
 }
 async function prepareImage(file) {
-  if (!(file instanceof Blob)) throw new TypeError("Expected an image Blob or File");
-  if (!file.size || file.size > MAX_BYTES) throw new Error("Image must be between 1 byte and 20 MiB");
-  const bytes = await file.arrayBuffer();
-  const header = validateImageHeader(bytes);
-  if (typeof globalThis.createImageBitmap !== "function") throw new Error("Image decoding is unavailable");
-  const bitmap = await globalThis.createImageBitmap(new Blob([bytes], { type: header.type }));
-  try {
-    dimensions(header.type, bitmap.width, bitmap.height);
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = typeof globalThis.OffscreenCanvas === "function" ? new globalThis.OffscreenCanvas(width, height) : globalThis.document?.createElement("canvas");
-    if (!canvas) throw new Error("Canvas is unavailable");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Canvas rendering is unavailable");
-    context.drawImage(bitmap, 0, 0, width, height);
-    const encode = (type) => "convertToBlob" in canvas ? canvas.convertToBlob({ type, quality: 0.9 }) : new Promise((resolve2, reject) => {
-      try {
-        canvas.toBlob(resolve2, type, 0.9);
-      } catch (error) {
-        reject(error);
-      }
-    });
-    let image;
-    try {
-      image = await encode("image/webp");
-    } catch {
-    }
-    if (!image?.size || !["image/webp", "image/png"].includes(image.type)) image = await encode("image/png");
-    if (!(image instanceof Blob) || !image.size || !["image/webp", "image/png"].includes(image.type)) {
-      throw new Error("Image encoding failed");
-    }
-    const name = file.name;
-    return { name: typeof name === "string" ? name : "", image };
-  } finally {
-    bitmap.close();
-  }
+	if (!(file instanceof Blob)) throw new TypeError("Expected an image Blob or File");
+	if (!file.size || file.size > MAX_BYTES) throw new Error("Image must be between 1 byte and 20 MiB");
+	const bytes = await file.arrayBuffer();
+	const header = validateImageHeader(bytes);
+	if (typeof globalThis.createImageBitmap !== "function") throw new Error("Image decoding is unavailable");
+	const bitmap = await globalThis.createImageBitmap(new Blob([bytes], { type: header.type }));
+	try {
+		dimensions(header.type, bitmap.width, bitmap.height);
+		const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+		const width = Math.max(1, Math.round(bitmap.width * scale));
+		const height = Math.max(1, Math.round(bitmap.height * scale));
+		const canvas = typeof globalThis.OffscreenCanvas === "function" ? new globalThis.OffscreenCanvas(width, height) : globalThis.document?.createElement("canvas");
+		if (!canvas) throw new Error("Canvas is unavailable");
+		canvas.width = width;
+		canvas.height = height;
+		const context = canvas.getContext("2d");
+		if (!context) throw new Error("Canvas rendering is unavailable");
+		context.drawImage(bitmap, 0, 0, width, height);
+		const encode = (type) => "convertToBlob" in canvas ? canvas.convertToBlob({
+			type,
+			quality: .9
+		}) : new Promise((resolve, reject) => {
+			try {
+				canvas.toBlob(resolve, type, .9);
+			} catch (error) {
+				reject(error);
+			}
+		});
+		let image;
+		try {
+			image = await encode("image/webp");
+		} catch {}
+		if (!image?.size || !["image/webp", "image/png"].includes(image.type)) image = await encode("image/png");
+		if (!(image instanceof Blob) || !image.size || !["image/webp", "image/png"].includes(image.type)) throw new Error("Image encoding failed");
+		const name = file.name;
+		return {
+			name: typeof name === "string" ? name : "",
+			image
+		};
+	} finally {
+		bitmap.close();
+	}
 }
-
 // src/controller.ts
 function createController(env = window) {
-  const storage = createStorage(env.indexedDB);
-  const listeners = /* @__PURE__ */ new Set();
-  let disposed = false;
-  let serial = Promise.resolve();
-  let imageRevision = -1;
-  let url = "";
-  let snapshot = { settings: { ...DEFAULT_SETTINGS }, name: "", url: "", loading: true, busy: false, error: "" };
-  const dirty = /* @__PURE__ */ new Map();
-  const pending = /* @__PURE__ */ new Map();
-  let generation = 0;
-  function effective(settings) {
-    return normalizeSettings({ ...settings, ...Object.fromEntries([...dirty].map(([key, entry]) => [key, entry.value])) });
-  }
-  let channel;
-  try {
-    channel = new env.BroadcastChannel(PLUGIN_ID);
-  } catch {
-  }
-  function publish(patch) {
-    if (disposed) return;
-    snapshot = { ...snapshot, ...patch };
-    listeners.forEach((listener) => listener());
-  }
-  function adopt(stored) {
-    if (disposed) return;
-    const { image, imageRevision: revision, name } = stored;
-    const settings = effective(stored.settings);
-    if (revision !== imageRevision) {
-      const previous = url;
-      url = image ? env.URL.createObjectURL(image) : "";
-      imageRevision = revision;
-      publish({ settings, name, url, loading: false, error: "" });
-      if (previous) env.URL.revokeObjectURL(previous);
-    } else publish({ settings, name, url, loading: false, error: "" });
-  }
-  function enqueue(action) {
-    const result = serial.then(() => disposed ? void 0 : action());
-    serial = result.catch((error) => {
-      publish({ loading: false, busy: false, error: error instanceof Error ? error.message : String(error) });
-    });
-    return serial;
-  }
-  const refresh = () => enqueue(async () => adopt(await storage.read()));
-  const onFocus = () => {
-    void refresh();
-  };
-  env.addEventListener("focus", onFocus);
-  if (channel) channel.onmessage = onFocus;
-  void refresh();
-  async function save(patch, versions = /* @__PURE__ */ new Map()) {
-    const stored = await storage.update(patch);
-    if (disposed) {
-      try {
-        const notification = new env.BroadcastChannel(PLUGIN_ID);
-        notification.postMessage("changed");
-        notification.close();
-      } catch {
-      }
-      return;
-    }
-    for (const [key, version] of versions) {
-      if (dirty.get(key)?.version === version) dirty.delete(key);
-    }
-    adopt(stored);
-    channel?.postMessage("changed");
-  }
-  const keysOf = (settings) => Object.keys(settings);
-  return {
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-    getSnapshot() {
-      return snapshot;
-    },
-    preview(settings) {
-      const normalized = normalizeSettings({ ...snapshot.settings, ...settings });
-      for (const key of keysOf(settings)) {
-        if (Object.hasOwn(DEFAULT_SETTINGS, key)) dirty.set(key, { value: normalized[key], version: ++generation });
-      }
-      publish({ settings: effective(snapshot.settings) });
-    },
-    commit(settings) {
-      const versions = new Map(keysOf(settings).flatMap((key) => {
-        const entry = dirty.get(key);
-        return entry ? [[key, entry.version]] : [];
-      }));
-      return enqueue(() => save({ settings }, versions));
-    },
-    commitPreview(key) {
-      const entry = dirty.get(key);
-      if (!entry || pending.get(key) === entry.version) return Promise.resolve();
-      pending.set(key, entry.version);
-      const versions = /* @__PURE__ */ new Map([[key, entry.version]]);
-      return enqueue(async () => {
-        try {
-          await save({ settings: { [key]: entry.value } }, versions);
-        } finally {
-          if (pending.get(key) === entry.version) pending.delete(key);
-        }
-      });
-    },
-    upload(file) {
-      if (snapshot.busy || disposed) return Promise.resolve();
-      publish({ busy: true, error: "" });
-      return enqueue(async () => {
-        try {
-          const prepared = await prepareImage(file);
-          if (!disposed) await save({ ...prepared, settings: { enabled: true } });
-        } finally {
-          publish({ busy: false });
-        }
-      });
-    },
-    remove() {
-      return enqueue(() => save({ image: null, name: "" }));
-    },
-    reset() {
-      dirty.clear();
-      return enqueue(() => save({ settings: DEFAULT_SETTINGS }));
-    },
-    dispose() {
-      disposed = true;
-      env.removeEventListener("focus", onFocus);
-      channel?.close();
-      listeners.clear();
-      if (url) env.URL.revokeObjectURL(url);
-      url = "";
-      imageRevision = -1;
-    }
-  };
+	const storage = createStorage(env.indexedDB);
+	const listeners = /* @__PURE__ */ new Set();
+	let disposed = false;
+	let serial = Promise.resolve();
+	let imageRevision = -1;
+	let url = "";
+	let snapshot = {
+		settings: { ...DEFAULT_SETTINGS },
+		name: "",
+		url: "",
+		loading: true,
+		busy: false,
+		error: ""
+	};
+	const dirty = /* @__PURE__ */ new Map();
+	const pending = /* @__PURE__ */ new Map();
+	let generation = 0;
+	function effective(settings) {
+		return normalizeSettings({
+			...settings,
+			...Object.fromEntries([...dirty].map(([key, entry]) => [key, entry.value]))
+		});
+	}
+	let channel;
+	try {
+		channel = new env.BroadcastChannel(PLUGIN_ID);
+	} catch {}
+	function publish(patch) {
+		if (disposed) return;
+		snapshot = {
+			...snapshot,
+			...patch
+		};
+		listeners.forEach((listener) => listener());
+	}
+	function adopt(stored) {
+		if (disposed) return;
+		const { image, imageRevision: revision, name } = stored;
+		const settings = effective(stored.settings);
+		if (revision !== imageRevision) {
+			const previous = url;
+			url = image ? env.URL.createObjectURL(image) : "";
+			imageRevision = revision;
+			publish({
+				settings,
+				name,
+				url,
+				loading: false,
+				error: ""
+			});
+			if (previous) env.URL.revokeObjectURL(previous);
+		} else publish({
+			settings,
+			name,
+			url,
+			loading: false,
+			error: ""
+		});
+	}
+	function enqueue(action) {
+		serial = serial.then(() => disposed ? void 0 : action()).catch((error) => {
+			publish({
+				loading: false,
+				busy: false,
+				error: error instanceof Error ? error.message : String(error)
+			});
+		});
+		return serial;
+	}
+	const refresh = () => enqueue(async () => adopt(await storage.read()));
+	const onFocus = () => {
+		refresh();
+	};
+	env.addEventListener("focus", onFocus);
+	if (channel) channel.onmessage = onFocus;
+	refresh();
+	async function save(patch, versions = /* @__PURE__ */ new Map()) {
+		const stored = await storage.update(patch);
+		if (disposed) {
+			try {
+				const notification = new env.BroadcastChannel(PLUGIN_ID);
+				notification.postMessage("changed");
+				notification.close();
+			} catch {}
+			return;
+		}
+		for (const [key, version] of versions) if (dirty.get(key)?.version === version) dirty.delete(key);
+		adopt(stored);
+		channel?.postMessage("changed");
+	}
+	const keysOf = (settings) => Object.keys(settings);
+	return {
+		subscribe(listener) {
+			listeners.add(listener);
+			return () => {
+				listeners.delete(listener);
+			};
+		},
+		getSnapshot() {
+			return snapshot;
+		},
+		preview(settings) {
+			const normalized = normalizeSettings({
+				...snapshot.settings,
+				...settings
+			});
+			for (const key of keysOf(settings)) if (Object.hasOwn(DEFAULT_SETTINGS, key)) dirty.set(key, {
+				value: normalized[key],
+				version: ++generation
+			});
+			publish({ settings: effective(snapshot.settings) });
+		},
+		commit(settings) {
+			const versions = new Map(keysOf(settings).flatMap((key) => {
+				const entry = dirty.get(key);
+				return entry ? [[key, entry.version]] : [];
+			}));
+			return enqueue(() => save({ settings }, versions));
+		},
+		commitPreview(key) {
+			const entry = dirty.get(key);
+			if (!entry || pending.get(key) === entry.version) return Promise.resolve();
+			pending.set(key, entry.version);
+			const versions = /* @__PURE__ */ new Map([[key, entry.version]]);
+			return enqueue(async () => {
+				try {
+					await save({ settings: { [key]: entry.value } }, versions);
+				} finally {
+					if (pending.get(key) === entry.version) pending.delete(key);
+				}
+			});
+		},
+		upload(file) {
+			if (snapshot.busy || disposed) return Promise.resolve();
+			publish({
+				busy: true,
+				error: ""
+			});
+			return enqueue(async () => {
+				try {
+					const prepared = await prepareImage(file);
+					if (!disposed) await save({
+						...prepared,
+						settings: { enabled: true }
+					});
+				} finally {
+					publish({ busy: false });
+				}
+			});
+		},
+		remove() {
+			return enqueue(() => save({
+				image: null,
+				name: ""
+			}));
+		},
+		reset() {
+			dirty.clear();
+			return enqueue(() => save({ settings: DEFAULT_SETTINGS }));
+		},
+		dispose() {
+			disposed = true;
+			env.removeEventListener("focus", onFocus);
+			channel?.close();
+			listeners.clear();
+			if (url) env.URL.revokeObjectURL(url);
+			url = "";
+			imageRevision = -1;
+		}
+	};
 }
-
 // src/contract.ts
 var FLUENT_MARKER = "data-acrylic-fluent";
 var WALLPAPER_MARKER = "data-acrylic-wallpaper";
 var POPUP_ATTRIBUTE = "data-acrylic-popup";
 var NO_REVEAL_ATTRIBUTE = "data-acrylic-no-reveal";
-
 // src/host/modules.ts
+/** Host components without a semantic anchor, as [module id, local class]. */
 var HOST_CLASSES = {
-  // Only these primitive variants lack the ghost button's native :active fill.
-  button: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "button"],
-  buttonOutline: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "outline"],
-  buttonToolbar: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "toolbar"],
-  buttonPrimary: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "primary"],
-  // Sent user text, excluding attachments, timestamps and row actions.
-  userBubble: ["@deepseek-ai/dsh-client-ui-chat/MessageItem.module.css", "bubble"],
-  // Right-hand turn rail (an outline next to the conversation).
-  turnRail: ["@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css", "frame"],
-  // Sidebar search results: tree rows without data-row-key.
-  searchResultRow: ["@deepseek-ai/dsh-client-ui-workspace/Rows.module.css", "searchResultRow"]
+	button: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "button"],
+	buttonOutline: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "outline"],
+	buttonToolbar: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "toolbar"],
+	buttonPrimary: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "primary"],
+	userBubble: ["@deepseek-ai/dsh-client-ui-chat/MessageItem.module.css", "bubble"],
+	turnRail: ["@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css", "frame"],
+	searchResultRow: ["@deepseek-ai/dsh-client-ui-workspace/Rows.module.css", "searchResultRow"]
 };
 var MODULE_TAG = "style[data-plugin-css]";
 var NAMES = Object.keys(HOST_CLASSES);
-function resolve(document2, name) {
-  const [module2, local] = HOST_CLASSES[name];
-  const style = document2.head.querySelector(`style[data-plugin-css=${JSON.stringify(module2)}]`);
-  const found = style?.textContent?.match(new RegExp(String.raw`\.([\w-]+_${local})(?![\w-])`))?.[1];
-  return found ? `[class~="${found}"]` : null;
+function resolve(document, name) {
+	const [module, local] = HOST_CLASSES[name];
+	const found = document.head.querySelector(`style[data-plugin-css=${JSON.stringify(module)}]`)?.textContent?.match(new RegExp(String.raw`\.([\w-]+_${local})(?![\w-])`))?.[1];
+	return found ? `[class~="${found}"]` : null;
 }
-function createHostModules(document2, window2) {
-  const resolved = new Map(NAMES.map((name) => [name, resolve(document2, name)]));
-  const listeners = /* @__PURE__ */ new Set();
-  const isModuleTag = (node) => node instanceof window2.Element && node.matches(MODULE_TAG);
-  const observer = new window2.MutationObserver((records) => {
-    const touched = records.some((record2) => isModuleTag(record2.target) || isModuleTag(record2.target.parentElement) || [...record2.addedNodes, ...record2.removedNodes].some(isModuleTag));
-    if (!touched) return;
-    let changed = false;
-    for (const name of NAMES) {
-      const next = resolve(document2, name);
-      if (next !== resolved.get(name)) {
-        resolved.set(name, next);
-        changed = true;
-      }
-    }
-    if (changed) for (const listener of listeners) listener();
-  });
-  observer.observe(document2.head, { childList: true, subtree: true, characterData: true });
-  return {
-    select: (name) => resolved.get(name) ?? null,
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-    dispose() {
-      observer.disconnect();
-      listeners.clear();
-    }
-  };
+function createHostModules(document, window) {
+	const resolved = new Map(NAMES.map((name) => [name, resolve(document, name)]));
+	const listeners = /* @__PURE__ */ new Set();
+	const isModuleTag = (node) => node instanceof window.Element && node.matches(MODULE_TAG);
+	const observer = new window.MutationObserver((records) => {
+		if (!records.some((record) => isModuleTag(record.target) || isModuleTag(record.target.parentElement) || [...record.addedNodes, ...record.removedNodes].some(isModuleTag))) return;
+		let changed = false;
+		for (const name of NAMES) {
+			const next = resolve(document, name);
+			if (next !== resolved.get(name)) {
+				resolved.set(name, next);
+				changed = true;
+			}
+		}
+		if (changed) for (const listener of listeners) listener();
+	});
+	observer.observe(document.head, {
+		childList: true,
+		subtree: true,
+		characterData: true
+	});
+	return {
+		select: (name) => resolved.get(name) ?? null,
+		subscribe(listener) {
+			listeners.add(listener);
+			return () => {
+				listeners.delete(listener);
+			};
+		},
+		dispose() {
+			observer.disconnect();
+			listeners.clear();
+		}
+	};
 }
-
 // src/palette.ts
-var pair = (light, dark = light) => Object.freeze({ light, dark });
+var pair = (light, dark = light) => Object.freeze({
+	light,
+	dark
+});
 var CANVAS_TOKENS = Object.freeze({
-  "--dsw-alias-bg-base": pair("#ffffff", "#1f1f1f"),
-  "--dsw-alias-bg-document-preview": pair("#e6e6e6", "#171717"),
-  "--dsw-specific-sidebar-fill": pair("#f2f2f2", "#2b2b2b")
+	"--dsw-alias-bg-base": pair("#ffffff", "#1f1f1f"),
+	"--dsw-alias-bg-document-preview": pair("#e6e6e6", "#171717"),
+	"--dsw-specific-sidebar-fill": pair("#f2f2f2", "#2b2b2b")
 });
 var LAYER_TOKENS = {
-  "--dsw-alias-bg-layer-1": pair("#f5f5f5", "#252525"),
-  "--dsw-alias-bg-layer-2": pair("#fafafa", "#2b2b2b"),
-  "--dsw-alias-bg-layer-3": pair("#ffffff", "#303030"),
-  "--dsw-alias-bg-module-platform": pair("#ededed", "#333333"),
-  "--dsw-alias-bg-multi-select": pair("#f2f2f2", "#262626"),
-  "--dsw-alias-bg-overlay": pair("#e6e6e6", "#5c5c5c"),
-  "--dsw-alias-bg-mask-drop": pair("rgb(255 255 255 / .7)", "rgb(31 31 31 / .7)"),
-  "--dsw-alias-settings-card-fill": pair("#f5f5f5", "#252525"),
-  "--dsw-specific-input-major": pair("#ffffff", "#2b2b2b"),
-  "--dsw-specific-login-input": pair("#f9f9f9", "#1c1c1c"),
-  "--dsw-specific-selector": pair("#f2f2f2", "#333333"),
-  "--dsw-specific-tip": pair("#f2f2f2", "#333333"),
-  "--dsw-specific-bubble": pair("#ededed", "#2d2d2d"),
-  "--dsw-specific-bubble-highlight": pair("#dedede", "#3d3d3d")
+	"--dsw-alias-bg-layer-1": pair("#f5f5f5", "#252525"),
+	"--dsw-alias-bg-layer-2": pair("#fafafa", "#2b2b2b"),
+	"--dsw-alias-bg-layer-3": pair("#ffffff", "#303030"),
+	"--dsw-alias-bg-module-platform": pair("#ededed", "#333333"),
+	"--dsw-alias-bg-multi-select": pair("#f2f2f2", "#262626"),
+	"--dsw-alias-bg-overlay": pair("#e6e6e6", "#5c5c5c"),
+	"--dsw-alias-bg-mask-drop": pair("rgb(255 255 255 / .7)", "rgb(31 31 31 / .7)"),
+	"--dsw-alias-settings-card-fill": pair("#f5f5f5", "#252525"),
+	"--dsw-specific-input-major": pair("#ffffff", "#2b2b2b"),
+	"--dsw-specific-login-input": pair("#f9f9f9", "#1c1c1c"),
+	"--dsw-specific-selector": pair("#f2f2f2", "#333333"),
+	"--dsw-specific-tip": pair("#f2f2f2", "#333333"),
+	"--dsw-specific-bubble": pair("#ededed", "#2d2d2d"),
+	"--dsw-specific-bubble-highlight": pair("#dedede", "#3d3d3d")
 };
 var CONTENT_TOKENS = {
-  "--dsw-alias-markdown-code-block": pair("#f7f7f7", "#1e1e1e"),
-  "--dsw-alias-markdown-code-block-banner": pair("#efefef", "#2b2b2b"),
-  "--dsw-alias-markdown-inline-code": pair("#f0f0f0", "#2d2d2d"),
-  "--dsw-alias-markdown-tag": pair("#ebebeb", "#2d2d2d"),
-  "--dsw-alias-markdown-placeholder": pair("#f2f2f2", "#2b2b2b"),
-  "--dsw-alias-markdown-citation": pair("#e6e6e6", "#333333"),
-  "--dsw-alias-markdown-code-segment-selected": pair("#ffffff", "#333333"),
-  "--dsw-alias-markdown-code-segment-unselected": pair("#ebebeb", "#1e1e1e"),
-  "--dsw-linear-gradient-think": pair("linear-gradient(180deg, #ffffff 20.19%, #ffffff00 100%)", "linear-gradient(180deg, #1f1f1f 20.19%, #1f1f1f00 100%)"),
-  "--dsw-linear-think-select": pair("linear-gradient(180deg, #f2f2f2 20.19%, #f2f2f200 100%)", "linear-gradient(180deg, #262626 20.19%, #26262600 100%)")
+	"--dsw-alias-markdown-code-block": pair("#f7f7f7", "#1e1e1e"),
+	"--dsw-alias-markdown-code-block-banner": pair("#efefef", "#2b2b2b"),
+	"--dsw-alias-markdown-inline-code": pair("#f0f0f0", "#2d2d2d"),
+	"--dsw-alias-markdown-tag": pair("#ebebeb", "#2d2d2d"),
+	"--dsw-alias-markdown-placeholder": pair("#f2f2f2", "#2b2b2b"),
+	"--dsw-alias-markdown-citation": pair("#e6e6e6", "#333333"),
+	"--dsw-alias-markdown-code-segment-selected": pair("#ffffff", "#333333"),
+	"--dsw-alias-markdown-code-segment-unselected": pair("#ebebeb", "#1e1e1e"),
+	"--dsw-linear-gradient-think": pair("linear-gradient(180deg, #ffffff 20.19%, #ffffff00 100%)", "linear-gradient(180deg, #1f1f1f 20.19%, #1f1f1f00 100%)"),
+	"--dsw-linear-think-select": pair("linear-gradient(180deg, #f2f2f2 20.19%, #f2f2f200 100%)", "linear-gradient(180deg, #262626 20.19%, #26262600 100%)")
 };
 var CONTROL_TOKENS = {
-  "--dsw-alias-button-elevated-fill": pair("#ffffff", "#3a3a3a"),
-  "--dsw-alias-button-floating-fill": pair("#ffffff", "#2b2b2b"),
-  "--dsw-alias-button-floating-hover": pair("#f2f2f2", "#333333"),
-  "--dsw-alias-button-ghost-active-fill": pair("#e6e6e6", "#3d3d3d"),
-  "--dsw-alias-button-ghost-active-hover": pair("#dedede", "#4d4d4d"),
-  "--dsw-alias-button-ghost-active-border": pair("#999999", "#858585"),
-  "--dsw-alias-button-primary-dimmed": pair("#e6e6e6", "#3d3d3d"),
-  "--dsw-alias-interactive-bg-hover": pair("rgb(0 0 0 / .06)", "rgb(255 255 255 / .08)"),
-  "--dsw-alias-interactive-bg-active": pair("rgb(0 0 0 / .10)", "rgb(255 255 255 / .12)"),
-  "--dsw-alias-interactive-bg-hover-accent": pair("rgb(0 0 0 / .14)", "rgb(255 255 255 / .22)"),
-  "--dsw-alias-interactive-bg-hover-solid": pair("#ededed", "#333333"),
-  "--dsw-specific-sidebar-nav-item-hover": pair("rgb(0 0 0 / .05)", "rgb(255 255 255 / .06)"),
-  "--dsw-specific-sidebar-nav-item-active": pair("rgb(0 0 0 / .09)", "rgb(255 255 255 / .11)"),
-  "--dsw-alias-turn-trigger-bg": pair("#f7f7f7", "rgb(255 255 255 / .08)"),
-  "--dsw-alias-turn-trigger-bg-hover": pair("rgb(0 0 0 / .06)", "rgb(255 255 255 / .14)"),
-  "--dsw-alias-switch-thumb": pair("#ffffff", "#cccccc"),
-  "--dsw-alias-scrollbar-bg-l1": pair("#e0e0e0", "#3d3d3d"),
-  "--dsw-alias-scrollbar-hover-l1": pair("#cccccc", "#555555"),
-  "--dsw-alias-scrollbar-bg-l2": pair("#e0e0e0", "#555555"),
-  "--dsw-alias-scrollbar-hover-l2": pair("#cccccc", "#666666")
+	"--dsw-alias-button-elevated-fill": pair("#ffffff", "#3a3a3a"),
+	"--dsw-alias-button-floating-fill": pair("#ffffff", "#2b2b2b"),
+	"--dsw-alias-button-floating-hover": pair("#f2f2f2", "#333333"),
+	"--dsw-alias-button-ghost-active-fill": pair("#e6e6e6", "#3d3d3d"),
+	"--dsw-alias-button-ghost-active-hover": pair("#dedede", "#4d4d4d"),
+	"--dsw-alias-button-ghost-active-border": pair("#999999", "#858585"),
+	"--dsw-alias-button-primary-dimmed": pair("#e6e6e6", "#3d3d3d"),
+	"--dsw-alias-interactive-bg-hover": pair("rgb(0 0 0 / .06)", "rgb(255 255 255 / .08)"),
+	"--dsw-alias-interactive-bg-active": pair("rgb(0 0 0 / .10)", "rgb(255 255 255 / .12)"),
+	"--dsw-alias-interactive-bg-hover-accent": pair("rgb(0 0 0 / .14)", "rgb(255 255 255 / .22)"),
+	"--dsw-alias-interactive-bg-hover-solid": pair("#ededed", "#333333"),
+	"--dsw-specific-sidebar-nav-item-hover": pair("rgb(0 0 0 / .05)", "rgb(255 255 255 / .06)"),
+	"--dsw-specific-sidebar-nav-item-active": pair("rgb(0 0 0 / .09)", "rgb(255 255 255 / .11)"),
+	"--dsw-alias-turn-trigger-bg": pair("#f7f7f7", "rgb(255 255 255 / .08)"),
+	"--dsw-alias-turn-trigger-bg-hover": pair("rgb(0 0 0 / .06)", "rgb(255 255 255 / .14)"),
+	"--dsw-alias-switch-thumb": pair("#ffffff", "#cccccc"),
+	"--dsw-alias-scrollbar-bg-l1": pair("#e0e0e0", "#3d3d3d"),
+	"--dsw-alias-scrollbar-hover-l1": pair("#cccccc", "#555555"),
+	"--dsw-alias-scrollbar-bg-l2": pair("#e0e0e0", "#555555"),
+	"--dsw-alias-scrollbar-hover-l2": pair("#cccccc", "#666666")
 };
 var STROKE_TOKENS = {
-  "--dsw-alias-settings-card-stroke": pair("rgb(0 0 0 / .16)", "rgb(255 255 255 / .16)"),
-  "--dsw-alias-border-l1": pair("rgb(0 0 0 / .22)", "rgb(255 255 255 / .22)"),
-  "--dsw-alias-border-l2": pair("rgb(0 0 0 / .16)", "rgb(255 255 255 / .16)"),
-  "--dsw-alias-border-l3": pair("rgb(0 0 0 / .12)", "rgb(255 255 255 / .12)"),
-  "--dsw-alias-border-l4": pair("rgb(0 0 0 / .08)", "rgb(255 255 255 / .08)"),
-  "--dsw-alias-border-l2-darkmode-thin": pair("rgb(0 0 0 / .10)", "rgb(255 255 255 / .08)")
+	"--dsw-alias-settings-card-stroke": pair("rgb(0 0 0 / .16)", "rgb(255 255 255 / .16)"),
+	"--dsw-alias-border-l1": pair("rgb(0 0 0 / .22)", "rgb(255 255 255 / .22)"),
+	"--dsw-alias-border-l2": pair("rgb(0 0 0 / .16)", "rgb(255 255 255 / .16)"),
+	"--dsw-alias-border-l3": pair("rgb(0 0 0 / .12)", "rgb(255 255 255 / .12)"),
+	"--dsw-alias-border-l4": pair("rgb(0 0 0 / .08)", "rgb(255 255 255 / .08)"),
+	"--dsw-alias-border-l2-darkmode-thin": pair("rgb(0 0 0 / .10)", "rgb(255 255 255 / .08)")
 };
 var FLOATING_TOKENS = {
-  "--dsw-menu-surface-fill": pair("rgb(248 248 248 / .88)", "rgb(32 32 32 / .85)"),
-  "--dsw-specific-menu": pair("rgb(248 248 248 / .88)", "rgb(32 32 32 / .85)"),
-  "--dsw-menu-backdrop-filter": pair("blur(24px) saturate(1.15)"),
-  "--dsw-alias-menu-group-header-fill": pair("rgb(248 248 248 / .94)", "rgb(40 40 40 / .94)"),
-  "--dsw-alias-tooltip-bg": pair("#2b2b2b", "#3d3d3d"),
-  "--dsw-alias-toast-bg": pair("#333333", "#3d3d3d")
+	"--dsw-menu-surface-fill": pair("rgb(248 248 248 / .88)", "rgb(32 32 32 / .85)"),
+	"--dsw-specific-menu": pair("rgb(248 248 248 / .88)", "rgb(32 32 32 / .85)"),
+	"--dsw-menu-backdrop-filter": pair("blur(24px) saturate(1.15)"),
+	"--dsw-alias-menu-group-header-fill": pair("rgb(248 248 248 / .94)", "rgb(40 40 40 / .94)"),
+	"--dsw-alias-tooltip-bg": pair("#2b2b2b", "#3d3d3d"),
+	"--dsw-alias-toast-bg": pair("#333333", "#3d3d3d")
 };
 var FLUENT_PALETTE = Object.freeze({
-  ...CANVAS_TOKENS,
-  ...LAYER_TOKENS,
-  ...CONTENT_TOKENS,
-  ...CONTROL_TOKENS,
-  ...STROKE_TOKENS,
-  ...FLOATING_TOKENS
+	...CANVAS_TOKENS,
+	...LAYER_TOKENS,
+	...CONTENT_TOKENS,
+	...CONTROL_TOKENS,
+	...STROKE_TOKENS,
+	...FLOATING_TOKENS
 });
-
 // src/shape.ts
-var corner = (value) => Object.freeze({ light: value, dark: value });
-var FLUENT_SHAPE = Object.freeze({
-  "--dsw-radius-xs": corner("2px"),
-  "--dsw-radius-sm": corner("2px"),
-  "--dsw-radius-md": corner("2px"),
-  "--dsw-radius-lg": corner("0px"),
-  "--dsw-radius-xl": corner("0px"),
-  "--dsw-radius-panel": corner("6px")
+var corner = (value) => Object.freeze({
+	light: value,
+	dark: value
 });
-
+var FLUENT_SHAPE = Object.freeze({
+	"--dsw-radius-xs": corner("2px"),
+	"--dsw-radius-sm": corner("2px"),
+	"--dsw-radius-md": corner("2px"),
+	"--dsw-radius-lg": corner("0px"),
+	"--dsw-radius-xl": corner("0px"),
+	"--dsw-radius-panel": corner("6px")
+});
 // src/elevation.ts
 var ramp = (alpha, [y1, b1], [y2, b2]) => `0 ${y1}px ${b1}px 0 rgb(0 0 0 / ${alpha[0]}), 0 ${y2}px ${b2}px 0 rgb(0 0 0 / ${alpha[1]})`;
-var depth = (strong, ...geometry2) => Object.freeze({
-  light: ramp(strong ? [0.22, 0.18] : [0.132, 0.108], ...geometry2),
-  dark: ramp(strong ? [0.44, 0.36] : [0.264, 0.216], ...geometry2)
+var depth = (strong, ...geometry) => Object.freeze({
+	light: ramp(strong ? [.22, .18] : [.132, .108], ...geometry),
+	dark: ramp(strong ? [.44, .36] : [.264, .216], ...geometry)
 });
 var DEPTH = Object.freeze({
-  4: depth(false, [1.6, 3.6], [0.3, 0.9]),
-  8: depth(false, [3.2, 7.2], [0.6, 1.8]),
-  16: depth(false, [6.4, 14.4], [1.2, 3.6]),
-  64: depth(true, [25.6, 57.6], [4.8, 14.4])
+	4: depth(false, [1.6, 3.6], [.3, .9]),
+	8: depth(false, [3.2, 7.2], [.6, 1.8]),
+	16: depth(false, [6.4, 14.4], [1.2, 3.6]),
+	64: depth(true, [25.6, 57.6], [4.8, 14.4])
 });
 var FLUENT_SHADOWS = Object.freeze({
-  "--dsw-shadow-lv1": DEPTH[4],
-  "--dsw-shadow-lv1-blur": DEPTH[8],
-  "--dsw-shadow-lv2": DEPTH[8],
-  "--dsw-shadow-lv3": DEPTH[16]
-  // toasts
+	"--dsw-shadow-lv1": DEPTH[4],
+	"--dsw-shadow-lv1-blur": DEPTH[8],
+	"--dsw-shadow-lv2": DEPTH[8],
+	"--dsw-shadow-lv3": DEPTH[16]
 });
 var ELEVATIONS = {
-  "--dsw-elevation-soft": 4,
-  // resting cards: composer
-  "--dsw-elevation-panel": 8,
-  // cards, previews, callouts
-  "--dsw-elevation-prominent": 16
-  // menus, pickers
+	"--dsw-elevation-soft": 4,
+	"--dsw-elevation-panel": 8,
+	"--dsw-elevation-prominent": 16
 };
-var WINDOWS = ':is(body > [role="presentation"] > [role="dialog"][aria-modal="true"], [data-dockkit-float])';
+var WINDOWS = ":is(body > [role=\"presentation\"] > [role=\"dialog\"][aria-modal=\"true\"], [data-dockkit-float])";
 var declare = (scheme, entries) => entries.map(([name, level]) => `${name}: var(--dsw-elevation-stroke), ${DEPTH[level][scheme]};`).join(" ");
 var ELEVATION_CSS = ["light", "dark"].map((scheme) => {
-  const body = scheme === "dark" ? "body[data-acrylic-fluent][data-ds-dark-theme]" : "body[data-acrylic-fluent]";
-  return `${body}, ${body} * { ${declare(scheme, Object.entries(ELEVATIONS))} }
+	const body = scheme === "dark" ? "body[data-acrylic-fluent][data-ds-dark-theme]" : "body[data-acrylic-fluent]";
+	return `${body}, ${body} * { ${declare(scheme, Object.entries(ELEVATIONS))} }
 ${body} ${WINDOWS} { ${declare(scheme, [["--dsw-elevation-prominent", 64]])} }`;
 }).join("\n");
-function createElevation(document2) {
-  const sheet = createStyleSheet(document2, "dsh-acrylic-wallpaper-elevation", ELEVATION_CSS);
-  return { update: sheet.toggle, dispose: sheet.dispose };
+function createElevation(document) {
+	const sheet = createStyleSheet(document, "dsh-acrylic-wallpaper-elevation", ELEVATION_CSS);
+	return {
+		update: sheet.toggle,
+		dispose: sheet.dispose
+	};
 }
-
 // src/theme.ts
-var FLUENT_TOKENS = Object.freeze({ ...FLUENT_SHAPE, ...FLUENT_SHADOWS, ...FLUENT_PALETTE });
+var FLUENT_TOKENS = Object.freeze({
+	...FLUENT_SHAPE,
+	...FLUENT_SHADOWS,
+	...FLUENT_PALETTE
+});
 function createFluentTheme(theme) {
-  let remove = null;
-  return {
-    update(enabled) {
-      if (enabled && !remove && typeof theme?.overrideTokens === "function") {
-        remove = theme.overrideTokens(PLUGIN_ID, FLUENT_TOKENS);
-      } else if (!enabled && remove) {
-        const dispose = remove;
-        remove = null;
-        dispose();
-      }
-    },
-    dispose() {
-      const dispose = remove;
-      remove = null;
-      dispose?.();
-    }
-  };
+	let remove = null;
+	return {
+		update(enabled) {
+			if (enabled && !remove && typeof theme?.overrideTokens === "function") remove = theme.overrideTokens(PLUGIN_ID, FLUENT_TOKENS);
+			else if (!enabled && remove) {
+				const dispose = remove;
+				remove = null;
+				dispose();
+			}
+		},
+		dispose() {
+			const dispose = remove;
+			remove = null;
+			dispose?.();
+		}
+	};
 }
-
 // src/composer.ts
 var COMPOSER_CARD = ":is([data-composer-card], [data-side-chat-composer])";
 var COMPOSER_INPUT = ":is([data-composer-input], [data-side-chat-input])";
-
 // src/adapters.ts
-var FRAME = "div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
+var FRAME$1 = "div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var adapterCss = (searchRows) => `
 /* HoverCard declares its own fill (#2C2C2E in both schemes) instead of a token. */
 body[data-acrylic-fluent] > div[style*="--dsh-hover-preview-fade"] { --dsw-hovercard-bg: #2b2b2b; }
 /* The macOS sidebar column layers a hard-coded blue vibrancy gradient over its
    fill. Keep the neutral fill (frame anchors, not module hashes). */
-html[data-platform="darwin"] body[data-acrylic-fluent] ${FRAME} > div:first-child { background-image: none; }
+html[data-platform="darwin"] body[data-acrylic-fluent] ${FRAME$1} > div:first-child { background-image: none; }
 body[data-acrylic-fluent] [data-changed-files],
 body[data-acrylic-fluent][data-ds-dark-theme] [data-changed-files] {
   --changes-fill: var(--dsw-alias-bg-layer-1);
@@ -687,13 +738,13 @@ body[data-acrylic-fluent] :is([role="treeitem"][data-row-key]${searchRows ? `, $
 /* rc.3 shell resize handles (frame children named by data-side) lack a visual
    rail. Decorate their existing hit box; never change drag geometry, pointer
    capture or keyboard semantics. */
-body[data-acrylic-fluent] ${FRAME} > :is([data-side="sidebar"],[data-side="rightbar"])::after {
+body[data-acrylic-fluent] ${FRAME$1} > :is([data-side="sidebar"],[data-side="rightbar"])::after {
   content: ''; position: absolute; inset-block: 0; left: 3px; width: 2px;
   pointer-events: none; opacity: 0;
   background: linear-gradient(transparent, var(--dsw-alias-state-business-primary), transparent);
 }
-body[data-acrylic-fluent] ${FRAME} > :is([data-side="sidebar"],[data-side="rightbar"]):hover::after { opacity: .45; }
-body[data-acrylic-fluent] ${FRAME} > :is([data-side="sidebar"],[data-side="rightbar"])[data-dragging]::after { opacity: .75; }
+body[data-acrylic-fluent] ${FRAME$1} > :is([data-side="sidebar"],[data-side="rightbar"]):hover::after { opacity: .45; }
+body[data-acrylic-fluent] ${FRAME$1} > :is([data-side="sidebar"],[data-side="rightbar"])[data-dragging]::after { opacity: .75; }
 body[data-acrylic-fluent] [data-dockkit-divider]:hover::before,
 body[data-acrylic-fluent] [data-dockkit-divider]:active::before {
   background: var(--dsw-alias-state-business-primary);
@@ -711,11 +762,11 @@ html[data-platform="darwin"] body[data-acrylic-fluent][data-ds-dark-theme] [data
 }
 `;
 function buttonStateCss(modules) {
-  const button = modules.select("button");
-  if (!button) return "";
-  const active = (variant) => `body[data-acrylic-fluent] button${button}${variant}:active:not(:disabled):not([aria-disabled="true"]):not([aria-busy="true"])`;
-  const outline = modules.select("buttonOutline"), toolbar = modules.select("buttonToolbar"), primary = modules.select("buttonPrimary");
-  return `
+	const button = modules.select("button");
+	if (!button) return "";
+	const active = (variant) => `body[data-acrylic-fluent] button${button}${variant}:active:not(:disabled):not([aria-disabled="true"]):not([aria-busy="true"])`;
+	const outline = modules.select("buttonOutline"), toolbar = modules.select("buttonToolbar"), primary = modules.select("buttonPrimary");
+	return `
 @media (forced-colors: none) {
 ${outline ? `${active(outline)} { background:var(--dsw-alias-interactive-bg-active); }` : ""}
 ${toolbar ? `${active(toolbar)} { background:linear-gradient(var(--dsw-alias-interactive-bg-active),var(--dsw-alias-interactive-bg-active)),var(--dsw-alias-button-tool-bar-fill); }` : ""}
@@ -723,93 +774,118 @@ ${primary ? `${active(primary)} { background:color-mix(in srgb,var(--dsw-alias-b
 }
 `;
 }
-function createAdapters(document2, modules) {
-  const render = () => adapterCss(modules.select("searchResultRow")) + buttonStateCss(modules);
-  const sheet = createStyleSheet(document2, "dsh-acrylic-wallpaper-adapters", render());
-  const unsubscribe = modules.subscribe(() => sheet.set(render()));
-  return { update: sheet.toggle, dispose() {
-    unsubscribe();
-    sheet.dispose();
-  } };
+function createAdapters(document, modules) {
+	const render = () => adapterCss(modules.select("searchResultRow")) + buttonStateCss(modules);
+	const sheet = createStyleSheet(document, "dsh-acrylic-wallpaper-adapters", render());
+	const unsubscribe = modules.subscribe(() => sheet.set(render()));
+	return {
+		update: sheet.toggle,
+		dispose() {
+			unsubscribe();
+			sheet.dispose();
+		}
+	};
 }
-
 // src/motion.ts
 var HOLD = "acrylic-popup-hold";
 var POPUP_SELECTOR = [
-  "[data-menu-material]",
-  // MenuSurface: menus, pickers, command lists, dock tab menus
-  'body > [role="presentation"]:has(> [role="dialog"][aria-modal="true"])',
-  // modals
-  'body > :is([role="dialog"], [role="menu"], [role="listbox"]):not([aria-modal="true"])',
-  // portaled panels
-  'body > div[style*="--dsh-hover-preview-fade"]',
-  // HoverCard
-  "body > ul",
-  'body > div:has(> [role="tree"])',
-  // portaled catalogs without a popup role
-  '[role="tooltip"]',
-  "[data-session-preview-card]",
-  `[${POPUP_ATTRIBUTE}]`
-  // self-drawn popups that opt in (contract.ts)
+	"[data-menu-material]",
+	"body > [role=\"presentation\"]:has(> [role=\"dialog\"][aria-modal=\"true\"])",
+	"body > :is([role=\"dialog\"], [role=\"menu\"], [role=\"listbox\"]):not([aria-modal=\"true\"])",
+	"body > div[style*=\"--dsh-hover-preview-fade\"]",
+	"body > ul",
+	"body > div:has(> [role=\"tree\"])",
+	"[role=\"tooltip\"]",
+	"[data-session-preview-card]",
+	`[${POPUP_ATTRIBUTE}]`
 ].join(",");
 var MOTION = Object.freeze({
-  enter: "cubic-bezier(.1, .9, .2, 1)",
-  // Fluent decelerate
-  exit: "cubic-bezier(.4, 0, 1, 1)",
-  // Fluent accelerate
-  slide: 250,
-  fade: 167,
-  leave: 120,
-  tooltipIn: 120,
-  tooltipOut: 83,
-  dialogOut: 167
+	enter: "cubic-bezier(.1, .9, .2, 1)",
+	exit: "cubic-bezier(.4, 0, 1, 1)",
+	slide: 250,
+	fade: 167,
+	leave: 120,
+	tooltipIn: 120,
+	tooltipOut: 83,
+	dialogOut: 167
 });
 var GHOST_SKIP = "iframe, webview, video, audio, object, embed, canvas";
 var GHOST_MAX_NODES = 1500;
 var GHOST_DETACH = /^(?:id|autofocus|popover|name|for|form|aria-(?:activedescendant|controls|owns)|data-(?:modal-autofocus|shortcut-modal|window-drag(?:-recall)?|element-id|plugin-package|team-panel))$/;
 var isHook = ({ name, value }) => name === "aria-modal" || name === "role" && value === "menu" || /^data-(?:dockkit|sidebar-right|composer)-/.test(name);
-var STATE_PROPS = ["background-color", "background-image", "color", "border-top-color", "border-right-color", "border-bottom-color", "border-left-color", "box-shadow", "outline-color", "outline-style", "outline-width", "outline-offset", "text-decoration-color", "fill", "stroke"];
-var STATE_CONTROL = 'button, a[href], summary, [tabindex], [role^="menuitem"], [role="option"], [role="treeitem"], [role="tab"]';
+var STATE_PROPS = [
+	"background-color",
+	"background-image",
+	"color",
+	"border-top-color",
+	"border-right-color",
+	"border-bottom-color",
+	"border-left-color",
+	"box-shadow",
+	"outline-color",
+	"outline-style",
+	"outline-width",
+	"outline-offset",
+	"text-decoration-color",
+	"fill",
+	"stroke"
+];
+var STATE_CONTROL = "button, a[href], summary, [tabindex], [role^=\"menuitem\"], [role=\"option\"], [role=\"treeitem\"], [role=\"tab\"]";
 var STATE_MAX_NODES = 40;
 var STATE_TTL = 1e3;
-var CLOSE_KEYS = /* @__PURE__ */ new Set(["Escape", "Enter", " ", "Tab"]);
+var CLOSE_KEYS = /* @__PURE__ */ new Set([
+	"Escape",
+	"Enter",
+	" ",
+	"Tab"
+]);
 var PIN_PROPS = [
-  "display",
-  "position",
-  "box-sizing",
-  "width",
-  "height",
-  "min-width",
-  "min-height",
-  "max-width",
-  "max-height",
-  ...["top", "right", "bottom", "left"].flatMap((side) => [`margin-${side}`, `padding-${side}`, `border-${side}-width`, `border-${side}-style`]),
-  "border-top-left-radius",
-  "border-top-right-radius",
-  "border-bottom-right-radius",
-  "border-bottom-left-radius",
-  "flex-direction",
-  "flex-wrap",
-  "flex-grow",
-  "flex-shrink",
-  "flex-basis",
-  "align-items",
-  "justify-content",
-  "row-gap",
-  "column-gap",
-  "font-size",
-  "font-weight",
-  "line-height",
-  "letter-spacing",
-  "white-space",
-  "text-align",
-  "overflow-x",
-  "overflow-y",
-  "opacity",
-  "visibility",
-  "transform",
-  "z-index",
-  ...STATE_PROPS
+	"display",
+	"position",
+	"box-sizing",
+	"width",
+	"height",
+	"min-width",
+	"min-height",
+	"max-width",
+	"max-height",
+	...[
+		"top",
+		"right",
+		"bottom",
+		"left"
+	].flatMap((side) => [
+		`margin-${side}`,
+		`padding-${side}`,
+		`border-${side}-width`,
+		`border-${side}-style`
+	]),
+	"border-top-left-radius",
+	"border-top-right-radius",
+	"border-bottom-right-radius",
+	"border-bottom-left-radius",
+	"flex-direction",
+	"flex-wrap",
+	"flex-grow",
+	"flex-shrink",
+	"flex-basis",
+	"align-items",
+	"justify-content",
+	"row-gap",
+	"column-gap",
+	"font-size",
+	"font-weight",
+	"line-height",
+	"letter-spacing",
+	"white-space",
+	"text-align",
+	"overflow-x",
+	"overflow-y",
+	"opacity",
+	"visibility",
+	"transform",
+	"z-index",
+	...STATE_PROPS
 ];
 var PIN_MAX_NODES = 120;
 var MOTION_CSS = `
@@ -830,591 +906,695 @@ var MOTION_CSS = `
 var indexIn = (parent, child) => Array.prototype.indexOf.call(parent.children, child);
 var inlineStyle = (node) => node.style;
 function pathTo(root, node) {
-  const path = [];
-  for (let current = node; current && current !== root; current = current.parentElement) {
-    if (current.parentElement) path.unshift(indexIn(current.parentElement, current));
-  }
-  return path.join("/");
+	const path = [];
+	for (let current = node; current && current !== root; current = current.parentElement) if (current.parentElement) path.unshift(indexIn(current.parentElement, current));
+	return path.join("/");
 }
 function nodeAt(root, path) {
-  let node = root;
-  for (const index of path ? path.split("/") : []) node = node?.children[Number(index)];
-  return node;
+	let node = root;
+	for (const index of path ? path.split("/") : []) node = node?.children[Number(index)];
+	return node;
 }
 function scrollState(popup) {
-  const state = /* @__PURE__ */ new Map();
-  const nodes = popup.getElementsByTagName("*");
-  if (nodes.length > GHOST_MAX_NODES) return state;
-  for (const node of [popup, ...nodes]) {
-    if (node.scrollTop || node.scrollLeft) state.set(pathTo(popup, node), [node.scrollTop, node.scrollLeft]);
-  }
-  return state;
+	const state = /* @__PURE__ */ new Map();
+	const nodes = popup.getElementsByTagName("*");
+	if (nodes.length > GHOST_MAX_NODES) return state;
+	for (const node of [popup, ...nodes]) if (node.scrollTop || node.scrollLeft) state.set(pathTo(popup, node), [node.scrollTop, node.scrollLeft]);
+	return state;
 }
 var attributesOf = (node) => [...node.attributes];
 function readStyle(view, node, names) {
-  const style = view.getComputedStyle(node);
-  return (names ?? [...style]).map((name) => [name, style.getPropertyValue(name)]);
+	const style = view.getComputedStyle(node);
+	return (names ?? [...style]).map((name) => [name, style.getPropertyValue(name)]);
 }
 function interactionState(view, popup) {
-  const nodes = /* @__PURE__ */ new Set();
-  const follow = (start) => {
-    if (!start || start === popup || !popup.contains(start)) return;
-    for (let node = start; node && node !== popup; node = node.parentElement) nodes.add(node);
-    const control = start.closest(STATE_CONTROL);
-    if (control && control !== popup && popup.contains(control)) {
-      for (const node of [...control.getElementsByTagName("*")].slice(0, STATE_MAX_NODES)) nodes.add(node);
-    }
-  };
-  const hovered = popup.querySelectorAll(":hover");
-  follow(hovered[hovered.length - 1]);
-  follow(popup.ownerDocument.activeElement);
-  if (!nodes.size) return null;
-  return [...nodes].map((node) => ({ path: pathTo(popup, node), tag: node.tagName, values: readStyle(view, node, STATE_PROPS) }));
+	const nodes = /* @__PURE__ */ new Set();
+	const follow = (start) => {
+		if (!start || start === popup || !popup.contains(start)) return;
+		for (let node = start; node && node !== popup; node = node.parentElement) nodes.add(node);
+		const control = start.closest(STATE_CONTROL);
+		if (control && control !== popup && popup.contains(control)) for (const node of [...control.getElementsByTagName("*")].slice(0, STATE_MAX_NODES)) nodes.add(node);
+	};
+	const hovered = popup.querySelectorAll(":hover");
+	follow(hovered[hovered.length - 1]);
+	follow(popup.ownerDocument.activeElement);
+	if (!nodes.size) return null;
+	return [...nodes].map((node) => ({
+		path: pathTo(popup, node),
+		tag: node.tagName,
+		values: readStyle(view, node, STATE_PROPS)
+	}));
 }
 function detachGhost(root) {
-  for (const node of [root, ...root.getElementsByTagName("*")]) {
-    for (const { name } of attributesOf(node)) if (GHOST_DETACH.test(name)) node.removeAttribute(name);
-  }
-  root.setAttribute("data-acrylic-ghost", "");
-  root.setAttribute("aria-hidden", "true");
-  root.inert = true;
+	for (const node of [root, ...root.getElementsByTagName("*")]) for (const { name } of attributesOf(node)) if (GHOST_DETACH.test(name)) node.removeAttribute(name);
+	root.setAttribute("data-acrylic-ghost", "");
+	root.setAttribute("aria-hidden", "true");
+	root.inert = true;
 }
 function pinGhost(view, root, state) {
-  const nodes = [root, ...root.getElementsByTagName("*")];
-  const owners = nodes.filter((node) => attributesOf(node).some(isHook));
-  const scope = owners.length && nodes.length <= PIN_MAX_NODES ? nodes : owners;
-  const before = scope.map((node) => readStyle(view, node, owners.includes(node) ? null : PIN_PROPS));
-  for (const node of owners) {
-    for (const attribute of attributesOf(node)) if (isHook(attribute)) node.removeAttribute(attribute.name);
-  }
-  const pins = [];
-  scope.forEach((node, index) => {
-    const style = view.getComputedStyle(node);
-    const changed = (before[index] ?? []).filter(([name, value]) => style.getPropertyValue(name) !== value);
-    if (changed.length) pins.push([node, changed]);
-  });
-  for (const { path, tag, values } of state ?? []) {
-    const node = nodeAt(root, path);
-    if (node?.tagName === tag) pins.push([node, values]);
-  }
-  for (const [node, values] of pins) for (const [name, value] of values) inlineStyle(node)?.setProperty(name, value);
+	const nodes = [root, ...root.getElementsByTagName("*")];
+	const owners = nodes.filter((node) => attributesOf(node).some(isHook));
+	const scope = owners.length && nodes.length <= PIN_MAX_NODES ? nodes : owners;
+	const before = scope.map((node) => readStyle(view, node, owners.includes(node) ? null : PIN_PROPS));
+	for (const node of owners) for (const attribute of attributesOf(node)) if (isHook(attribute)) node.removeAttribute(attribute.name);
+	const pins = [];
+	scope.forEach((node, index) => {
+		const style = view.getComputedStyle(node);
+		const changed = (before[index] ?? []).filter(([name, value]) => style.getPropertyValue(name) !== value);
+		if (changed.length) pins.push([node, changed]);
+	});
+	for (const { path, tag, values } of state ?? []) {
+		const node = nodeAt(root, path);
+		if (node?.tagName === tag) pins.push([node, values]);
+	}
+	for (const [node, values] of pins) for (const [name, value] of values) inlineStyle(node)?.setProperty(name, value);
 }
 function restoreScroll(root, scroll) {
-  for (const [path, [top, left]] of scroll) {
-    const node = nodeAt(root, path);
-    if (node) {
-      node.scrollTop = top;
-      node.scrollLeft = left;
-    }
-  }
+	for (const [path, [top, left]] of scroll) {
+		const node = nodeAt(root, path);
+		if (node) {
+			node.scrollTop = top;
+			node.scrollLeft = left;
+		}
+	}
 }
 function backingOf(view, popup) {
-  const anchor = inlineStyle(popup)?.getPropertyValue("--dsh-menu-anchor");
-  if (!anchor) return null;
-  for (const node of popup.ownerDocument.body.children) {
-    if (node.hasAttribute("data-menu-backing") && inlineStyle(node)?.getPropertyValue("--dsh-menu-anchor") === anchor) {
-      return view.getComputedStyle(node).display === "none" ? null : node;
-    }
-  }
-  return null;
+	const anchor = inlineStyle(popup)?.getPropertyValue("--dsh-menu-anchor");
+	if (!anchor) return null;
+	for (const node of popup.ownerDocument.body.children) if (node.hasAttribute("data-menu-backing") && inlineStyle(node)?.getPropertyValue("--dsh-menu-anchor") === anchor) return view.getComputedStyle(node).display === "none" ? null : node;
+	return null;
 }
 function ghostBackings(view, template, root) {
-  const surfaces = [root, ...root.querySelectorAll("[data-menu-material]")];
-  const boxes = surfaces.map((surface) => [surface.getBoundingClientRect(), view.getComputedStyle(surface).borderRadius]);
-  return boxes.map(([rect, radius]) => {
-    const clone = template.cloneNode(false);
-    clone.setAttribute("data-acrylic-ghost", "");
-    const box = { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
-    const style = inlineStyle(clone);
-    for (const [name, value] of Object.entries(box)) style?.setProperty(name, `${value}px`);
-    style?.setProperty("border-radius", radius);
-    root.ownerDocument.body.append(clone);
-    return clone;
-  });
+	return [root, ...root.querySelectorAll("[data-menu-material]")].map((surface) => [surface.getBoundingClientRect(), view.getComputedStyle(surface).borderRadius]).map(([rect, radius]) => {
+		const clone = template.cloneNode(false);
+		clone.setAttribute("data-acrylic-ghost", "");
+		const box = {
+			top: rect.top,
+			left: rect.left,
+			width: rect.width,
+			height: rect.height
+		};
+		const style = inlineStyle(clone);
+		for (const [name, value] of Object.entries(box)) style?.setProperty(name, `${value}px`);
+		style?.setProperty("border-radius", radius);
+		root.ownerDocument.body.append(clone);
+		return clone;
+	});
 }
-function slideFrom(rect, point2) {
-  const slack = 4;
-  let direction = [0, 1];
-  if (point2) {
-    if (rect.top >= point2.y - slack) direction = [0, 1];
-    else if (rect.bottom <= point2.y + slack) direction = [0, -1];
-    else if (rect.left >= point2.x - slack) direction = [1, 0];
-    else if (rect.right <= point2.x + slack) direction = [-1, 0];
-  }
-  const extent = direction[1] ? rect.height : rect.width;
-  return { direction, distance: Math.round(Math.min(24, Math.max(8, extent * 0.15))) };
+function slideFrom(rect, point) {
+	const slack = 4;
+	let direction = [0, 1];
+	if (point) {
+		if (rect.top >= point.y - slack) direction = [0, 1];
+		else if (rect.bottom <= point.y + slack) direction = [0, -1];
+		else if (rect.left >= point.x - slack) direction = [1, 0];
+		else if (rect.right <= point.x + slack) direction = [-1, 0];
+	}
+	const extent = direction[1] ? rect.height : rect.width;
+	return {
+		direction,
+		distance: Math.round(Math.min(24, Math.max(8, extent * .15)))
+	};
 }
-function createMotion(document2, window2, { onSettle } = {}) {
-  const sheet = createStyleSheet(document2, "dsh-acrylic-wallpaper-motion", MOTION_CSS);
-  const reduce = window2.matchMedia("(prefers-reduced-motion: reduce)");
-  const tracked = /* @__PURE__ */ new Map();
-  const ghosts = /* @__PURE__ */ new Set();
-  let enabled = false;
-  let pointer = null;
-  let keyboard = null;
-  const removals = new window2.MutationObserver(onRemovals);
-  const from = (target, keyframe, duration, easing) => target.animate([{ ...keyframe, offset: 0 }], { duration, easing, fill: "backwards" });
-  const fadeIn = (target, duration, easing) => target.animate([{ opacity: 0 }, { opacity: 1 }], { duration, easing, fill: "backwards" });
-  const to = (target, keyframe, duration, easing) => target.animate([{ ...keyframe, offset: 1 }], { duration, easing, fill: "forwards" });
-  function layerOf(popup) {
-    const first = popup.firstElementChild;
-    return first?.getAttribute("aria-hidden") === "true" && window2.getComputedStyle(first).backdropFilter !== "none" ? first : null;
-  }
-  const faders = (popup) => layerOf(popup) ? [...popup.children] : [popup];
-  function origin(popup) {
-    if (keyboard && (!pointer || keyboard.time > pointer.time)) {
-      const element = keyboard.element;
-      if (element?.isConnected && element !== document2.body && !popup.contains(element)) {
-        const rect = element.getBoundingClientRect();
-        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-      }
-    }
-    return pointer;
-  }
-  function describe(popup) {
-    const declared = popup.getAttribute(POPUP_ATTRIBUTE);
-    if (declared === "tooltip" || declared === null && popup.matches('[role="tooltip"]')) return { kind: "tooltip" };
-    if (declared === "dialog") return { kind: "dialog" };
-    const dialog = declared === null && popup.matches('[role="presentation"]') && popup.querySelector(':scope > [role="dialog"][aria-modal="true"]');
-    if (dialog) return { kind: "modal", dialog: indexIn(popup, dialog) };
-    return { kind: "flyout", ...slideFrom(popup.getBoundingClientRect(), origin(popup)) };
-  }
-  function enter(popup, info) {
-    const { enter: ease, slide, fade } = MOTION;
-    if (info.kind === "tooltip") return [fadeIn(popup, MOTION.tooltipIn, "linear")];
-    if (info.kind === "dialog") return [from(popup, { scale: 1.05 }, slide, ease), fadeIn(popup, fade, ease)];
-    if (info.kind === "modal") {
-      return [...popup.children].flatMap((child, index) => index === info.dialog ? [from(child, { scale: 1.05 }, slide, ease), fadeIn(child, fade, ease)] : [fadeIn(child, fade, "linear")]);
-    }
-    const [x, y] = info.direction;
-    const list = [from(popup, { translate: `${-x * info.distance}px ${-y * info.distance}px` }, slide, ease)];
-    if (layerOf(popup)) list.push(from(popup, { boxShadow: "none" }, fade, ease));
-    for (const target of faders(popup)) list.push(fadeIn(target, fade, ease));
-    return list;
-  }
-  function leave(ghost2, info, backings) {
-    const { exit: ease, leave: duration } = MOTION;
-    const out = (target, keyframe, time = duration) => to(target, keyframe, time, ease);
-    if (info.kind === "tooltip") return [out(ghost2, { opacity: 0 }, MOTION.tooltipOut)];
-    if (info.kind === "dialog") return [out(ghost2, { scale: 1.05 }, MOTION.dialogOut), out(ghost2, { opacity: 0 })];
-    if (info.kind === "modal") {
-      return [...ghost2.children].flatMap((child, index) => index === info.dialog ? [out(child, { scale: 1.05 }, MOTION.dialogOut), out(child, { opacity: 0 })] : [out(child, { opacity: 0 }, MOTION.dialogOut)]);
-    }
-    const [x, y] = info.direction;
-    const back = Math.round(info.distance / 3);
-    const translate = `${-x * back}px ${-y * back}px`;
-    const list = [out(ghost2, { translate })];
-    if (layerOf(ghost2)) list.push(out(ghost2, { boxShadow: "none" }));
-    for (const target of faders(ghost2)) list.push(out(target, { opacity: 0 }));
-    for (const backing of backings) list.push(out(backing, { translate, opacity: 0 }));
-    return list;
-  }
-  function settle(animations, done) {
-    let finished = false;
-    const finish = () => {
-      if (!finished) {
-        finished = true;
-        done();
-      }
-    };
-    const timer = window2.setTimeout(finish, MOTION.slide + 200);
-    Promise.all(animations.map((animation) => animation.finished)).then(() => {
-      window2.clearTimeout(timer);
-      finish();
-    }, () => {
-    });
-  }
-  function start(popup) {
-    if (!enabled || !popup.isConnected) return;
-    const info = { ...describe(popup), scroll: scrollState(popup), backing: backingOf(window2, popup), state: null };
-    const animations = enter(popup, info);
-    for (const [element] of tracked) if (!element.isConnected) tracked.delete(element);
-    tracked.set(popup, info);
-    if (popup.parentNode) removals.observe(popup.parentNode, { childList: true });
-    if (onSettle) settle(animations, onSettle);
-  }
-  function whenPlaced(popup) {
-    if (window2.getComputedStyle(popup).visibility !== "hidden") return start(popup);
-    const hold = popup.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 1e3 });
-    const poll = (frames) => window2.requestAnimationFrame(() => {
-      if (!popup.isConnected) return hold.cancel();
-      if (frames && window2.getComputedStyle(popup).visibility === "hidden") return poll(frames - 1);
-      hold.cancel();
-      start(popup);
-    });
-    poll(12);
-  }
-  function onStart(event) {
-    const popup = event.target;
-    if (event.animationName !== HOLD || !(popup instanceof window2.Element)) return;
-    for (const animation of popup.getAnimations()) if (animation.animationName === HOLD) animation.cancel();
-    if (!enabled || reduce.matches || !popup.isConnected || popup.hasAttribute("data-acrylic-ghost")) return;
-    whenPlaced(popup);
-  }
-  function ghost(node, info, record2) {
-    const parent = record2.target;
-    if (!enabled || reduce.matches || document2.hidden || !parent.isConnected) return;
-    if (node.hasAttribute("hidden") || node.hasAttribute("data-closing")) return;
-    if (node.querySelector(GHOST_SKIP) || node.getElementsByTagName("*").length > GHOST_MAX_NODES) return;
-    const clone = node.cloneNode(true);
-    detachGhost(clone);
-    const next = record2.nextSibling?.parentNode === parent ? record2.nextSibling : null;
-    parent.insertBefore(clone, next);
-    const state = info.state && window2.performance.now() - info.state.time < STATE_TTL ? info.state.nodes : null;
-    try {
-      pinGhost(window2, clone, state);
-    } catch (error) {
-      clone.remove();
-      throw error;
-    }
-    restoreScroll(clone, info.scroll);
-    const backings = info.kind === "flyout" && info.backing && !info.backing.isConnected ? ghostBackings(window2, info.backing, clone) : [];
-    const parts = [clone, ...backings];
-    for (const part of parts) ghosts.add(part);
-    settle(leave(clone, info, backings), () => {
-      for (const part of parts) {
-        part.remove();
-        ghosts.delete(part);
-      }
-    });
-  }
-  function onRemovals(records) {
-    for (const record2 of records) {
-      for (const node of record2.removedNodes) {
-        const info = node instanceof window2.Element ? tracked.get(node) : void 0;
-        if (!info || !(node instanceof window2.Element)) continue;
-        if (node.isConnected) {
-          if (node.parentNode) removals.observe(node.parentNode, { childList: true });
-          continue;
-        }
-        tracked.delete(node);
-        ghost(node, info, record2);
-      }
-    }
-    if (!tracked.size) removals.disconnect();
-  }
-  function onScroll(event) {
-    const target = event.target;
-    if (!tracked.size || !(target instanceof window2.Element)) return;
-    for (const [popup, info] of tracked) {
-      if (popup.contains(target)) {
-        info.scroll.set(pathTo(popup, target), [target.scrollTop, target.scrollLeft]);
-        return;
-      }
-    }
-  }
-  function capture() {
-    const time = window2.performance.now();
-    for (const [popup, info] of tracked) {
-      const nodes = popup.isConnected ? interactionState(window2, popup) : null;
-      info.state = nodes && { time, nodes };
-    }
-  }
-  const onPointer = (event) => {
-    pointer = { x: event.clientX, y: event.clientY, time: event.timeStamp };
-    if (event.type === "pointerdown") capture();
-  };
-  const onKey = (event) => {
-    keyboard = { element: document2.activeElement, time: event.timeStamp };
-    if (CLOSE_KEYS.has(event.key)) capture();
-  };
-  const LISTENERS = [
-    ["animationstart", onStart],
-    ["pointerdown", onPointer],
-    ["pointermove", onPointer],
-    ["click", capture],
-    ["keydown", onKey],
-    ["scroll", onScroll]
-  ];
-  function update(next) {
-    if (next === enabled) return;
-    enabled = next;
-    sheet.toggle(enabled);
-    for (const [type, listener] of LISTENERS) {
-      if (enabled) document2.addEventListener(type, listener, { capture: true, passive: true });
-      else document2.removeEventListener(type, listener, { capture: true });
-    }
-    if (enabled) return;
-    removals.disconnect();
-    tracked.clear();
-    for (const clone of ghosts) clone.remove();
-    ghosts.clear();
-  }
-  return { update, dispose() {
-    update(false);
-    sheet.dispose();
-  } };
+function createMotion(document, window, { onSettle } = {}) {
+	const sheet = createStyleSheet(document, "dsh-acrylic-wallpaper-motion", MOTION_CSS);
+	const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+	const tracked = /* @__PURE__ */ new Map();
+	const ghosts = /* @__PURE__ */ new Set();
+	let enabled = false;
+	let pointer = null;
+	let keyboard = null;
+	const removals = new window.MutationObserver(onRemovals);
+	const from = (target, keyframe, duration, easing) => target.animate([{
+		...keyframe,
+		offset: 0
+	}], {
+		duration,
+		easing,
+		fill: "backwards"
+	});
+	const fadeIn = (target, duration, easing) => target.animate([{ opacity: 0 }, { opacity: 1 }], {
+		duration,
+		easing,
+		fill: "backwards"
+	});
+	const to = (target, keyframe, duration, easing) => target.animate([{
+		...keyframe,
+		offset: 1
+	}], {
+		duration,
+		easing,
+		fill: "forwards"
+	});
+	function layerOf(popup) {
+		const first = popup.firstElementChild;
+		return first?.getAttribute("aria-hidden") === "true" && window.getComputedStyle(first).backdropFilter !== "none" ? first : null;
+	}
+	const faders = (popup) => layerOf(popup) ? [...popup.children] : [popup];
+	function origin(popup) {
+		if (keyboard && (!pointer || keyboard.time > pointer.time)) {
+			const element = keyboard.element;
+			if (element?.isConnected && element !== document.body && !popup.contains(element)) {
+				const rect = element.getBoundingClientRect();
+				return {
+					x: rect.left + rect.width / 2,
+					y: rect.top + rect.height / 2
+				};
+			}
+		}
+		return pointer;
+	}
+	function describe(popup) {
+		const declared = popup.getAttribute(POPUP_ATTRIBUTE);
+		if (declared === "tooltip" || declared === null && popup.matches("[role=\"tooltip\"]")) return { kind: "tooltip" };
+		if (declared === "dialog") return { kind: "dialog" };
+		const dialog = declared === null && popup.matches("[role=\"presentation\"]") && popup.querySelector(":scope > [role=\"dialog\"][aria-modal=\"true\"]");
+		if (dialog) return {
+			kind: "modal",
+			dialog: indexIn(popup, dialog)
+		};
+		return {
+			kind: "flyout",
+			...slideFrom(popup.getBoundingClientRect(), origin(popup))
+		};
+	}
+	function enter(popup, info) {
+		const { enter: ease, slide, fade } = MOTION;
+		if (info.kind === "tooltip") return [fadeIn(popup, MOTION.tooltipIn, "linear")];
+		if (info.kind === "dialog") return [from(popup, { scale: 1.05 }, slide, ease), fadeIn(popup, fade, ease)];
+		if (info.kind === "modal") return [...popup.children].flatMap((child, index) => index === info.dialog ? [from(child, { scale: 1.05 }, slide, ease), fadeIn(child, fade, ease)] : [fadeIn(child, fade, "linear")]);
+		const [x, y] = info.direction;
+		const list = [from(popup, { translate: `${-x * info.distance}px ${-y * info.distance}px` }, slide, ease)];
+		if (layerOf(popup)) list.push(from(popup, { boxShadow: "none" }, fade, ease));
+		for (const target of faders(popup)) list.push(fadeIn(target, fade, ease));
+		return list;
+	}
+	function leave(ghost, info, backings) {
+		const { exit: ease, leave: duration } = MOTION;
+		const out = (target, keyframe, time = duration) => to(target, keyframe, time, ease);
+		if (info.kind === "tooltip") return [out(ghost, { opacity: 0 }, MOTION.tooltipOut)];
+		if (info.kind === "dialog") return [out(ghost, { scale: 1.05 }, MOTION.dialogOut), out(ghost, { opacity: 0 })];
+		if (info.kind === "modal") return [...ghost.children].flatMap((child, index) => index === info.dialog ? [out(child, { scale: 1.05 }, MOTION.dialogOut), out(child, { opacity: 0 })] : [out(child, { opacity: 0 }, MOTION.dialogOut)]);
+		const [x, y] = info.direction;
+		const back = Math.round(info.distance / 3);
+		const translate = `${-x * back}px ${-y * back}px`;
+		const list = [out(ghost, { translate })];
+		if (layerOf(ghost)) list.push(out(ghost, { boxShadow: "none" }));
+		for (const target of faders(ghost)) list.push(out(target, { opacity: 0 }));
+		for (const backing of backings) list.push(out(backing, {
+			translate,
+			opacity: 0
+		}));
+		return list;
+	}
+	function settle(animations, done) {
+		let finished = false;
+		const finish = () => {
+			if (!finished) {
+				finished = true;
+				done();
+			}
+		};
+		const timer = window.setTimeout(finish, MOTION.slide + 200);
+		Promise.all(animations.map((animation) => animation.finished)).then(() => {
+			window.clearTimeout(timer);
+			finish();
+		}, () => {});
+	}
+	function start(popup) {
+		if (!enabled || !popup.isConnected) return;
+		const info = {
+			...describe(popup),
+			scroll: scrollState(popup),
+			backing: backingOf(window, popup),
+			state: null
+		};
+		const animations = enter(popup, info);
+		for (const [element] of tracked) if (!element.isConnected) tracked.delete(element);
+		tracked.set(popup, info);
+		if (popup.parentNode) removals.observe(popup.parentNode, { childList: true });
+		if (onSettle) settle(animations, onSettle);
+	}
+	function whenPlaced(popup) {
+		if (window.getComputedStyle(popup).visibility !== "hidden") return start(popup);
+		const hold = popup.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 1e3 });
+		const poll = (frames) => window.requestAnimationFrame(() => {
+			if (!popup.isConnected) return hold.cancel();
+			if (frames && window.getComputedStyle(popup).visibility === "hidden") return poll(frames - 1);
+			hold.cancel();
+			start(popup);
+		});
+		poll(12);
+	}
+	function onStart(event) {
+		const popup = event.target;
+		if (event.animationName !== HOLD || !(popup instanceof window.Element)) return;
+		for (const animation of popup.getAnimations()) if (animation.animationName === HOLD) animation.cancel();
+		if (!enabled || reduce.matches || !popup.isConnected || popup.hasAttribute("data-acrylic-ghost")) return;
+		whenPlaced(popup);
+	}
+	function ghost(node, info, record) {
+		const parent = record.target;
+		if (!enabled || reduce.matches || document.hidden || !parent.isConnected) return;
+		if (node.hasAttribute("hidden") || node.hasAttribute("data-closing")) return;
+		if (node.querySelector(GHOST_SKIP) || node.getElementsByTagName("*").length > GHOST_MAX_NODES) return;
+		const clone = node.cloneNode(true);
+		detachGhost(clone);
+		const next = record.nextSibling?.parentNode === parent ? record.nextSibling : null;
+		parent.insertBefore(clone, next);
+		const state = info.state && window.performance.now() - info.state.time < STATE_TTL ? info.state.nodes : null;
+		try {
+			pinGhost(window, clone, state);
+		} catch (error) {
+			clone.remove();
+			throw error;
+		}
+		restoreScroll(clone, info.scroll);
+		const backings = info.kind === "flyout" && info.backing && !info.backing.isConnected ? ghostBackings(window, info.backing, clone) : [];
+		const parts = [clone, ...backings];
+		for (const part of parts) ghosts.add(part);
+		settle(leave(clone, info, backings), () => {
+			for (const part of parts) {
+				part.remove();
+				ghosts.delete(part);
+			}
+		});
+	}
+	function onRemovals(records) {
+		for (const record of records) for (const node of record.removedNodes) {
+			const info = node instanceof window.Element ? tracked.get(node) : void 0;
+			if (!info || !(node instanceof window.Element)) continue;
+			if (node.isConnected) {
+				if (node.parentNode) removals.observe(node.parentNode, { childList: true });
+				continue;
+			}
+			tracked.delete(node);
+			ghost(node, info, record);
+		}
+		if (!tracked.size) removals.disconnect();
+	}
+	function onScroll(event) {
+		const target = event.target;
+		if (!tracked.size || !(target instanceof window.Element)) return;
+		for (const [popup, info] of tracked) if (popup.contains(target)) {
+			info.scroll.set(pathTo(popup, target), [target.scrollTop, target.scrollLeft]);
+			return;
+		}
+	}
+	function capture() {
+		const time = window.performance.now();
+		for (const [popup, info] of tracked) {
+			const nodes = popup.isConnected ? interactionState(window, popup) : null;
+			info.state = nodes && {
+				time,
+				nodes
+			};
+		}
+	}
+	const onPointer = (event) => {
+		pointer = {
+			x: event.clientX,
+			y: event.clientY,
+			time: event.timeStamp
+		};
+		if (event.type === "pointerdown") capture();
+	};
+	const onKey = (event) => {
+		keyboard = {
+			element: document.activeElement,
+			time: event.timeStamp
+		};
+		if (CLOSE_KEYS.has(event.key)) capture();
+	};
+	const LISTENERS = [
+		["animationstart", onStart],
+		["pointerdown", onPointer],
+		["pointermove", onPointer],
+		["click", capture],
+		["keydown", onKey],
+		["scroll", onScroll]
+	];
+	function update(next) {
+		if (next === enabled) return;
+		enabled = next;
+		sheet.toggle(enabled);
+		for (const [type, listener] of LISTENERS) if (enabled) document.addEventListener(type, listener, {
+			capture: true,
+			passive: true
+		});
+		else document.removeEventListener(type, listener, { capture: true });
+		if (enabled) return;
+		removals.disconnect();
+		tracked.clear();
+		for (const clone of ghosts) clone.remove();
+		ghosts.clear();
+	}
+	return {
+		update,
+		dispose() {
+			update(false);
+			sheet.dispose();
+		}
+	};
 }
-
 // src/frame-motion.ts
 var PROPERTY = "grid-template-columns";
 var STILL = "[data-dragging],[data-rightbar-fullscreen],[data-rightbar-instant]";
 var BODY = "[data-conversation-content]";
 var COLUMN_WIDTH = "--dsh-conversation-column-width";
+/** Split a computed list at top-level commas; easing functions contain commas. */
 function items(value) {
-  const parts = [];
-  let depth2 = 0, start = 0;
-  for (let index = 0; index < value.length; index++) {
-    const char = value[index];
-    if (char === "(") depth2++;
-    else if (char === ")") depth2--;
-    else if (char === "," && depth2 === 0) {
-      parts.push(value.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-  parts.push(value.slice(start).trim());
-  return parts;
+	const parts = [];
+	let depth = 0, start = 0;
+	for (let index = 0; index < value.length; index++) {
+		const char = value[index];
+		if (char === "(") depth++;
+		else if (char === ")") depth--;
+		else if (char === "," && depth === 0) {
+			parts.push(value.slice(start, index).trim());
+			start = index + 1;
+		}
+	}
+	parts.push(value.slice(start).trim());
+	return parts;
 }
 var milliseconds = (value) => (value.endsWith("ms") ? 1 : 1e3) * (parseFloat(value) || 0);
-function createFrameMotion(document2, window2) {
-  const probe = document2.createElement("div");
-  const observer = new window2.MutationObserver(onChange);
-  const finder = new window2.MutationObserver(() => {
-    if (acquire()) finder.disconnect();
-  });
-  let enabled = false;
-  let frame = null;
-  let replay = null;
-  let pinned = [];
-  function release() {
-    for (const [body, value, priority] of pinned) {
-      if (value) body.style.setProperty(COLUMN_WIDTH, value, priority);
-      else body.style.removeProperty(COLUMN_WIDTH);
-    }
-    pinned = [];
-  }
-  function stop() {
-    replay?.cancel();
-    replay = null;
-    release();
-  }
-  function pin(target) {
-    const widths = [];
-    for (const body of target.querySelectorAll(BODY)) {
-      if (body instanceof window2.HTMLElement && body.offsetWidth) widths.push([body, body.offsetWidth]);
-    }
-    for (const [body, width] of widths) {
-      pinned.push([body, body.style.getPropertyValue(COLUMN_WIDTH), body.style.getPropertyPriority(COLUMN_WIDTH)]);
-      body.style.setProperty(COLUMN_WIDTH, `${width}px`);
-    }
-  }
-  function acquire() {
-    if (frame?.isConnected) return true;
-    stop();
-    observer.disconnect();
-    frame = null;
-    const candidate = document2.querySelector("[data-shell-bottom]")?.parentElement;
-    if (!(candidate instanceof window2.HTMLElement) || !candidate.querySelector(":scope > [data-rightbar-col]")) return false;
-    frame = candidate;
-    observer.observe(frame, { attributes: true, attributeOldValue: true, attributeFilter: ["style", "data-animating", "data-dragging"] });
-    return true;
-  }
-  function timing(target) {
-    const css = window2.getComputedStyle(target);
-    const index = items(css.transitionProperty).findIndex((name) => name === PROPERTY || name === "all");
-    if (index < 0) return null;
-    const at = (value) => {
-      const list = items(value);
-      return list[index % list.length] ?? "";
-    };
-    const duration = milliseconds(at(css.transitionDuration));
-    return duration > 0 ? { duration, delay: milliseconds(at(css.transitionDelay)), easing: at(css.transitionTimingFunction) || "ease" } : null;
-  }
-  function onChange(records) {
-    const target = frame;
-    if (!enabled || !target) return;
-    if (target.matches(STILL)) return stop();
-    const change = records.find((record2) => record2.attributeName === "style");
-    if (!change) return;
-    probe.setAttribute("style", change.oldValue ?? "");
-    const from = probe.style.gridTemplateColumns, to = target.style.gridTemplateColumns;
-    if (!from || !to || from === to) return;
-    stop();
-    if (!target.hasAttribute("data-animating")) return;
-    const options = timing(target);
-    if (!options) return;
-    for (const animation of target.getAnimations()) {
-      if (animation instanceof window2.CSSTransition && animation.transitionProperty === PROPERTY) animation.cancel();
-    }
-    pin(target);
-    const current = target.animate([{ gridTemplateColumns: from }, { gridTemplateColumns: to }], options);
-    current.addEventListener("finish", () => {
-      if (replay === current) {
-        replay = null;
-        release();
-      }
-    });
-    replay = current;
-  }
-  function ensure() {
-    if (acquire()) finder.disconnect();
-    else finder.observe(document2.body, { childList: true, subtree: true });
-  }
-  const onInput = () => {
-    if (!frame?.isConnected) ensure();
-  };
-  const LISTENERS = ["pointerdown", "keydown"];
-  function update(next) {
-    if (next === enabled) return;
-    enabled = next;
-    for (const type of LISTENERS) {
-      if (enabled) document2.addEventListener(type, onInput, { capture: true, passive: true });
-      else document2.removeEventListener(type, onInput, { capture: true });
-    }
-    if (enabled) return ensure();
-    stop();
-    observer.disconnect();
-    finder.disconnect();
-    frame = null;
-  }
-  return { update, dispose() {
-    update(false);
-  } };
+function createFrameMotion(document, window) {
+	const probe = document.createElement("div");
+	const observer = new window.MutationObserver(onChange);
+	const finder = new window.MutationObserver(() => {
+		if (acquire()) finder.disconnect();
+	});
+	let enabled = false;
+	let frame = null;
+	let replay = null;
+	let pinned = [];
+	function release() {
+		for (const [body, value, priority] of pinned) if (value) body.style.setProperty(COLUMN_WIDTH, value, priority);
+		else body.style.removeProperty(COLUMN_WIDTH);
+		pinned = [];
+	}
+	function stop() {
+		replay?.cancel();
+		replay = null;
+		release();
+	}
+	function pin(target) {
+		const widths = [];
+		for (const body of target.querySelectorAll(BODY)) if (body instanceof window.HTMLElement && body.offsetWidth) widths.push([body, body.offsetWidth]);
+		for (const [body, width] of widths) {
+			pinned.push([
+				body,
+				body.style.getPropertyValue(COLUMN_WIDTH),
+				body.style.getPropertyPriority(COLUMN_WIDTH)
+			]);
+			body.style.setProperty(COLUMN_WIDTH, `${width}px`);
+		}
+	}
+	function acquire() {
+		if (frame?.isConnected) return true;
+		stop();
+		observer.disconnect();
+		frame = null;
+		const candidate = document.querySelector("[data-shell-bottom]")?.parentElement;
+		if (!(candidate instanceof window.HTMLElement) || !candidate.querySelector(":scope > [data-rightbar-col]")) return false;
+		frame = candidate;
+		observer.observe(frame, {
+			attributes: true,
+			attributeOldValue: true,
+			attributeFilter: [
+				"style",
+				"data-animating",
+				"data-dragging"
+			]
+		});
+		return true;
+	}
+	function timing(target) {
+		const css = window.getComputedStyle(target);
+		const index = items(css.transitionProperty).findIndex((name) => name === PROPERTY || name === "all");
+		if (index < 0) return null;
+		const at = (value) => {
+			const list = items(value);
+			return list[index % list.length] ?? "";
+		};
+		const duration = milliseconds(at(css.transitionDuration));
+		return duration > 0 ? {
+			duration,
+			delay: milliseconds(at(css.transitionDelay)),
+			easing: at(css.transitionTimingFunction) || "ease"
+		} : null;
+	}
+	function onChange(records) {
+		const target = frame;
+		if (!enabled || !target) return;
+		if (target.matches(STILL)) return stop();
+		const change = records.find((record) => record.attributeName === "style");
+		if (!change) return;
+		probe.setAttribute("style", change.oldValue ?? "");
+		const from = probe.style.gridTemplateColumns, to = target.style.gridTemplateColumns;
+		if (!from || !to || from === to) return;
+		stop();
+		if (!target.hasAttribute("data-animating")) return;
+		const options = timing(target);
+		if (!options) return;
+		for (const animation of target.getAnimations()) if (animation instanceof window.CSSTransition && animation.transitionProperty === PROPERTY) animation.cancel();
+		pin(target);
+		const current = target.animate([{ gridTemplateColumns: from }, { gridTemplateColumns: to }], options);
+		current.addEventListener("finish", () => {
+			if (replay === current) {
+				replay = null;
+				release();
+			}
+		});
+		replay = current;
+	}
+	function ensure() {
+		if (acquire()) finder.disconnect();
+		else finder.observe(document.body, {
+			childList: true,
+			subtree: true
+		});
+	}
+	const onInput = () => {
+		if (!frame?.isConnected) ensure();
+	};
+	const LISTENERS = ["pointerdown", "keydown"];
+	function update(next) {
+		if (next === enabled) return;
+		enabled = next;
+		for (const type of LISTENERS) if (enabled) document.addEventListener(type, onInput, {
+			capture: true,
+			passive: true
+		});
+		else document.removeEventListener(type, onInput, { capture: true });
+		if (enabled) return ensure();
+		stop();
+		observer.disconnect();
+		finder.disconnect();
+		frame = null;
+	}
+	return {
+		update,
+		dispose() {
+			update(false);
+		}
+	};
 }
-
 // src/press.ts
-var PRESS_RADIUS = 210;
 var PRESS_CSS = `
 [data-acrylic-press] { position:absolute;inset:-1px;border-radius:inherit;overflow:hidden;pointer-events:none; }
 [data-acrylic-press] > i { position:absolute;left:var(--reveal-x);top:var(--reveal-y);width:94.5px;height:94.5px;margin:-47.25px;border-radius:50%;opacity:0;scale:1;pointer-events:none;background:radial-gradient(47.25px circle,rgb(var(--reveal-rgb) / .065),transparent 70%); }
 [data-acrylic-press] > i + i { background:radial-gradient(47.25px circle,rgb(var(--reveal-rgb) / .055),transparent); }
 `;
-function createPressLight(document2, window2, overlay, onFinish) {
-  const root = document2.createElement("div");
-  root.setAttribute("data-acrylic-press", "");
-  const inner = document2.createElement("i"), outer = document2.createElement("i");
-  root.append(inner, outer);
-  overlay.append(root);
-  let held = true, disposed = false, phase = "pressing", revision = 0;
-  let animations = [];
-  const releaseEase2 = "cubic-bezier(.33,0,.67,1)";
-  function cancel() {
-    revision++;
-    for (const animation of animations) animation.cancel();
-    animations = [];
-  }
-  function dispose() {
-    if (disposed) return;
-    disposed = true;
-    cancel();
-    root.remove();
-  }
-  function finish() {
-    dispose();
-    onFinish();
-  }
-  function settle(done) {
-    const current = revision;
-    void Promise.all(animations.map((animation) => animation.finished)).then(() => {
-      if (!disposed && current === revision) done();
-    }, () => {
-    });
-  }
-  function fade(fast) {
-    const values = [inner, outer].map((node) => {
-      const css = window2.getComputedStyle(node);
-      return { opacity: css.opacity, scale: css.scale };
-    });
-    cancel();
-    phase = fast ? "fast" : "slow";
-    const duration = fast ? 266 : 1500;
-    for (const [index, node] of [inner, outer].entries()) {
-      const from = values[index];
-      if (!from) continue;
-      animations.push(
-        node.animate([{ opacity: from.opacity }, { opacity: 0 }], { duration: index === 0 ? fast ? 200 : 1e3 : duration, easing: releaseEase2, fill: "forwards" }),
-        node.animate([{ scale: from.scale }, { scale: 4.44 }], { duration, easing: releaseEase2, fill: "forwards" })
-      );
-    }
-    settle(finish);
-  }
-  animations = [
-    inner.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 66, easing: "linear", fill: "forwards" }),
-    outer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 66, easing: "cubic-bezier(.5,0,.6,1)", fill: "forwards" })
-  ];
-  settle(() => fade(!held));
-  return {
-    release() {
-      if (disposed || !held) return;
-      held = false;
-      if (phase === "slow") fade(true);
-    },
-    dispose
-  };
+function createPressLight(document, window, overlay, onFinish) {
+	const root = document.createElement("div");
+	root.setAttribute("data-acrylic-press", "");
+	const inner = document.createElement("i"), outer = document.createElement("i");
+	root.append(inner, outer);
+	overlay.append(root);
+	let held = true, disposed = false, phase = "pressing", revision = 0;
+	let animations = [];
+	const releaseEase = "cubic-bezier(.33,0,.67,1)";
+	function cancel() {
+		revision++;
+		for (const animation of animations) animation.cancel();
+		animations = [];
+	}
+	function dispose() {
+		if (disposed) return;
+		disposed = true;
+		cancel();
+		root.remove();
+	}
+	function finish() {
+		dispose();
+		onFinish();
+	}
+	function settle(done) {
+		const current = revision;
+		Promise.all(animations.map((animation) => animation.finished)).then(() => {
+			if (!disposed && current === revision) done();
+		}, () => {});
+	}
+	function fade(fast) {
+		const values = [inner, outer].map((node) => {
+			const css = window.getComputedStyle(node);
+			return {
+				opacity: css.opacity,
+				scale: css.scale
+			};
+		});
+		cancel();
+		phase = fast ? "fast" : "slow";
+		const duration = fast ? 266 : 1500;
+		for (const [index, node] of [inner, outer].entries()) {
+			const from = values[index];
+			if (!from) continue;
+			animations.push(node.animate([{ opacity: from.opacity }, { opacity: 0 }], {
+				duration: index === 0 ? fast ? 200 : 1e3 : duration,
+				easing: releaseEase,
+				fill: "forwards"
+			}), node.animate([{ scale: from.scale }, { scale: 4.44 }], {
+				duration,
+				easing: releaseEase,
+				fill: "forwards"
+			}));
+		}
+		settle(finish);
+	}
+	animations = [inner.animate([{ opacity: 0 }, { opacity: 1 }], {
+		duration: 66,
+		easing: "linear",
+		fill: "forwards"
+	}), outer.animate([{ opacity: 0 }, { opacity: 1 }], {
+		duration: 66,
+		easing: "cubic-bezier(.5,0,.6,1)",
+		fill: "forwards"
+	})];
+	settle(() => fade(!held));
+	return {
+		release() {
+			if (disposed || !held) return;
+			held = false;
+			if (phase === "slow") fade(true);
+		},
+		dispose
+	};
 }
-
 // src/interaction.ts
 var ACTION_TARGETS = [
-  "button,summary",
-  '[role="button"],[role="tab"],[role="switch"],[role="checkbox"],[role="radio"]',
-  '[role="menuitem"],[role="menuitemcheckbox"],[role="menuitemradio"],[role="option"]',
-  '[role="treeitem"][data-row-key],[role="treeitem"][tabindex][aria-level]',
-  '[role="gridcell"][tabindex][aria-selected]',
-  'nav a[href],[role="navigation"] a[href]',
-  'tr[data-trajectory-row-key][tabindex="0"]'
+	"button,summary",
+	"[role=\"button\"],[role=\"tab\"],[role=\"switch\"],[role=\"checkbox\"],[role=\"radio\"]",
+	"[role=\"menuitem\"],[role=\"menuitemcheckbox\"],[role=\"menuitemradio\"],[role=\"option\"]",
+	"[role=\"treeitem\"][data-row-key],[role=\"treeitem\"][tabindex][aria-level]",
+	"[role=\"gridcell\"][tabindex][aria-selected]",
+	"nav a[href],[role=\"navigation\"] a[href]",
+	"tr[data-trajectory-row-key][tabindex=\"0\"]"
 ].join(",");
-var ACTION_FIELDS = 'input,textarea,select,[role="textbox"],[role="searchbox"],[role="combobox"],[contenteditable]:not([contenteditable="false"])';
-var ACTION_EXCLUDED = '[hidden],[inert],[aria-hidden="true"],[data-closing],[data-acrylic-ghost],[data-acrylic-reveal],[data-width-handle],[data-dockkit-divider],[data-dockkit-float-resize],.monaco-editor,.xterm';
-var ACTION_DISABLED = ':disabled,[aria-disabled="true"],[aria-busy="true"],[data-unavailable]';
 function actionSelector(modules) {
-  const search = modules.select("searchResultRow");
-  return search ? `${ACTION_TARGETS},${search}` : ACTION_TARGETS;
+	const search = modules.select("searchResultRow");
+	return search ? `${ACTION_TARGETS},${search}` : ACTION_TARGETS;
 }
-
 // src/press-geometry.ts
 function depression(width, height, u, v) {
-  const angle = (d) => d > 925 ? 0 : Math.max(0, -7e-8 * d ** 3 + 15904e-8 * d ** 2 - 0.12506463 * d + 35.27311191);
-  u = Math.max(0, Math.min(1, u));
-  v = Math.max(0, Math.min(1, v));
-  return { scale: 0.97 + 0.03 * (Math.abs(u - 0.5) + Math.abs(v - 0.5)), x: -(v - 0.5) * angle(height), y: (u - 0.5) * angle(width) };
+	const angle = (d) => d > 925 ? 0 : Math.max(0, -7e-8 * d ** 3 + 15904e-8 * d ** 2 - .12506463 * d + 35.27311191);
+	u = Math.max(0, Math.min(1, u));
+	v = Math.max(0, Math.min(1, v));
+	return {
+		scale: .97 + .03 * (Math.abs(u - .5) + Math.abs(v - .5)),
+		x: -(v - .5) * angle(height),
+		y: (u - .5) * angle(width)
+	};
 }
 var projections = /* @__PURE__ */ new WeakMap();
 function forgetProjection(target) {
-  projections.delete(target);
+	projections.delete(target);
 }
 function insideProjection(target) {
-  for (let parent = target.parentElement; parent; parent = parent.parentElement) if (projections.has(parent)) return true;
-  return false;
+	for (let parent = target.parentElement; parent; parent = parent.parentElement) if (projections.has(parent)) return true;
+	return false;
 }
-function project(window2, target, width, height, pose, amount) {
-  const camera = new window2.DOMMatrix();
-  camera.m34 = -1 / 999;
-  const rotation = new window2.DOMMatrix().rotate(pose.x * amount, pose.y * amount).scale(1 + (pose.scale - 1) * amount);
-  const m = camera.multiply(rotation);
-  const matrix = new window2.DOMMatrix([m.m11, m.m12, 0, m.m14, m.m21, m.m22, 0, m.m24, 0, 0, 1, 0, 0, 0, 0, 1]);
-  const projection = { width, height, matrix, inverse: matrix.inverse(), transform: matrix.toString() };
-  projections.set(target, projection);
-  return projection;
+function project(window, target, width, height, pose, amount) {
+	const camera = new window.DOMMatrix();
+	camera.m34 = -1 / 999;
+	const rotation = new window.DOMMatrix().rotate(pose.x * amount, pose.y * amount).scale(1 + (pose.scale - 1) * amount);
+	const m = camera.multiply(rotation);
+	const matrix = new window.DOMMatrix([
+		m.m11,
+		m.m12,
+		0,
+		m.m14,
+		m.m21,
+		m.m22,
+		0,
+		m.m24,
+		0,
+		0,
+		1,
+		0,
+		0,
+		0,
+		0,
+		1
+	]);
+	const projection = {
+		width,
+		height,
+		matrix,
+		inverse: matrix.inverse(),
+		transform: matrix.toString()
+	};
+	projections.set(target, projection);
+	return projection;
 }
 function point(matrix, width, height, x, y) {
-  const p = matrix.transformPoint({ x: x - width / 2, y: y - height / 2 });
-  return { x: p.x / p.w + width / 2, y: p.y / p.w + height / 2 };
+	const p = matrix.transformPoint({
+		x: x - width / 2,
+		y: y - height / 2
+	});
+	return {
+		x: p.x / p.w + width / 2,
+		y: p.y / p.w + height / 2
+	};
 }
+/** Recover the layout box from the projected bounds; no layout-style toggles. */
 function pressGeometry(target, bounds) {
-  const projection = projections.get(target);
-  if (!projection) return null;
-  const { matrix, inverse, width, height, transform } = projection;
-  const corners = [[0, 0], [width, 0], [width, height], [0, height]].map(([x = 0, y = 0]) => point(matrix, width, height, x, y));
-  const left = bounds.left - Math.min(...corners.map((p) => p.x));
-  const top = bounds.top - Math.min(...corners.map((p) => p.y));
-  return { left, top, width, height, transform, local: (x, y) => point(inverse, width, height, x - left, y - top) };
+	const projection = projections.get(target);
+	if (!projection) return null;
+	const { matrix, inverse, width, height, transform } = projection;
+	const corners = [
+		[0, 0],
+		[width, 0],
+		[width, height],
+		[0, height]
+	].map(([x = 0, y = 0]) => point(matrix, width, height, x, y));
+	const left = bounds.left - Math.min(...corners.map((p) => p.x));
+	const top = bounds.top - Math.min(...corners.map((p) => p.y));
+	return {
+		left,
+		top,
+		width,
+		height,
+		transform,
+		local: (x, y) => point(inverse, width, height, x - left, y - top)
+	};
 }
+/** Native up KeySpline (.1,.25,.75,.9), solved for time rather than parameter. */
 function releaseEase(time) {
-  if (time <= 0) return 0;
-  if (time >= 1) return 1;
-  const curve = (t, a, b) => 3 * (1 - t) ** 2 * t * a + 3 * (1 - t) * t ** 2 * b + t ** 3;
-  let low = 0, high = 1;
-  for (let i = 0; i < 12; i++) {
-    const mid = (low + high) / 2;
-    if (curve(mid, 0.1, 0.75) < time) low = mid;
-    else high = mid;
-  }
-  return curve((low + high) / 2, 0.25, 0.9);
+	if (time <= 0) return 0;
+	if (time >= 1) return 1;
+	const curve = (t, a, b) => 3 * (1 - t) ** 2 * t * a + 3 * (1 - t) * t ** 2 * b + t ** 3;
+	let low = 0, high = 1;
+	for (let i = 0; i < 12; i++) {
+		const mid = (low + high) / 2;
+		if (curve(mid, .1, .75) < time) low = mid;
+		else high = mid;
+	}
+	return curve((low + high) / 2, .25, .9);
 }
-
 // src/reveal.ts
-var REVEAL_FIELDS = 'input:not([type="hidden"]):not([type="file"]):not([type="range"]):not([type="color"]),textarea,select,[role="textbox"],[role="searchbox"],[role="combobox"],[contenteditable="true"]';
+var REVEAL_FIELDS = "input:not([type=\"hidden\"]):not([type=\"file\"]):not([type=\"range\"]):not([type=\"color\"]),textarea,select,[role=\"textbox\"],[role=\"searchbox\"],[role=\"combobox\"],[contenteditable=\"true\"]";
 var REVEAL_TARGETS = `${ACTION_TARGETS},${REVEAL_FIELDS}`;
 var REVEAL_LAYERS = `[${POPUP_ATTRIBUTE}],[data-menu-material],[role="menu"],[role="dialog"],[role="alertdialog"],[role="listbox"],[role="tooltip"],[data-composer-overlay],[data-dockkit-float],[style*="--dsh-hover-preview-fade"]`;
 var REVEAL_EXCLUDED = `[${NO_REVEAL_ATTRIBUTE}],[hidden],[inert],[aria-hidden="true"],[data-closing],[data-acrylic-ghost],[data-acrylic-reveal],[data-width-handle],[data-dockkit-divider],[data-dockkit-float-resize],.monaco-editor,.xterm`;
@@ -1426,341 +1606,428 @@ ${PRESS_CSS}
 @media (prefers-reduced-motion:reduce),(forced-colors:active) { [data-acrylic-reveal]{display:none} }
 `;
 function revealStrength(x, y, rect) {
-  const dx = Math.max(rect.left - x, 0, x - rect.right);
-  const dy = Math.max(rect.top - y, 0, y - rect.bottom);
-  return Math.max(0, 1 - Math.hypot(dx, dy) / 64);
+	const dx = Math.max(rect.left - x, 0, x - rect.right);
+	const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+	return Math.max(0, 1 - Math.hypot(dx, dy) / 64);
 }
-function createReveal(document2, window2, modules) {
-  const media = [window2.matchMedia("(prefers-reduced-motion: reduce)"), window2.matchMedia("(forced-colors: active)"), window2.matchMedia("(hover: hover) and (pointer: fine)")];
-  let requested = false, running = false, disposed = false, frame = 0;
-  let point2 = null;
-  let press = null;
-  function cancelPress() {
-    press?.light?.dispose();
-    press = null;
-  }
-  let controls = REVEAL_TARGETS, quiet = null;
-  let surfaces = COMPOSER_CARD;
-  function resolve2() {
-    controls = `${actionSelector(modules)},${REVEAL_FIELDS}`;
-    const bubble = modules.select("userBubble");
-    surfaces = `${COMPOSER_CARD},[data-testid="todo-panel"],[data-side-chat] .dsc-bubble:not([data-pending])${bubble ? `,:is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) ${bubble}` : ""}`;
-    quiet = modules.select("turnRail");
-  }
-  const borderOnly = (target) => target.matches(`${REVEAL_FIELDS},${surfaces}`);
-  resolve2();
-  const unsubscribe = modules.subscribe(() => {
-    resolve2();
-    schedule();
-  });
-  const overlays = /* @__PURE__ */ new Map();
-  const portals = /* @__PURE__ */ new Set();
-  const portalSelector = `[${POPUP_ATTRIBUTE}],[role="tooltip"],[role="dialog"],[role="alertdialog"],[data-menu-material],[style*="--dsh-hover-preview-fade"]`;
-  const activeObserver = new window2.MutationObserver(() => schedule());
-  const sizes = new window2.ResizeObserver(() => schedule());
-  function watchActive() {
-    activeObserver.disconnect();
-    sizes.disconnect();
-    const seen = /* @__PURE__ */ new Set();
-    for (const target of overlays.keys()) {
-      sizes.observe(target);
-      for (let node = target; node && node !== document2.body; node = node.parentElement) {
-        if (seen.has(node)) break;
-        seen.add(node);
-        activeObserver.observe(node, { attributes: true, childList: true, attributeFilter: ["disabled", "aria-disabled", "aria-hidden", "aria-invalid", "hidden", "inert", "class", "style", "data-closing"] });
-      }
-    }
-  }
-  const sheet = createStyleSheet(document2, "dsh-acrylic-wallpaper-reveal", REVEAL_CSS);
-  function clear() {
-    if (frame) window2.cancelAnimationFrame(frame);
-    frame = 0;
-    point2 = null;
-    cancelPress();
-    activeObserver.disconnect();
-    sizes.disconnect();
-    for (const node of overlays.values()) node.remove();
-    overlays.clear();
-  }
-  function control(node) {
-    if (!node || node.closest(`[${NO_REVEAL_ATTRIBUTE}],[hidden],[inert],[data-closing],[data-acrylic-ghost],.monaco-editor,.xterm`) || quiet && node.closest(quiet)) return null;
-    const editor = node.closest(COMPOSER_INPUT);
-    if (editor) return editor.closest(COMPOSER_CARD);
-    const target = node.closest(controls);
-    const todo = node.closest('[data-testid="todo-panel"]');
-    if (todo && (!target || target.matches('[data-testid="todo-panel"] > div > button[aria-expanded]'))) return todo;
-    if (target) return target;
-    const labelControl = node.closest("label")?.control;
-    if (labelControl?.matches('input:is([type="checkbox"],[type="radio"])')) return labelControl;
-    return node.closest(surfaces);
-  }
-  function layer(node) {
-    return node?.closest(REVEAL_LAYERS) ?? document2.body;
-  }
-  function candidates(x, y, hit) {
-    const targets = /* @__PURE__ */ new Set(), surface = layer(hit), direct = control(hit);
-    if (direct) targets.add(direct);
-    const content = hit?.closest(surfaces);
-    if (content && layer(content) === surface) targets.add(content);
-    for (const target of overlays.keys()) if (target.isConnected && layer(target) === surface) targets.add(target);
-    for (const dx of [0, -48, 48]) for (const dy of [0, -48, 48]) {
-      const node = dx || dy ? document2.elementFromPoint(x + dx, y + dy) : hit;
-      if (!node || layer(node) !== surface) continue;
-      const target = control(node);
-      if (target && !(direct && target !== direct && target.contains(direct))) targets.add(target);
-    }
-    for (const target of targets) {
-      if (target === direct || target.matches(surfaces)) continue;
-      if (direct && !direct.matches(surfaces) && (target.contains(direct) || direct.contains(target))) targets.delete(target);
-      else if ([...targets].some((other) => other !== target && target.contains(other))) targets.delete(target);
-    }
-    return targets;
-  }
-  function draw() {
-    frame = 0;
-    if (!point2 || !running || document2.hidden) return clear();
-    const { x, y } = point2;
-    const hit = document2.elementFromPoint(x, y);
-    if (press && (!press.target.isConnected || control(hit) !== press.target || borderOnly(press.target))) cancelPress();
-    const rows = [], ancestors = /* @__PURE__ */ new Map();
-    const blockers = [];
-    for (const portal of portals) {
-      if (!portal.isConnected) {
-        portals.delete(portal);
-        continue;
-      }
-      if (portal.contains(hit) || portal.closest("[hidden]")) continue;
-      const css = window2.getComputedStyle(portal);
-      if (css.visibility === "hidden" || css.display === "none" || Number(css.opacity) === 0) continue;
-      blockers.push(portal.getBoundingClientRect());
-    }
-    function geometry2(element) {
-      const known = ancestors.get(element);
-      if (known) return known;
-      {
-        const css = window2.getComputedStyle(element);
-        const clipsX = /(auto|scroll|hidden|clip)/.test(css.overflowX);
-        const clipsY = /(auto|scroll|hidden|clip)/.test(css.overflowY);
-        const entry = { clipsX, clipsY, opacity: Number(css.opacity), z: css.zIndex === "auto" ? 0 : Number(css.zIndex), context: css.zIndex !== "auto" || Number(css.opacity) < 1 || css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.translate !== "none" || css.filter !== "none" || css.backdropFilter !== "none" || css.isolation === "isolate" || /(paint|layout|strict|content)/.test(css.contain) || css.position === "fixed" || css.position === "sticky", bounds: clipsX || clipsY ? element.getBoundingClientRect() : null };
-        ancestors.set(element, entry);
-        return entry;
-      }
-    }
-    let inspected = 0;
-    const found = quiet && hit?.closest(quiet) ? [] : candidates(x, y, hit);
-    for (const target of found) {
-      if (rows.length >= 4 || inspected++ >= 10) break;
-      if (!target.isConnected || insideProjection(target) || target.matches(':disabled,[aria-disabled="true"],[aria-invalid="true"],[readonly]') || target.closest(REVEAL_EXCLUDED)) continue;
-      const rect = target.getBoundingClientRect();
-      if (!rect.width || !rect.height || rect.bottom < 0 || rect.top > window2.innerHeight || rect.right < 0 || rect.left > window2.innerWidth) continue;
-      const strength = revealStrength(x, y, rect);
-      if (!strength) continue;
-      const computed = window2.getComputedStyle(target);
-      if (computed.visibility !== "visible" || computed.pointerEvents === "none") continue;
-      let opacity = Number(computed.opacity), z = computed.zIndex === "auto" ? 0 : Number(computed.zIndex);
-      const footprint = press?.target === target ? PRESS_RADIUS + 2 : 84;
-      let left = Math.max(0, rect.left, x - footprint), top = Math.max(0, rect.top, y - footprint);
-      let right = Math.min(window2.innerWidth, rect.right, x + footprint), bottom = Math.min(window2.innerHeight, rect.bottom, y + footprint);
-      for (let parent = target.parentElement; parent && parent !== document2.body; parent = parent.parentElement) {
-        const { clipsX, clipsY, bounds, opacity: alpha, context, z: parentZ } = geometry2(parent);
-        opacity *= alpha;
-        if (context) z = parentZ;
-        if (bounds && clipsX) {
-          left = Math.max(left, bounds.left);
-          right = Math.min(right, bounds.right);
-        }
-        if (bounds && clipsY) {
-          top = Math.max(top, bounds.top);
-          bottom = Math.min(bottom, bounds.bottom);
-        }
-      }
-      if (opacity < 0.99 || right <= left || bottom <= top) continue;
-      if (blockers.some((rect2) => rect2.width && rect2.height && rect2.left < right && rect2.right > left && rect2.top < bottom && rect2.bottom > top)) continue;
-      const owns = (px, py) => {
-        const probe = document2.elementFromPoint(px, py);
-        return (probe === target || target.contains(probe)) && layer(probe) === layer(target);
-      };
-      if (!owns(Math.max(left + 0.5, Math.min(right - 0.5, x)), Math.max(top + 0.5, Math.min(bottom - 0.5, y)))) continue;
-      const radius = computed.borderTopLeftRadius.includes("%") ? Math.min(rect.width, rect.height) / 2 : parseFloat(computed.borderTopLeftRadius) || 0;
-      const inset = Math.min(Math.max(6, radius * 0.4), (right - left) / 2, (bottom - top) / 2);
-      const probes = [[left + inset, top + inset], [right - inset, top + inset], [left + inset, bottom - inset], [right - inset, bottom - inset], [(left + right) / 2, (top + bottom) / 2]];
-      if (!probes.every(([px, py]) => owns(px, py))) continue;
-      if (computed.display === "inline" && target.getClientRects().length > 1) continue;
-      const projection = pressGeometry(target, rect);
-      const polygon = projection ? [[left, top], [right, top], [right, bottom], [left, bottom]].map(([px = 0, py = 0]) => {
-        const local = projection.local(px, py);
-        return `${local.x}px ${local.y}px`;
-      }).join(",") : null;
-      rows.push({ target, rect, strength, borderOnly: borderOnly(target), z, hover: hit === target || target.contains(hit), radius: computed.borderRadius, projection, clip: polygon ? `polygon(${polygon})` : `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)` });
-    }
-    const active = new Set(rows.map((row) => row.target));
-    if (press && !active.has(press.target)) cancelPress();
-    const changed = active.size !== overlays.size || [...active].some((target) => !overlays.has(target));
-    for (const [target, node] of overlays) if (!active.has(target)) {
-      node.remove();
-      overlays.delete(target);
-    }
-    for (const { target, rect, strength, hover, borderOnly: borderOnly2, radius, clip, z, projection } of rows) {
-      let node = overlays.get(target);
-      if (!node) {
-        node = document2.createElement("div");
-        node.setAttribute("data-acrylic-reveal", "");
-        node.setAttribute("aria-hidden", "true");
-        document2.body.append(node);
-        overlays.set(target, node);
-      }
-      const box = projection ?? rect;
-      const local = projection?.local(x, y) ?? { x: x - rect.left, y: y - rect.top };
-      Object.assign(node.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, clipPath: clip, transform: projection?.transform ?? "none", transformOrigin: "50% 50%" });
-      node.style.setProperty("--reveal-z", String(z));
-      node.style.setProperty("--reveal-radius", radius);
-      node.style.setProperty("--reveal-x", `${local.x}px`);
-      node.style.setProperty("--reveal-y", `${local.y}px`);
-      node.style.setProperty("--reveal-border", String(strength * (borderOnly2 ? 0.48 : 0.38)));
-      node.style.setProperty("--reveal-surface", String(!borderOnly2 && hover ? 0.045 : 0));
-      const current = press;
-      if (current?.target === target && !current.light) {
-        current.light = createPressLight(document2, window2, node, () => {
-          if (press !== current) return;
-          press = null;
-          schedule();
-        });
-        if (current.released) current.light.release();
-      }
-    }
-    if (changed) watchActive();
-  }
-  function schedule() {
-    if (running && point2 && !frame) frame = window2.requestAnimationFrame(draw);
-  }
-  function pointer(event) {
-    if (event.pointerType !== "mouse" && event.pointerType !== "pen") return clear();
-    if (!event.isPrimary || press && press.pointerId !== event.pointerId) return;
-    point2 = { x: event.clientX, y: event.clientY };
-    const target = control(document2.elementFromPoint(point2.x, point2.y));
-    if (press && target !== press.target) cancelPress();
-    if (event.type === "pointerdown") {
-      cancelPress();
-      if (event.button === 0 && target && !borderOnly(target)) {
-        press = { target, pointerId: event.pointerId, released: false, light: null };
-      }
-    } else if (press && !press.released && !(event.buttons & 1)) {
-      press.released = true;
-      press.light?.release();
-    }
-    schedule();
-  }
-  function leave(event) {
-    if (!event.relatedTarget) return clear();
-    if (press && event.pointerId === press.pointerId) {
-      const next = event.relatedTarget instanceof window2.Element ? event.relatedTarget : null;
-      if (control(next) !== press.target) {
-        cancelPress();
-        schedule();
-      }
-    }
-  }
-  function lostCapture(event) {
-    if (press?.pointerId === event.pointerId && !press.released) {
-      cancelPress();
-      schedule();
-    }
-  }
-  function collectPortals(root) {
-    let found = false;
-    if (root.matches(portalSelector)) {
-      portals.add(root);
-      found = true;
-    }
-    for (const node of root.querySelectorAll(portalSelector)) {
-      portals.add(node);
-      found = true;
-    }
-    return found;
-  }
-  const observer = new window2.MutationObserver((records) => {
-    let dirty = false;
-    for (const record2 of records) {
-      const target = record2.target;
-      if (!(target instanceof window2.Element) || target.closest(".xterm,.monaco-editor,[data-acrylic-reveal]")) continue;
-      if (record2.type === "attributes") {
-        const known = portals.delete(target);
-        const matches = target.matches(portalSelector);
-        if (matches) portals.add(target);
-        if (known || matches || [...portals].some((portal) => target.contains(portal))) dirty = true;
-        continue;
-      }
-      if (target.closest(portalSelector)) dirty = true;
-      for (const node of record2.removedNodes) if (node instanceof window2.Element && !node.hasAttribute("data-acrylic-reveal")) {
-        for (const portal of portals) if (node.contains(portal)) {
-          portals.delete(portal);
-          dirty = true;
-        }
-        if ([...overlays.keys()].some((control2) => node.contains(control2))) dirty = true;
-      }
-      for (const node of record2.addedNodes) if (node instanceof window2.Element && !node.matches("[data-acrylic-reveal],.xterm,.monaco-editor")) {
-        if (collectPortals(node)) dirty = true;
-      }
-    }
-    if (dirty) schedule();
-  });
-  function reconcile() {
-    const [reduced, forced, fine] = media.map((query) => query.matches);
-    const next = !disposed && requested && !reduced && !forced && Boolean(fine);
-    if (next === running) return;
-    running = next;
-    const method = next ? "addEventListener" : "removeEventListener";
-    const on = (target, type, listener, capture = false) => target[method](type, listener, capture);
-    for (const type of ["pointermove", "pointerdown", "pointerup"]) on(document2, type, pointer, true);
-    on(document2, "pointerout", leave, true);
-    on(document2, "pointercancel", clear, true);
-    on(document2, "lostpointercapture", lostCapture, true);
-    on(document2, "keydown", clear, true);
-    on(document2, "dragstart", clear, true);
-    on(document2, "scroll", schedule, true);
-    on(document2, "animationend", schedule, true);
-    on(document2, "transitionend", schedule, true);
-    on(document2, "visibilitychange", clear);
-    on(window2, "blur", clear);
-    on(window2, "resize", schedule);
-    if (next) {
-      sheet.toggle(true);
-      collectPortals(document2.body);
-      observer.observe(document2.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "inert", "aria-hidden", "role", POPUP_ATTRIBUTE] });
-    } else {
-      observer.disconnect();
-      portals.clear();
-      sheet.toggle(false);
-      clear();
-    }
-  }
-  media.forEach((query) => query.addEventListener("change", reconcile));
-  return {
-    update(enabled) {
-      requested = enabled;
-      reconcile();
-    },
-    // Entering popups settle without pointer movement; redraw once they stop.
-    refresh: schedule,
-    sync() {
-      if (!running || !point2) return;
-      if (frame) window2.cancelAnimationFrame(frame);
-      draw();
-    },
-    dispose() {
-      disposed = true;
-      unsubscribe();
-      reconcile();
-      media.forEach((query) => query.removeEventListener("change", reconcile));
-      sheet.dispose();
-    }
-  };
+function createReveal(document, window, modules) {
+	const media = [
+		window.matchMedia("(prefers-reduced-motion: reduce)"),
+		window.matchMedia("(forced-colors: active)"),
+		window.matchMedia("(hover: hover) and (pointer: fine)")
+	];
+	let requested = false, running = false, disposed = false, frame = 0;
+	let point = null;
+	let press = null;
+	function cancelPress() {
+		press?.light?.dispose();
+		press = null;
+	}
+	let controls = REVEAL_TARGETS, quiet = null;
+	let surfaces = COMPOSER_CARD;
+	function resolve() {
+		controls = `${actionSelector(modules)},${REVEAL_FIELDS}`;
+		const bubble = modules.select("userBubble");
+		surfaces = `${COMPOSER_CARD},[data-testid="todo-panel"],[data-side-chat] .dsc-bubble:not([data-pending])${bubble ? `,:is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) ${bubble}` : ""}`;
+		quiet = modules.select("turnRail");
+	}
+	const borderOnly = (target) => target.matches(`${REVEAL_FIELDS},${surfaces}`);
+	resolve();
+	const unsubscribe = modules.subscribe(() => {
+		resolve();
+		schedule();
+	});
+	const overlays = /* @__PURE__ */ new Map();
+	const portals = /* @__PURE__ */ new Set();
+	const portalSelector = `[${POPUP_ATTRIBUTE}],[role="tooltip"],[role="dialog"],[role="alertdialog"],[data-menu-material],[style*="--dsh-hover-preview-fade"]`;
+	const activeObserver = new window.MutationObserver(() => schedule());
+	const sizes = new window.ResizeObserver(() => schedule());
+	function watchActive() {
+		activeObserver.disconnect();
+		sizes.disconnect();
+		const seen = /* @__PURE__ */ new Set();
+		for (const target of overlays.keys()) {
+			sizes.observe(target);
+			for (let node = target; node && node !== document.body; node = node.parentElement) {
+				if (seen.has(node)) break;
+				seen.add(node);
+				activeObserver.observe(node, {
+					attributes: true,
+					childList: true,
+					attributeFilter: [
+						"disabled",
+						"aria-disabled",
+						"aria-hidden",
+						"aria-invalid",
+						"hidden",
+						"inert",
+						"class",
+						"style",
+						"data-closing"
+					]
+				});
+			}
+		}
+	}
+	const sheet = createStyleSheet(document, "dsh-acrylic-wallpaper-reveal", REVEAL_CSS);
+	function clear() {
+		if (frame) window.cancelAnimationFrame(frame);
+		frame = 0;
+		point = null;
+		cancelPress();
+		activeObserver.disconnect();
+		sizes.disconnect();
+		for (const node of overlays.values()) node.remove();
+		overlays.clear();
+	}
+	function control(node) {
+		if (!node || node.closest(`[data-acrylic-no-reveal],[hidden],[inert],[data-closing],[data-acrylic-ghost],.monaco-editor,.xterm`) || quiet && node.closest(quiet)) return null;
+		const editor = node.closest(COMPOSER_INPUT);
+		if (editor) return editor.closest(COMPOSER_CARD);
+		const target = node.closest(controls);
+		const todo = node.closest("[data-testid=\"todo-panel\"]");
+		if (todo && (!target || target.matches("[data-testid=\"todo-panel\"] > div > button[aria-expanded]"))) return todo;
+		if (target) return target;
+		const labelControl = node.closest("label")?.control;
+		if (labelControl?.matches("input:is([type=\"checkbox\"],[type=\"radio\"])")) return labelControl;
+		return node.closest(surfaces);
+	}
+	function layer(node) {
+		return node?.closest(REVEAL_LAYERS) ?? document.body;
+	}
+	function candidates(x, y, hit) {
+		const targets = /* @__PURE__ */ new Set(), surface = layer(hit), direct = control(hit);
+		if (direct) targets.add(direct);
+		const content = hit?.closest(surfaces);
+		if (content && layer(content) === surface) targets.add(content);
+		for (const target of overlays.keys()) if (target.isConnected && layer(target) === surface) targets.add(target);
+		for (const dx of [
+			0,
+			-48,
+			48
+		]) for (const dy of [
+			0,
+			-48,
+			48
+		]) {
+			const node = dx || dy ? document.elementFromPoint(x + dx, y + dy) : hit;
+			if (!node || layer(node) !== surface) continue;
+			const target = control(node);
+			if (target && !(direct && target !== direct && target.contains(direct))) targets.add(target);
+		}
+		for (const target of targets) {
+			if (target === direct || target.matches(surfaces)) continue;
+			if (direct && !direct.matches(surfaces) && (target.contains(direct) || direct.contains(target))) targets.delete(target);
+			else if ([...targets].some((other) => other !== target && target.contains(other))) targets.delete(target);
+		}
+		return targets;
+	}
+	function draw() {
+		frame = 0;
+		if (!point || !running || document.hidden) return clear();
+		const { x, y } = point;
+		const hit = document.elementFromPoint(x, y);
+		if (press && (!press.target.isConnected || control(hit) !== press.target || borderOnly(press.target))) cancelPress();
+		const rows = [], ancestors = /* @__PURE__ */ new Map();
+		const blockers = [];
+		for (const portal of portals) {
+			if (!portal.isConnected) {
+				portals.delete(portal);
+				continue;
+			}
+			if (portal.contains(hit) || portal.closest("[hidden]")) continue;
+			const css = window.getComputedStyle(portal);
+			if (css.visibility === "hidden" || css.display === "none" || Number(css.opacity) === 0) continue;
+			blockers.push(portal.getBoundingClientRect());
+		}
+		function geometry(element) {
+			const known = ancestors.get(element);
+			if (known) return known;
+			{
+				const css = window.getComputedStyle(element);
+				const clipsX = /(auto|scroll|hidden|clip)/.test(css.overflowX);
+				const clipsY = /(auto|scroll|hidden|clip)/.test(css.overflowY);
+				const entry = {
+					clipsX,
+					clipsY,
+					opacity: Number(css.opacity),
+					z: css.zIndex === "auto" ? 0 : Number(css.zIndex),
+					context: css.zIndex !== "auto" || Number(css.opacity) < 1 || css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.translate !== "none" || css.filter !== "none" || css.backdropFilter !== "none" || css.isolation === "isolate" || /(paint|layout|strict|content)/.test(css.contain) || css.position === "fixed" || css.position === "sticky",
+					bounds: clipsX || clipsY ? element.getBoundingClientRect() : null
+				};
+				ancestors.set(element, entry);
+				return entry;
+			}
+		}
+		let inspected = 0;
+		const found = quiet && hit?.closest(quiet) ? [] : candidates(x, y, hit);
+		for (const target of found) {
+			if (rows.length >= 4 || inspected++ >= 10) break;
+			if (!target.isConnected || insideProjection(target) || target.matches(":disabled,[aria-disabled=\"true\"],[aria-invalid=\"true\"],[readonly]") || target.closest(REVEAL_EXCLUDED)) continue;
+			const rect = target.getBoundingClientRect();
+			if (!rect.width || !rect.height || rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth) continue;
+			const strength = revealStrength(x, y, rect);
+			if (!strength) continue;
+			const computed = window.getComputedStyle(target);
+			if (computed.visibility !== "visible" || computed.pointerEvents === "none") continue;
+			let opacity = Number(computed.opacity), z = computed.zIndex === "auto" ? 0 : Number(computed.zIndex);
+			const footprint = press?.target === target ? 212 : 84;
+			let left = Math.max(0, rect.left, x - footprint), top = Math.max(0, rect.top, y - footprint);
+			let right = Math.min(window.innerWidth, rect.right, x + footprint), bottom = Math.min(window.innerHeight, rect.bottom, y + footprint);
+			for (let parent = target.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+				const { clipsX, clipsY, bounds, opacity: alpha, context, z: parentZ } = geometry(parent);
+				opacity *= alpha;
+				if (context) z = parentZ;
+				if (bounds && clipsX) {
+					left = Math.max(left, bounds.left);
+					right = Math.min(right, bounds.right);
+				}
+				if (bounds && clipsY) {
+					top = Math.max(top, bounds.top);
+					bottom = Math.min(bottom, bounds.bottom);
+				}
+			}
+			if (opacity < .99 || right <= left || bottom <= top) continue;
+			if (blockers.some((rect) => rect.width && rect.height && rect.left < right && rect.right > left && rect.top < bottom && rect.bottom > top)) continue;
+			const owns = (px, py) => {
+				const probe = document.elementFromPoint(px, py);
+				return (probe === target || target.contains(probe)) && layer(probe) === layer(target);
+			};
+			if (!owns(Math.max(left + .5, Math.min(right - .5, x)), Math.max(top + .5, Math.min(bottom - .5, y)))) continue;
+			const radius = computed.borderTopLeftRadius.includes("%") ? Math.min(rect.width, rect.height) / 2 : parseFloat(computed.borderTopLeftRadius) || 0;
+			const inset = Math.min(Math.max(6, radius * .4), (right - left) / 2, (bottom - top) / 2);
+			if (![
+				[left + inset, top + inset],
+				[right - inset, top + inset],
+				[left + inset, bottom - inset],
+				[right - inset, bottom - inset],
+				[(left + right) / 2, (top + bottom) / 2]
+			].every(([px, py]) => owns(px, py))) continue;
+			if (computed.display === "inline" && target.getClientRects().length > 1) continue;
+			const projection = pressGeometry(target, rect);
+			const polygon = projection ? [
+				[left, top],
+				[right, top],
+				[right, bottom],
+				[left, bottom]
+			].map(([px = 0, py = 0]) => {
+				const local = projection.local(px, py);
+				return `${local.x}px ${local.y}px`;
+			}).join(",") : null;
+			rows.push({
+				target,
+				rect,
+				strength,
+				borderOnly: borderOnly(target),
+				z,
+				hover: hit === target || target.contains(hit),
+				radius: computed.borderRadius,
+				projection,
+				clip: polygon ? `polygon(${polygon})` : `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)`
+			});
+		}
+		const active = new Set(rows.map((row) => row.target));
+		if (press && !active.has(press.target)) cancelPress();
+		const changed = active.size !== overlays.size || [...active].some((target) => !overlays.has(target));
+		for (const [target, node] of overlays) if (!active.has(target)) {
+			node.remove();
+			overlays.delete(target);
+		}
+		for (const { target, rect, strength, hover, borderOnly, radius, clip, z, projection } of rows) {
+			let node = overlays.get(target);
+			if (!node) {
+				node = document.createElement("div");
+				node.setAttribute("data-acrylic-reveal", "");
+				node.setAttribute("aria-hidden", "true");
+				document.body.append(node);
+				overlays.set(target, node);
+			}
+			const box = projection ?? rect;
+			const local = projection?.local(x, y) ?? {
+				x: x - rect.left,
+				y: y - rect.top
+			};
+			Object.assign(node.style, {
+				left: `${box.left}px`,
+				top: `${box.top}px`,
+				width: `${box.width}px`,
+				height: `${box.height}px`,
+				clipPath: clip,
+				transform: projection?.transform ?? "none",
+				transformOrigin: "50% 50%"
+			});
+			node.style.setProperty("--reveal-z", String(z));
+			node.style.setProperty("--reveal-radius", radius);
+			node.style.setProperty("--reveal-x", `${local.x}px`);
+			node.style.setProperty("--reveal-y", `${local.y}px`);
+			node.style.setProperty("--reveal-border", String(strength * (borderOnly ? .48 : .38)));
+			node.style.setProperty("--reveal-surface", String(!borderOnly && hover ? .045 : 0));
+			const current = press;
+			if (current?.target === target && !current.light) {
+				current.light = createPressLight(document, window, node, () => {
+					if (press !== current) return;
+					press = null;
+					schedule();
+				});
+				if (current.released) current.light.release();
+			}
+		}
+		if (changed) watchActive();
+	}
+	function schedule() {
+		if (running && point && !frame) frame = window.requestAnimationFrame(draw);
+	}
+	function pointer(event) {
+		if (event.pointerType !== "mouse" && event.pointerType !== "pen") return clear();
+		if (!event.isPrimary || press && press.pointerId !== event.pointerId) return;
+		point = {
+			x: event.clientX,
+			y: event.clientY
+		};
+		const target = control(document.elementFromPoint(point.x, point.y));
+		if (press && target !== press.target) cancelPress();
+		if (event.type === "pointerdown") {
+			cancelPress();
+			if (event.button === 0 && target && !borderOnly(target)) press = {
+				target,
+				pointerId: event.pointerId,
+				released: false,
+				light: null
+			};
+		} else if (press && !press.released && !(event.buttons & 1)) {
+			press.released = true;
+			press.light?.release();
+		}
+		schedule();
+	}
+	function leave(event) {
+		if (!event.relatedTarget) return clear();
+		if (press && event.pointerId === press.pointerId) {
+			if (control(event.relatedTarget instanceof window.Element ? event.relatedTarget : null) !== press.target) {
+				cancelPress();
+				schedule();
+			}
+		}
+	}
+	function lostCapture(event) {
+		if (press?.pointerId === event.pointerId && !press.released) {
+			cancelPress();
+			schedule();
+		}
+	}
+	function collectPortals(root) {
+		let found = false;
+		if (root.matches(portalSelector)) {
+			portals.add(root);
+			found = true;
+		}
+		for (const node of root.querySelectorAll(portalSelector)) {
+			portals.add(node);
+			found = true;
+		}
+		return found;
+	}
+	const observer = new window.MutationObserver((records) => {
+		let dirty = false;
+		for (const record of records) {
+			const target = record.target;
+			if (!(target instanceof window.Element) || target.closest(".xterm,.monaco-editor,[data-acrylic-reveal]")) continue;
+			if (record.type === "attributes") {
+				const known = portals.delete(target);
+				const matches = target.matches(portalSelector);
+				if (matches) portals.add(target);
+				if (known || matches || [...portals].some((portal) => target.contains(portal))) dirty = true;
+				continue;
+			}
+			if (target.closest(portalSelector)) dirty = true;
+			for (const node of record.removedNodes) if (node instanceof window.Element && !node.hasAttribute("data-acrylic-reveal")) {
+				for (const portal of portals) if (node.contains(portal)) {
+					portals.delete(portal);
+					dirty = true;
+				}
+				if ([...overlays.keys()].some((control) => node.contains(control))) dirty = true;
+			}
+			for (const node of record.addedNodes) if (node instanceof window.Element && !node.matches("[data-acrylic-reveal],.xterm,.monaco-editor")) {
+				if (collectPortals(node)) dirty = true;
+			}
+		}
+		if (dirty) schedule();
+	});
+	function reconcile() {
+		const [reduced, forced, fine] = media.map((query) => query.matches);
+		const next = !disposed && requested && !reduced && !forced && Boolean(fine);
+		if (next === running) return;
+		running = next;
+		const method = next ? "addEventListener" : "removeEventListener";
+		const on = (target, type, listener, capture = false) => target[method](type, listener, capture);
+		for (const type of [
+			"pointermove",
+			"pointerdown",
+			"pointerup"
+		]) on(document, type, pointer, true);
+		on(document, "pointerout", leave, true);
+		on(document, "pointercancel", clear, true);
+		on(document, "lostpointercapture", lostCapture, true);
+		on(document, "keydown", clear, true);
+		on(document, "dragstart", clear, true);
+		on(document, "scroll", schedule, true);
+		on(document, "animationend", schedule, true);
+		on(document, "transitionend", schedule, true);
+		on(document, "visibilitychange", clear);
+		on(window, "blur", clear);
+		on(window, "resize", schedule);
+		if (next) {
+			sheet.toggle(true);
+			collectPortals(document.body);
+			observer.observe(document.body, {
+				childList: true,
+				subtree: true,
+				attributes: true,
+				attributeFilter: [
+					"hidden",
+					"inert",
+					"aria-hidden",
+					"role",
+					POPUP_ATTRIBUTE
+				]
+			});
+		} else {
+			observer.disconnect();
+			portals.clear();
+			sheet.toggle(false);
+			clear();
+		}
+	}
+	media.forEach((query) => query.addEventListener("change", reconcile));
+	return {
+		update(enabled) {
+			requested = enabled;
+			reconcile();
+		},
+		refresh: schedule,
+		sync() {
+			if (!running || !point) return;
+			if (frame) window.cancelAnimationFrame(frame);
+			draw();
+		},
+		dispose() {
+			disposed = true;
+			unsubscribe();
+			reconcile();
+			media.forEach((query) => query.removeEventListener("change", reconcile));
+			sheet.dispose();
+		}
+	};
 }
-
 // src/press-motion.ts
 var MARKER = "data-acrylic-press-motion";
 var INVERSE = "--acrylic-press-inverse";
-var SIDES = ["top", "right", "bottom", "left"];
+var SIDES = [
+	"top",
+	"right",
+	"bottom",
+	"left"
+];
 var CSS = `
 [${MARKER}="static"] { position:relative; }
 [${MARKER}]:not([${MARKER}="clip"])::after {
@@ -1770,310 +2037,392 @@ var CSS = `
   border-radius:inherit; background:transparent; border:0; padding:0; margin:0;
 }
 `;
-var GEOMETRY = ["display", "visibility", "pointer-events", "position", "scale", "rotate", "translate", "transform-origin", "transform-box", "zoom", "overflow-x", "overflow-y", "clip-path", "mask-image", "contain", "anchor-name", ...SIDES.map((side) => `border-${side}-width`)];
+var GEOMETRY = [
+	"display",
+	"visibility",
+	"pointer-events",
+	"position",
+	"scale",
+	"rotate",
+	"translate",
+	"transform-origin",
+	"transform-box",
+	"zoom",
+	"overflow-x",
+	"overflow-y",
+	"clip-path",
+	"mask-image",
+	"contain",
+	"anchor-name",
+	...SIDES.map((side) => `border-${side}-width`)
+];
 var geometry = (css) => GEOMETRY.map((name) => css.getPropertyValue(name)).join(";");
-var pseudoGeometry = (css) => ["content", "position", "display", "pointer-events", "z-index", "top", "right", "bottom", "left", "width", "height", "transform-origin", "background-image", "background-color", "border-width"].map((name) => css.getPropertyValue(name)).join(";");
-var SHAPE_KEYS = ["transform", "scale", "rotate", "translate", "width", "height", "opacity"];
+var pseudoGeometry = (css) => [
+	"content",
+	"position",
+	"display",
+	"pointer-events",
+	"z-index",
+	"top",
+	"right",
+	"bottom",
+	"left",
+	"width",
+	"height",
+	"transform-origin",
+	"background-image",
+	"background-color",
+	"border-width"
+].map((name) => css.getPropertyValue(name)).join(";");
+var SHAPE_KEYS = [
+	"transform",
+	"scale",
+	"rotate",
+	"translate",
+	"width",
+	"height",
+	"opacity"
+];
 var clips = (css) => [css.overflowX, css.overflowY].some((value) => value !== "visible");
 var scrolls = (css) => [css.overflowX, css.overflowY].some((value) => value === "auto" || value === "scroll");
-function createPressMotion(document2, window2, modules, refresh) {
-  const reduced = window2.matchMedia("(prefers-reduced-motion: reduce)");
-  const sheet = createStyleSheet(document2, "dsh-acrylic-wallpaper-press-motion", CSS);
-  let requested = false, running = false, disposed = false, frame = 0, timer = 0;
-  let press = null;
-  function resolve2(node) {
-    if (!(node instanceof window2.Element) || node.closest(ACTION_FIELDS)) return null;
-    const quiet = modules.select("turnRail");
-    if (quiet && node.closest(quiet)) return null;
-    const target = node.closest(actionSelector(modules));
-    return target instanceof window2.HTMLElement ? target : null;
-  }
-  function available(target) {
-    return target.isConnected && !target.matches(ACTION_DISABLED) && !target.closest(ACTION_EXCLUDED) && window2.getComputedStyle(target).getPropertyValue("-webkit-app-region") !== "drag";
-  }
-  function childrenSafe(target, positioned) {
-    const children = target.querySelectorAll("*");
-    if (children.length > 160 || target.querySelector(ACTION_FIELDS)) return false;
-    for (const child of children) {
-      const css = window2.getComputedStyle(child);
-      if (css.display === "none") continue;
-      if (/^(fixed|sticky)$/.test(css.position)) return false;
-      if (css.position === "absolute" && !positioned) {
-        const clippedLabel = parseFloat(css.width) <= 1 && parseFloat(css.height) <= 1 && (css.clip !== "auto" || css.clipPath !== "none");
-        const contained = child instanceof window2.HTMLElement && child.offsetParent && target.contains(child.offsetParent);
-        if (!clippedLabel && !contained) return false;
-      }
-    }
-    return true;
-  }
-  function shapes(animation) {
-    return animation.effect instanceof window2.KeyframeEffect && animation.effect.getKeyframes().some((key) => SHAPE_KEYS.some((name) => key[name] !== void 0));
-  }
-  function moving(target) {
-    return target.getAnimations().some((animation) => animation.playState === "running" && shapes(animation));
-  }
-  function animated(target) {
-    return target.getAnimations().some((animation) => animation.playState !== "finished" || shapes(animation));
-  }
-  function flatAncestors(target) {
-    for (let parent = target.parentElement; parent; parent = parent.parentElement) {
-      const css = window2.getComputedStyle(parent);
-      if (css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.perspective !== "none" || !["", "1", "normal"].includes(css.getPropertyValue("zoom"))) return false;
-    }
-    return true;
-  }
-  function canTransform(target, css) {
-    if (target.hasAttribute(MARKER) || css.display.startsWith("table") || css.display === "inline" || css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.translate !== "none" || css.clipPath !== "none" || css.maskImage !== "none" || scrolls(css) || /paint|strict|content/.test(css.contain) || !["", "1", "normal"].includes(css.getPropertyValue("zoom")) || css.getPropertyValue("anchor-name").trim() && css.getPropertyValue("anchor-name").trim() !== "none" || animated(target) || css.transitionDuration.split(",").some((value) => parseFloat(value) > 0) && css.transitionProperty.split(",").some((name) => /^(all|scale|transform)$/.test(name.trim()))) return false;
-    const pseudo = window2.getComputedStyle(target, "::after");
-    if (pseudo.content !== "none" && pseudo.content !== "normal") return false;
-    return flatAncestors(target) && childrenSafe(target, css.position !== "static");
-  }
-  function keepsPointer(target, input, pose, width, height) {
-    if (!("pointerId" in input)) return true;
-    const style = target.style;
-    const saved = ["transform", "transform-origin", "transform-box"].map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)]);
-    style.setProperty("transform-origin", "50% 50%", "important");
-    style.setProperty("transform-box", "border-box", "important");
-    style.setProperty("transform", project(window2, target, width, height, pose, 1).transform, "important");
-    const hit = document2.elementFromPoint(input.x, input.y);
-    for (const [name, value, priority] of saved) {
-      if (value) style.setProperty(name, value, priority);
-      else style.removeProperty(name);
-    }
-    forgetProjection(target);
-    return hit !== null && target.contains(hit);
-  }
-  function own2(current, name, value, priority = "") {
-    const style = current.target.style;
-    if (!current.saved.has(name)) current.saved.set(name, [style.getPropertyValue(name), style.getPropertyPriority(name)]);
-    style.setProperty(name, value, priority);
-    current.owned.set(name, [style.getPropertyValue(name), style.getPropertyPriority(name)]);
-  }
-  function hostStyle(current) {
-    const style = current.target.style;
-    return [...style].filter((name) => !current.owned.has(name)).sort().map((name) => `${name}:${style.getPropertyValue(name)}!${style.getPropertyPriority(name)}`).join(";");
-  }
-  function intact(current) {
-    return [...current.owned].every(([name, [value, priority]]) => current.target.style.getPropertyValue(name) === value && current.target.style.getPropertyPriority(name) === priority);
-  }
-  function clear() {
-    if (frame) window2.cancelAnimationFrame(frame);
-    if (timer) window2.clearTimeout(timer);
-    frame = 0;
-    timer = 0;
-    observer.disconnect();
-    sizes.disconnect();
-    const current = press;
-    press = null;
-    if (!current) return;
-    forgetProjection(current.target);
-    if (current.geometric) current.target.removeAttribute(MARKER);
-    for (const [name, [value, priority]] of current.saved) {
-      const owned = current.owned.get(name);
-      if (!owned || current.target.style.getPropertyValue(name) !== owned[0] || current.target.style.getPropertyPriority(name) !== owned[1]) continue;
-      if (value) current.target.style.setProperty(name, value, priority);
-      else current.target.style.removeProperty(name);
-    }
-    refresh();
-  }
-  function paint(current, amount) {
-    current.amount = amount;
-    if (current.geometric) {
-      const projection = project(window2, current.target, current.width, current.height, current.pose, amount);
-      own2(current, "transform", projection.transform, "important");
-      own2(current, INVERSE, projection.inverse.toString());
-    } else {
-      const tint = `color-mix(in srgb,var(--dsw-alias-interactive-bg-active) ${Math.round(amount * 100)}%,transparent)`;
-      own2(current, "background-image", `linear-gradient(${tint},${tint}),${current.background}`, "important");
-    }
-    refresh();
-  }
-  function tick(now) {
-    frame = 0;
-    const current = press;
-    if (!current) return;
-    if (!available(current.target) || document2.hidden) return clear();
-    const progress = Math.max(0, Math.min(1, (now - current.releasedAt - 150) / 200));
-    if (progress === 1) return clear();
-    paint(current, 1 - releaseEase(progress));
-    frame = window2.requestAnimationFrame(tick);
-  }
-  function release() {
-    const current = press;
-    if (!current?.held) return;
-    current.held = false;
-    if (timer) window2.clearTimeout(timer);
-    timer = 0;
-    if (!current.geometric) return clear();
-    if (!current.amount) return clear();
-    current.releasedAt = window2.performance.now();
-    timer = window2.setTimeout(() => {
-      timer = 0;
-      if (press === current) frame = window2.requestAnimationFrame(tick);
-    }, 150);
-  }
-  function begin(target, input) {
-    clear();
-    if (!available(target)) return;
-    const css = window2.getComputedStyle(target), rect = target.getBoundingClientRect();
-    if (!rect.width || !rect.height || css.visibility !== "visible" || css.pointerEvents === "none") return;
-    const u = "pointerId" in input ? (input.x - rect.left) / rect.width : 0.5;
-    const v = "pointerId" in input ? (input.y - rect.top) / rect.height : 0.5;
-    const pose = depression(rect.width, rect.height, u, v);
-    const clipped = clips(css);
-    const geometric = !reduced.matches && canTransform(target, css) && (!clipped || keepsPointer(target, input, pose, rect.width, rect.height));
-    const borders = SIDES.map((side) => css.getPropertyValue(`border-${side}-width`));
-    const position = css.position;
-    const current = { target, input, held: true, geometric, drag: Boolean(target.closest('[draggable="true"],[data-dockkit-tab]')), width: rect.width, height: rect.height, pose, amount: 0, releasedAt: 0, saved: /* @__PURE__ */ new Map(), owned: /* @__PURE__ */ new Map(), geometry: "", pseudo: "", hostStyle: "", background: css.backgroundImage };
-    press = current;
-    if (geometric) {
-      own2(current, "transform-origin", "50% 50%", "important");
-      own2(current, "transform-box", "border-box", "important");
-      SIDES.forEach((side, index) => own2(current, `--acrylic-press-${side}`, `-${borders[index]}`));
-      target.setAttribute(MARKER, clipped ? "clip" : position === "static" ? "static" : "");
-      paint(current, 0);
-      if (!clipped && position === "static" && window2.getComputedStyle(target).position !== "relative") return clear();
-    }
-    if (!geometric) paint(current, 1);
-    current.geometry = geometry(window2.getComputedStyle(target));
-    current.pseudo = pseudoGeometry(window2.getComputedStyle(target, "::after"));
-    current.hostStyle = hostStyle(current);
-    sizes.observe(target, { box: "border-box" });
-    observer.observe(document2.documentElement, { subtree: true, childList: true, attributes: true });
-    if (!geometric) return;
-    timer = window2.setTimeout(() => {
-      timer = 0;
-      if (press === current && current.held && available(target)) paint(current, 1);
-    }, 10);
-  }
-  const sizes = new window2.ResizeObserver((entries) => {
-    const current = press;
-    if (!current?.geometric) return;
-    const entry = entries.find((entry2) => entry2.target === current.target);
-    const box = entry?.borderBoxSize[0];
-    if (!box) return;
-    const vertical = window2.getComputedStyle(current.target).writingMode.startsWith("vertical");
-    const width = vertical ? box.blockSize : box.inlineSize, height = vertical ? box.inlineSize : box.blockSize;
-    if (Math.abs(width - current.width) > 0.1 || Math.abs(height - current.height) > 0.1) clear();
-  });
-  const observer = new window2.MutationObserver((records) => {
-    const current = press;
-    if (!current) return;
-    if (!available(current.target) || !intact(current)) return clear();
-    const relevant = records.filter((record2) => record2.attributeName !== MARKER && record2.target instanceof window2.Element && (record2.target.contains(current.target) || current.target.contains(record2.target)));
-    const related = relevant.length > 0;
-    if (!related) return;
-    const css = window2.getComputedStyle(current.target);
-    if (geometry(css) !== current.geometry || css.visibility !== "visible" || css.display === "none") return clear();
-    if (current.geometric && (hostStyle(current) !== current.hostStyle || relevant.some((record2) => record2.target !== current.target || record2.attributeName !== "style"))) {
-      const marker = current.target.getAttribute(MARKER);
-      current.target.removeAttribute(MARKER);
-      const hostContent = window2.getComputedStyle(current.target, "::after").content;
-      if (marker !== null) current.target.setAttribute(MARKER, marker);
-      if (hostContent !== "none" && hostContent !== "normal") return clear();
-      if (!childrenSafe(current.target, true) || !flatAncestors(current.target) || moving(current.target) || pseudoGeometry(window2.getComputedStyle(current.target, "::after")) !== current.pseudo) return clear();
-      current.hostStyle = hostStyle(current);
-    }
-    if (records.some((record2) => record2.attributeName === "aria-expanded" && record2.target === current.target && current.target.getAttribute("aria-expanded") === "true")) clear();
-  });
-  function down(event) {
-    if (!event.isPrimary || event.button !== 0 || document2.hidden) return;
-    const target = resolve2(event.target);
-    if (target) begin(target, { pointerId: event.pointerId, x: event.clientX, y: event.clientY });
-    else clear();
-  }
-  function up(event) {
-    if (press && "pointerId" in press.input && press.input.pointerId === event.pointerId) release();
-  }
-  function move(event) {
-    if (!press?.held || !("pointerId" in press.input) || press.input.pointerId !== event.pointerId) return;
-    if (press.drag && (Math.abs(event.clientX - press.input.x) >= 4 || Math.abs(event.clientY - press.input.y) >= 4)) return clear();
-    if (!(event.buttons & 1) || resolve2(document2.elementFromPoint(event.clientX, event.clientY)) !== press.target) clear();
-  }
-  function out(event) {
-    if (press?.held && "pointerId" in press.input && press.input.pointerId === event.pointerId && resolve2(event.relatedTarget) !== press.target) clear();
-  }
-  function cancel(event) {
-    if (press?.held && "pointerId" in press.input && press.input.pointerId === event.pointerId) clear();
-  }
-  function keydown(event) {
-    if (event.key === "Escape") return clear();
-    if (event.repeat || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || ![" ", "Enter"].includes(event.key)) return;
-    const target = resolve2(event.target);
-    if (target && document2.activeElement === target) begin(target, { key: event.key });
-  }
-  function keyup(event) {
-    if (press && "key" in press.input && press.input.key === event.key) release();
-  }
-  function focusout(event) {
-    if (press && "key" in press.input && event.target === press.target) clear();
-  }
-  function click() {
-    if (press?.target.matches('[aria-haspopup]:not([aria-haspopup="false"]),[aria-expanded],[popovertarget]')) clear();
-  }
-  const events = [
-    ["pointerdown", down],
-    ["pointerup", up],
-    ["pointermove", move],
-    ["pointerout", out],
-    ["pointercancel", cancel],
-    ["lostpointercapture", cancel],
-    ["keydown", keydown],
-    ["keyup", keyup],
-    ["focusout", focusout],
-    ["click", click],
-    ["dragstart", clear],
-    ["visibilitychange", clear],
-    ["scroll", clear]
-  ];
-  function reconcile() {
-    const next = requested && !disposed;
-    if (next === running) return;
-    running = next;
-    const method = next ? "addEventListener" : "removeEventListener";
-    for (const [type, listener] of events) document2[method](type, listener, true);
-    window2[method]("blur", clear);
-    window2[method]("resize", clear);
-    if (!next) clear();
-    sheet.toggle(next);
-  }
-  const unsubscribe = modules.subscribe(clear);
-  reduced.addEventListener("change", clear);
-  return {
-    update(enabled) {
-      requested = enabled;
-      reconcile();
-    },
-    dispose() {
-      disposed = true;
-      reconcile();
-      unsubscribe();
-      reduced.removeEventListener("change", clear);
-      sheet.dispose();
-    }
-  };
+/** Semantic actions share one lifecycle; geometry is a separately checked capability. */
+function createPressMotion(document, window, modules, refresh) {
+	const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+	const sheet = createStyleSheet(document, "dsh-acrylic-wallpaper-press-motion", CSS);
+	let requested = false, running = false, disposed = false, frame = 0, timer = 0;
+	let press = null;
+	function resolve(node) {
+		if (!(node instanceof window.Element) || node.closest("input,textarea,select,[role=\"textbox\"],[role=\"searchbox\"],[role=\"combobox\"],[contenteditable]:not([contenteditable=\"false\"])")) return null;
+		const quiet = modules.select("turnRail");
+		if (quiet && node.closest(quiet)) return null;
+		const target = node.closest(actionSelector(modules));
+		return target instanceof window.HTMLElement ? target : null;
+	}
+	function available(target) {
+		return target.isConnected && !target.matches(":disabled,[aria-disabled=\"true\"],[aria-busy=\"true\"],[data-unavailable]") && !target.closest("[hidden],[inert],[aria-hidden=\"true\"],[data-closing],[data-acrylic-ghost],[data-acrylic-reveal],[data-width-handle],[data-dockkit-divider],[data-dockkit-float-resize],.monaco-editor,.xterm") && window.getComputedStyle(target).getPropertyValue("-webkit-app-region") !== "drag";
+	}
+	function childrenSafe(target, positioned) {
+		const children = target.querySelectorAll("*");
+		if (children.length > 160 || target.querySelector("input,textarea,select,[role=\"textbox\"],[role=\"searchbox\"],[role=\"combobox\"],[contenteditable]:not([contenteditable=\"false\"])")) return false;
+		for (const child of children) {
+			const css = window.getComputedStyle(child);
+			if (css.display === "none") continue;
+			if (/^(fixed|sticky)$/.test(css.position)) return false;
+			if (css.position === "absolute" && !positioned) {
+				const clippedLabel = parseFloat(css.width) <= 1 && parseFloat(css.height) <= 1 && (css.clip !== "auto" || css.clipPath !== "none");
+				const contained = child instanceof window.HTMLElement && child.offsetParent && target.contains(child.offsetParent);
+				if (!clippedLabel && !contained) return false;
+			}
+		}
+		return true;
+	}
+	function shapes(animation) {
+		return animation.effect instanceof window.KeyframeEffect && animation.effect.getKeyframes().some((key) => SHAPE_KEYS.some((name) => key[name] !== void 0));
+	}
+	function moving(target) {
+		return target.getAnimations().some((animation) => animation.playState === "running" && shapes(animation));
+	}
+	function animated(target) {
+		return target.getAnimations().some((animation) => animation.playState !== "finished" || shapes(animation));
+	}
+	function flatAncestors(target) {
+		for (let parent = target.parentElement; parent; parent = parent.parentElement) {
+			const css = window.getComputedStyle(parent);
+			if (css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.perspective !== "none" || ![
+				"",
+				"1",
+				"normal"
+			].includes(css.getPropertyValue("zoom"))) return false;
+		}
+		return true;
+	}
+	function canTransform(target, css) {
+		if (target.hasAttribute(MARKER) || css.display.startsWith("table") || css.display === "inline" || css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.translate !== "none" || css.clipPath !== "none" || css.maskImage !== "none" || scrolls(css) || /paint|strict|content/.test(css.contain) || ![
+			"",
+			"1",
+			"normal"
+		].includes(css.getPropertyValue("zoom")) || css.getPropertyValue("anchor-name").trim() && css.getPropertyValue("anchor-name").trim() !== "none" || animated(target) || css.transitionDuration.split(",").some((value) => parseFloat(value) > 0) && css.transitionProperty.split(",").some((name) => /^(all|scale|transform)$/.test(name.trim()))) return false;
+		const pseudo = window.getComputedStyle(target, "::after");
+		if (pseudo.content !== "none" && pseudo.content !== "normal") return false;
+		return flatAncestors(target) && childrenSafe(target, css.position !== "static");
+	}
+	function keepsPointer(target, input, pose, width, height) {
+		if (!("pointerId" in input)) return true;
+		const style = target.style;
+		const saved = [
+			"transform",
+			"transform-origin",
+			"transform-box"
+		].map((name) => [
+			name,
+			style.getPropertyValue(name),
+			style.getPropertyPriority(name)
+		]);
+		style.setProperty("transform-origin", "50% 50%", "important");
+		style.setProperty("transform-box", "border-box", "important");
+		style.setProperty("transform", project(window, target, width, height, pose, 1).transform, "important");
+		const hit = document.elementFromPoint(input.x, input.y);
+		for (const [name, value, priority] of saved) if (value) style.setProperty(name, value, priority);
+		else style.removeProperty(name);
+		forgetProjection(target);
+		return hit !== null && target.contains(hit);
+	}
+	function own(current, name, value, priority = "") {
+		const style = current.target.style;
+		if (!current.saved.has(name)) current.saved.set(name, [style.getPropertyValue(name), style.getPropertyPriority(name)]);
+		style.setProperty(name, value, priority);
+		current.owned.set(name, [style.getPropertyValue(name), style.getPropertyPriority(name)]);
+	}
+	function hostStyle(current) {
+		const style = current.target.style;
+		return [...style].filter((name) => !current.owned.has(name)).sort().map((name) => `${name}:${style.getPropertyValue(name)}!${style.getPropertyPriority(name)}`).join(";");
+	}
+	function intact(current) {
+		return [...current.owned].every(([name, [value, priority]]) => current.target.style.getPropertyValue(name) === value && current.target.style.getPropertyPriority(name) === priority);
+	}
+	function clear() {
+		if (frame) window.cancelAnimationFrame(frame);
+		if (timer) window.clearTimeout(timer);
+		frame = 0;
+		timer = 0;
+		observer.disconnect();
+		sizes.disconnect();
+		const current = press;
+		press = null;
+		if (!current) return;
+		forgetProjection(current.target);
+		if (current.geometric) current.target.removeAttribute(MARKER);
+		for (const [name, [value, priority]] of current.saved) {
+			const owned = current.owned.get(name);
+			if (!owned || current.target.style.getPropertyValue(name) !== owned[0] || current.target.style.getPropertyPriority(name) !== owned[1]) continue;
+			if (value) current.target.style.setProperty(name, value, priority);
+			else current.target.style.removeProperty(name);
+		}
+		refresh();
+	}
+	function paint(current, amount) {
+		current.amount = amount;
+		if (current.geometric) {
+			const projection = project(window, current.target, current.width, current.height, current.pose, amount);
+			own(current, "transform", projection.transform, "important");
+			own(current, INVERSE, projection.inverse.toString());
+		} else {
+			const tint = `color-mix(in srgb,var(--dsw-alias-interactive-bg-active) ${Math.round(amount * 100)}%,transparent)`;
+			own(current, "background-image", `linear-gradient(${tint},${tint}),${current.background}`, "important");
+		}
+		refresh();
+	}
+	function tick(now) {
+		frame = 0;
+		const current = press;
+		if (!current) return;
+		if (!available(current.target) || document.hidden) return clear();
+		const progress = Math.max(0, Math.min(1, (now - current.releasedAt - 150) / 200));
+		if (progress === 1) return clear();
+		paint(current, 1 - releaseEase(progress));
+		frame = window.requestAnimationFrame(tick);
+	}
+	function release() {
+		const current = press;
+		if (!current?.held) return;
+		current.held = false;
+		if (timer) window.clearTimeout(timer);
+		timer = 0;
+		if (!current.geometric) return clear();
+		if (!current.amount) return clear();
+		current.releasedAt = window.performance.now();
+		timer = window.setTimeout(() => {
+			timer = 0;
+			if (press === current) frame = window.requestAnimationFrame(tick);
+		}, 150);
+	}
+	function begin(target, input) {
+		clear();
+		if (!available(target)) return;
+		const css = window.getComputedStyle(target), rect = target.getBoundingClientRect();
+		if (!rect.width || !rect.height || css.visibility !== "visible" || css.pointerEvents === "none") return;
+		const u = "pointerId" in input ? (input.x - rect.left) / rect.width : .5;
+		const v = "pointerId" in input ? (input.y - rect.top) / rect.height : .5;
+		const pose = depression(rect.width, rect.height, u, v);
+		const clipped = clips(css);
+		const geometric = !reduced.matches && canTransform(target, css) && (!clipped || keepsPointer(target, input, pose, rect.width, rect.height));
+		const borders = SIDES.map((side) => css.getPropertyValue(`border-${side}-width`));
+		const position = css.position;
+		const current = {
+			target,
+			input,
+			held: true,
+			geometric,
+			drag: Boolean(target.closest("[draggable=\"true\"],[data-dockkit-tab]")),
+			width: rect.width,
+			height: rect.height,
+			pose,
+			amount: 0,
+			releasedAt: 0,
+			saved: /* @__PURE__ */ new Map(),
+			owned: /* @__PURE__ */ new Map(),
+			geometry: "",
+			pseudo: "",
+			hostStyle: "",
+			background: css.backgroundImage
+		};
+		press = current;
+		if (geometric) {
+			own(current, "transform-origin", "50% 50%", "important");
+			own(current, "transform-box", "border-box", "important");
+			SIDES.forEach((side, index) => own(current, `--acrylic-press-${side}`, `-${borders[index]}`));
+			target.setAttribute(MARKER, clipped ? "clip" : position === "static" ? "static" : "");
+			paint(current, 0);
+			if (!clipped && position === "static" && window.getComputedStyle(target).position !== "relative") return clear();
+		}
+		if (!geometric) paint(current, 1);
+		current.geometry = geometry(window.getComputedStyle(target));
+		current.pseudo = pseudoGeometry(window.getComputedStyle(target, "::after"));
+		current.hostStyle = hostStyle(current);
+		sizes.observe(target, { box: "border-box" });
+		observer.observe(document.documentElement, {
+			subtree: true,
+			childList: true,
+			attributes: true
+		});
+		if (!geometric) return;
+		timer = window.setTimeout(() => {
+			timer = 0;
+			if (press === current && current.held && available(target)) paint(current, 1);
+		}, 10);
+	}
+	const sizes = new window.ResizeObserver((entries) => {
+		const current = press;
+		if (!current?.geometric) return;
+		const box = entries.find((entry) => entry.target === current.target)?.borderBoxSize[0];
+		if (!box) return;
+		const vertical = window.getComputedStyle(current.target).writingMode.startsWith("vertical");
+		const width = vertical ? box.blockSize : box.inlineSize, height = vertical ? box.inlineSize : box.blockSize;
+		if (Math.abs(width - current.width) > .1 || Math.abs(height - current.height) > .1) clear();
+	});
+	const observer = new window.MutationObserver((records) => {
+		const current = press;
+		if (!current) return;
+		if (!available(current.target) || !intact(current)) return clear();
+		const relevant = records.filter((record) => record.attributeName !== MARKER && record.target instanceof window.Element && (record.target.contains(current.target) || current.target.contains(record.target)));
+		if (!(relevant.length > 0)) return;
+		const css = window.getComputedStyle(current.target);
+		if (geometry(css) !== current.geometry || css.visibility !== "visible" || css.display === "none") return clear();
+		if (current.geometric && (hostStyle(current) !== current.hostStyle || relevant.some((record) => record.target !== current.target || record.attributeName !== "style"))) {
+			const marker = current.target.getAttribute(MARKER);
+			current.target.removeAttribute(MARKER);
+			const hostContent = window.getComputedStyle(current.target, "::after").content;
+			if (marker !== null) current.target.setAttribute(MARKER, marker);
+			if (hostContent !== "none" && hostContent !== "normal") return clear();
+			if (!childrenSafe(current.target, true) || !flatAncestors(current.target) || moving(current.target) || pseudoGeometry(window.getComputedStyle(current.target, "::after")) !== current.pseudo) return clear();
+			current.hostStyle = hostStyle(current);
+		}
+		if (records.some((record) => record.attributeName === "aria-expanded" && record.target === current.target && current.target.getAttribute("aria-expanded") === "true")) clear();
+	});
+	function down(event) {
+		if (!event.isPrimary || event.button !== 0 || document.hidden) return;
+		const target = resolve(event.target);
+		if (target) begin(target, {
+			pointerId: event.pointerId,
+			x: event.clientX,
+			y: event.clientY
+		});
+		else clear();
+	}
+	function up(event) {
+		if (press && "pointerId" in press.input && press.input.pointerId === event.pointerId) release();
+	}
+	function move(event) {
+		if (!press?.held || !("pointerId" in press.input) || press.input.pointerId !== event.pointerId) return;
+		if (press.drag && (Math.abs(event.clientX - press.input.x) >= 4 || Math.abs(event.clientY - press.input.y) >= 4)) return clear();
+		if (!(event.buttons & 1) || resolve(document.elementFromPoint(event.clientX, event.clientY)) !== press.target) clear();
+	}
+	function out(event) {
+		if (press?.held && "pointerId" in press.input && press.input.pointerId === event.pointerId && resolve(event.relatedTarget) !== press.target) clear();
+	}
+	function cancel(event) {
+		if (press?.held && "pointerId" in press.input && press.input.pointerId === event.pointerId) clear();
+	}
+	function keydown(event) {
+		if (event.key === "Escape") return clear();
+		if (event.repeat || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || ![" ", "Enter"].includes(event.key)) return;
+		const target = resolve(event.target);
+		if (target && document.activeElement === target) begin(target, { key: event.key });
+	}
+	function keyup(event) {
+		if (press && "key" in press.input && press.input.key === event.key) release();
+	}
+	function focusout(event) {
+		if (press && "key" in press.input && event.target === press.target) clear();
+	}
+	function click() {
+		if (press?.target.matches("[aria-haspopup]:not([aria-haspopup=\"false\"]),[aria-expanded],[popovertarget]")) clear();
+	}
+	const events = [
+		["pointerdown", down],
+		["pointerup", up],
+		["pointermove", move],
+		["pointerout", out],
+		["pointercancel", cancel],
+		["lostpointercapture", cancel],
+		["keydown", keydown],
+		["keyup", keyup],
+		["focusout", focusout],
+		["click", click],
+		["dragstart", clear],
+		["visibilitychange", clear],
+		["scroll", clear]
+	];
+	function reconcile() {
+		const next = requested && !disposed;
+		if (next === running) return;
+		running = next;
+		const method = next ? "addEventListener" : "removeEventListener";
+		for (const [type, listener] of events) document[method](type, listener, true);
+		window[method]("blur", clear);
+		window[method]("resize", clear);
+		if (!next) clear();
+		sheet.toggle(next);
+	}
+	const unsubscribe = modules.subscribe(clear);
+	reduced.addEventListener("change", clear);
+	return {
+		update(enabled) {
+			requested = enabled;
+			reconcile();
+		},
+		dispose() {
+			disposed = true;
+			reconcile();
+			unsubscribe();
+			reduced.removeEventListener("change", clear);
+			sheet.dispose();
+		}
+	};
 }
-
 // src/wallpaper.ts
-var FRAME2 = "body[data-acrylic-wallpaper] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
+var FRAME = "body[data-acrylic-wallpaper] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var FLUENT_FRAME = "body[data-acrylic-wallpaper][data-acrylic-fluent] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var DOCK_TINT = "rgb(var(--acrylic-tint-rgb) / .08)";
-var TERMINAL_HOST = `${FRAME2} :has(> .xterm)`;
-var TERMINAL_SURFACE = `${FRAME2} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)`;
-var COMPACTION_HEADER = 'button[aria-expanded="true"]:has(> span > [data-compaction-disclosure])';
+var TERMINAL_HOST = `${FRAME} :has(> .xterm)`;
+var TERMINAL_SURFACE = `${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)`;
+var COMPACTION_HEADER = "button[aria-expanded=\"true\"]:has(> span > [data-compaction-disclosure])";
 var CODE_BANNER = ".md-code-block > :has(> [data-code-block-banner])";
-var TINT = { light: "247 247 247", dark: "24 24 24" };
+var TINT = {
+	light: "247 247 247",
+	dark: "24 24 24"
+};
 var CANVAS_RULES = (() => {
-  const names = Object.keys(CANVAS_TOKENS);
-  const kept = (name) => `--acrylic-opaque${name.slice(1)}`;
-  const join = (value) => names.map((name) => `${name}: ${value(name)};`).join(" ");
-  return {
-    keep: names.map((name) => `${kept(name)}: var(${name});`).join(" "),
-    clear: join(() => "transparent"),
-    restore: join((name) => `var(${kept(name)})`),
-    bar: join((name) => `color-mix(in srgb, var(${kept(name)}) 82%, transparent)`),
-    acrylic: `color-mix(in srgb, var(${kept("--dsw-alias-bg-base")}) 82%, transparent)`
-  };
+	const names = Object.keys(CANVAS_TOKENS);
+	const kept = (name) => `--acrylic-opaque${name.slice(1)}`;
+	const join = (value) => names.map((name) => `${name}: ${value(name)};`).join(" ");
+	return {
+		keep: names.map((name) => `${kept(name)}: var(${name});`).join(" "),
+		clear: join(() => "transparent"),
+		restore: join((name) => `var(${kept(name)})`),
+		bar: join((name) => `color-mix(in srgb, var(${kept(name)}) 82%, transparent)`),
+		acrylic: `color-mix(in srgb, var(${kept("--dsw-alias-bg-base")}) 82%, transparent)`
+	};
 })();
 var WALLPAPER_CSS = `
 body[data-acrylic-wallpaper] { isolation: isolate; --acrylic-tint-rgb: ${TINT.light}; }
@@ -2087,11 +2436,11 @@ body[data-acrylic-wallpaper][data-ds-dark-theme] { --acrylic-tint-rgb: ${TINT.da
 /* Custom properties substitute where declared: body children keep the opaque
    palette values that the frame below replaces with transparent. */
 body[data-acrylic-wallpaper] > * { ${CANVAS_RULES.keep} }
-${FRAME2} { ${CANVAS_RULES.clear} }
+${FRAME} { ${CANVAS_RULES.clear} }
 /* Keep terminal palette sampling opaque: the host also uses this color for
    inverse text, selection and cursor contrast. Paint wallpaper over the fill
    instead of feeding transparent black into the emulator's theme. */
-${FRAME2} > [data-shell-overlay], ${TERMINAL_HOST} { ${CANVAS_RULES.restore} }
+${FRAME} > [data-shell-overlay], ${TERMINAL_HOST} { ${CANVAS_RULES.restore} }
 /* Both the host padding and xterm's inline-painted scroll surface need the
    material. clip-path clips viewport-fixed decoration without changing its
    containing block; fixed coordinates keep it aligned with the main wallpaper.
@@ -2115,16 +2464,16 @@ ${TERMINAL_SURFACE}::after {
   background: rgb(var(--acrylic-tint-rgb) / var(--acrylic-terminal-tint));
 }
 ${TERMINAL_HOST} > .xterm,
-${FRAME2} .xterm:has(.xterm-rows) .xterm-screen { position: relative; z-index: 1; }
+${FRAME} .xterm:has(.xterm-rows) .xterm-screen { position: relative; z-index: 1; }
 
 /* Reading surfaces (center column, docked panes) gain the same subtle tint. */
-${FRAME2} > div:nth-child(2),
-${FRAME2} [data-dockkit-host="dock"] > [data-dockkit-content],
-${FRAME2} [data-dockkit-empty] { background: ${DOCK_TINT}; }
+${FRAME} > div:nth-child(2),
+${FRAME} [data-dockkit-host="dock"] > [data-dockkit-content],
+${FRAME} [data-dockkit-empty] { background: ${DOCK_TINT}; }
 /* A right panel without its own track (narrow window, fullscreen) lies over
    the conversation; give its panes in-app acrylic instead of see-through. */
-${FRAME2}:is([data-rightbar-collapsed], [data-rightbar-fullscreen]) [data-rightbar-col] [data-dockkit-host="dock"] > [data-dockkit-content],
-${FRAME2}:is([data-rightbar-collapsed], [data-rightbar-fullscreen]) [data-rightbar-col] [data-dockkit-empty] {
+${FRAME}:is([data-rightbar-collapsed], [data-rightbar-fullscreen]) [data-rightbar-col] [data-dockkit-host="dock"] > [data-dockkit-content],
+${FRAME}:is([data-rightbar-collapsed], [data-rightbar-fullscreen]) [data-rightbar-col] [data-dockkit-empty] {
   background: ${CANVAS_RULES.acrylic};
   backdrop-filter: blur(30px) saturate(1.2);
 }
@@ -2141,14 +2490,14 @@ ${FLUENT_FRAME}[data-animating]:not([data-rightbar-instant], [data-rightbar-full
    bars, matched by the host's own semantic anchors (host/modules.ts): an open
    compaction header (sticky exactly while expanded), and a code block's banner
    wrapper, which the host itself selects as :has(>[data-code-block-banner]). */
-${FRAME2} [data-expanded] [data-open] [data-disclosure-header],
-${FRAME2} ${COMPACTION_HEADER},
-${FRAME2} ${CODE_BANNER},
-${FRAME2} th {
+${FRAME} [data-expanded] [data-open] [data-disclosure-header],
+${FRAME} ${COMPACTION_HEADER},
+${FRAME} ${CODE_BANNER},
+${FRAME} th {
   ${CANVAS_RULES.bar}
 }
-${FRAME2} [data-expanded] [data-open] [data-disclosure-header],
-${FRAME2} ${COMPACTION_HEADER} {
+${FRAME} [data-expanded] [data-open] [data-disclosure-header],
+${FRAME} ${COMPACTION_HEADER} {
   backdrop-filter: blur(20px) saturate(1.2);
 }
 
@@ -2178,120 +2527,141 @@ html[data-platform="darwin"] body[data-acrylic-wallpaper] > [data-menu-backing] 
   [data-acrylic-layer] { display: none; }
 }
 `;
-function createNoise(document2) {
-  const canvas = document2.createElement("canvas");
-  canvas.width = canvas.height = 64;
-  const context = canvas.getContext("2d");
-  if (!context) return "";
-  const data = context.createImageData(64, 64);
-  let seed = 342685;
-  for (let i = 0; i < data.data.length; i += 4) {
-    seed ^= seed << 13;
-    seed ^= seed >>> 17;
-    seed ^= seed << 5;
-    const value = seed & 255;
-    data.data[i] = data.data[i + 1] = data.data[i + 2] = value;
-    data.data[i + 3] = 255;
-  }
-  context.putImageData(data, 0, 0);
-  return canvas.toDataURL("image/png");
+function createNoise(document) {
+	const canvas = document.createElement("canvas");
+	canvas.width = canvas.height = 64;
+	const context = canvas.getContext("2d");
+	if (!context) return "";
+	const data = context.createImageData(64, 64);
+	let seed = 342685;
+	for (let i = 0; i < data.data.length; i += 4) {
+		seed ^= seed << 13;
+		seed ^= seed >>> 17;
+		seed ^= seed << 5;
+		const value = seed & 255;
+		data.data[i] = data.data[i + 1] = data.data[i + 2] = value;
+		data.data[i + 3] = 255;
+	}
+	context.putImageData(data, 0, 0);
+	return canvas.toDataURL("image/png");
 }
-function createWallpaper(document2, window2) {
-  const sheet = createStyleSheet(document2, PLUGIN_ID, WALLPAPER_CSS);
-  const layer = document2.createElement("div");
-  layer.setAttribute("data-acrylic-layer", "");
-  layer.setAttribute("aria-hidden", "true");
-  const image = document2.createElement("div");
-  image.setAttribute("data-acrylic-image", "");
-  const tint = document2.createElement("div");
-  tint.setAttribute("data-acrylic-tint", "");
-  const noise = document2.createElement("div");
-  noise.setAttribute("data-acrylic-noise", "");
-  const noiseUrl = createNoise(document2);
-  if (noiseUrl) noise.style.backgroundImage = `url("${noiseUrl}")`;
-  layer.append(image, tint, noise);
-  const terminalProperties = ["image", "size", "repeat", "inset", "blur", "tint"];
-  function hide() {
-    layer.remove();
-    sheet.toggle(false);
-    document2.body.removeAttribute(WALLPAPER_MARKER);
-    for (const name of terminalProperties) document2.body.style.removeProperty(`--acrylic-terminal-${name}`);
-  }
-  return {
-    update(state) {
-      if (!state?.url || !window2.CSS.supports("filter", "blur(1px)")) return hide();
-      const { settings, url } = state;
-      const { fit } = settings;
-      image.style.backgroundImage = `url(${JSON.stringify(url)})`;
-      image.style.backgroundSize = fit === "stretch" ? "100% 100%" : fit === "tile" ? "auto" : fit;
-      image.style.backgroundRepeat = fit === "tile" ? "repeat" : "no-repeat";
-      image.style.inset = fit === "cover" || fit === "tile" ? "calc(-3 * var(--acrylic-blur))" : "0";
-      layer.style.setProperty("--acrylic-blur", `${settings.blur}px`);
-      layer.style.setProperty("--acrylic-tint", String(settings.tint / 100));
-      layer.style.setProperty("--acrylic-noise", String(settings.noise / 100));
-      const terminal = [image.style.backgroundImage, image.style.backgroundSize, image.style.backgroundRepeat, fit === "cover" || fit === "tile" ? `${-3 * settings.blur}px` : "0px", `${settings.blur}px`, String(settings.tint / 100)];
-      terminalProperties.forEach((name, index) => document2.body.style.setProperty(`--acrylic-terminal-${name}`, terminal[index] ?? ""));
-      sheet.toggle(true);
-      if (!layer.isConnected) document2.body.prepend(layer);
-      document2.body.setAttribute(WALLPAPER_MARKER, "");
-    },
-    dispose() {
-      hide();
-      image.style.backgroundImage = "";
-    }
-  };
+function createWallpaper(document, window) {
+	const sheet = createStyleSheet(document, PLUGIN_ID, WALLPAPER_CSS);
+	const layer = document.createElement("div");
+	layer.setAttribute("data-acrylic-layer", "");
+	layer.setAttribute("aria-hidden", "true");
+	const image = document.createElement("div");
+	image.setAttribute("data-acrylic-image", "");
+	const tint = document.createElement("div");
+	tint.setAttribute("data-acrylic-tint", "");
+	const noise = document.createElement("div");
+	noise.setAttribute("data-acrylic-noise", "");
+	const noiseUrl = createNoise(document);
+	if (noiseUrl) noise.style.backgroundImage = `url("${noiseUrl}")`;
+	layer.append(image, tint, noise);
+	const terminalProperties = [
+		"image",
+		"size",
+		"repeat",
+		"inset",
+		"blur",
+		"tint"
+	];
+	function hide() {
+		layer.remove();
+		sheet.toggle(false);
+		document.body.removeAttribute(WALLPAPER_MARKER);
+		for (const name of terminalProperties) document.body.style.removeProperty(`--acrylic-terminal-${name}`);
+	}
+	return {
+		update(state) {
+			if (!state?.url || !window.CSS.supports("filter", "blur(1px)")) return hide();
+			const { settings, url } = state;
+			const { fit } = settings;
+			image.style.backgroundImage = `url(${JSON.stringify(url)})`;
+			image.style.backgroundSize = fit === "stretch" ? "100% 100%" : fit === "tile" ? "auto" : fit;
+			image.style.backgroundRepeat = fit === "tile" ? "repeat" : "no-repeat";
+			image.style.inset = fit === "cover" || fit === "tile" ? "calc(-3 * var(--acrylic-blur))" : "0";
+			layer.style.setProperty("--acrylic-blur", `${settings.blur}px`);
+			layer.style.setProperty("--acrylic-tint", String(settings.tint / 100));
+			layer.style.setProperty("--acrylic-noise", String(settings.noise / 100));
+			const terminal = [
+				image.style.backgroundImage,
+				image.style.backgroundSize,
+				image.style.backgroundRepeat,
+				fit === "cover" || fit === "tile" ? `${-3 * settings.blur}px` : "0px",
+				`${settings.blur}px`,
+				String(settings.tint / 100)
+			];
+			terminalProperties.forEach((name, index) => document.body.style.setProperty(`--acrylic-terminal-${name}`, terminal[index] ?? ""));
+			sheet.toggle(true);
+			if (!layer.isConnected) document.body.prepend(layer);
+			document.body.setAttribute(WALLPAPER_MARKER, "");
+		},
+		dispose() {
+			hide();
+			image.style.backgroundImage = "";
+		}
+	};
 }
-
 // src/appearance.ts
-function createAppearance(document2, window2, theme) {
-  const modules = createHostModules(document2, window2);
-  const fluent = createFluentTheme(theme);
-  const adapters = createAdapters(document2, modules);
-  const elevation = createElevation(document2);
-  const reveal = createReveal(document2, window2, modules);
-  const pressMotion = createPressMotion(document2, window2, modules, reveal.sync);
-  const motion = createMotion(document2, window2, { onSettle: reveal.refresh });
-  const frameMotion = createFrameMotion(document2, window2);
-  const wallpaper = createWallpaper(document2, window2);
-  const media = [window2.matchMedia("(forced-colors: active)"), window2.matchMedia("(prefers-reduced-transparency: reduce)")];
-  let snapshot = null;
-  let disposed = false;
-  function render() {
-    if (disposed) return;
-    const settings = snapshot?.settings;
-    const on = Boolean(settings?.enabled && !media.some((query) => query.matches));
-    const win10 = Boolean(on && settings?.fluent);
-    document2.body.toggleAttribute(FLUENT_MARKER, win10);
-    fluent.update(win10);
-    adapters.update(win10);
-    elevation.update(win10);
-    motion.update(win10);
-    frameMotion.update(win10);
-    pressMotion.update(win10);
-    reveal.update(Boolean(win10 && settings?.reveal));
-    wallpaper.update(on && snapshot?.url && settings ? { url: snapshot.url, settings } : null);
-  }
-  media.forEach((query) => query.addEventListener("change", render));
-  return {
-    update(next) {
-      snapshot = next;
-      render();
-    },
-    dispose() {
-      disposed = true;
-      media.forEach((query) => query.removeEventListener("change", render));
-      for (const feature of [fluent, adapters, elevation, motion, frameMotion, pressMotion, reveal, wallpaper]) feature.dispose();
-      modules.dispose();
-      document2.body.removeAttribute(FLUENT_MARKER);
-      snapshot = null;
-    }
-  };
+function createAppearance(document, window, theme) {
+	const modules = createHostModules(document, window);
+	const fluent = createFluentTheme(theme);
+	const adapters = createAdapters(document, modules);
+	const elevation = createElevation(document);
+	const reveal = createReveal(document, window, modules);
+	const pressMotion = createPressMotion(document, window, modules, reveal.sync);
+	const motion = createMotion(document, window, { onSettle: reveal.refresh });
+	const frameMotion = createFrameMotion(document, window);
+	const wallpaper = createWallpaper(document, window);
+	const media = [window.matchMedia("(forced-colors: active)"), window.matchMedia("(prefers-reduced-transparency: reduce)")];
+	let snapshot = null;
+	let disposed = false;
+	function render() {
+		if (disposed) return;
+		const settings = snapshot?.settings;
+		const on = Boolean(settings?.enabled && !media.some((query) => query.matches));
+		const win10 = Boolean(on && settings?.fluent);
+		document.body.toggleAttribute(FLUENT_MARKER, win10);
+		fluent.update(win10);
+		adapters.update(win10);
+		elevation.update(win10);
+		motion.update(win10);
+		frameMotion.update(win10);
+		pressMotion.update(win10);
+		reveal.update(Boolean(win10 && settings?.reveal));
+		wallpaper.update(on && snapshot?.url && settings ? {
+			url: snapshot.url,
+			settings
+		} : null);
+	}
+	media.forEach((query) => query.addEventListener("change", render));
+	return {
+		update(next) {
+			snapshot = next;
+			render();
+		},
+		dispose() {
+			disposed = true;
+			media.forEach((query) => query.removeEventListener("change", render));
+			for (const feature of [
+				fluent,
+				adapters,
+				elevation,
+				motion,
+				frameMotion,
+				pressMotion,
+				reveal,
+				wallpaper
+			]) feature.dispose();
+			modules.dispose();
+			document.body.removeAttribute(FLUENT_MARKER);
+			snapshot = null;
+		}
+	};
 }
-
 // src/panel.tsx
-var import_react = require("react");
-var import_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
-var import_jsx_runtime = require("react/jsx-runtime");
 var PANEL_CSS = `
 [data-acrylic-settings] { padding: 24px; max-width: 640px; margin: auto; color: var(--dsw-alias-label-primary); font: inherit; }
 [data-acrylic-settings] h2 { margin: 0 0 12px; font-size: 18px; }
@@ -2309,135 +2679,195 @@ var PANEL_CSS = `
 [data-acrylic-settings] [role=alert] { color: var(--dsw-alias-state-error-primary); }
 [data-acrylic-settings] .acrylic-filename { overflow-wrap: anywhere; }
 `;
-var FIT_HINTS = { cover: "保持比例，裁去多余部分。", contain: "显示整张图片，边缘可能留空。", stretch: "铺满窗口，图片可能变形。", tile: "按原尺寸重复排列。" };
-var FIT_OPTIONS = [{ value: "cover", label: "填满" }, { value: "contain", label: "适应" }, { value: "stretch", label: "拉伸" }, { value: "tile", label: "平铺" }];
+var FIT_HINTS = {
+	cover: "保持比例，裁去多余部分。",
+	contain: "显示整张图片，边缘可能留空。",
+	stretch: "铺满窗口，图片可能变形。",
+	tile: "按原尺寸重复排列。"
+};
+var FIT_OPTIONS = [
+	{
+		value: "cover",
+		label: "填满"
+	},
+	{
+		value: "contain",
+		label: "适应"
+	},
+	{
+		value: "stretch",
+		label: "拉伸"
+	},
+	{
+		value: "tile",
+		label: "平铺"
+	}
+];
 function createSettingsPanel(controller) {
-  return function AcrylicSettings() {
-    const state = (0, import_react.useSyncExternalStore)(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
-    const input = (0, import_react.useRef)(null);
-    const id = (0, import_react.useId)();
-    const locked = state.loading || state.busy;
-    function toggle(key, title, disabled = locked) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "acrylic-row", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "input",
-          {
-            type: "checkbox",
-            checked: state.settings[key],
-            disabled,
-            onChange: (event) => void controller.commit({ [key]: event.target.checked })
-          }
-        ),
-        ` ${title}`
-      ] }) });
-    }
-    function slider(key, title, unit) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "acrylic-row", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { htmlFor: `${id}-${key}`, children: title }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "input",
-          {
-            id: `${id}-${key}`,
-            type: "range",
-            min: 0,
-            max: LIMITS[key],
-            step: 1,
-            value: state.settings[key],
-            disabled: locked,
-            onChange: (event) => controller.preview({ [key]: Number(event.target.value) }),
-            onPointerUp: () => void controller.commitPreview(key),
-            onKeyUp: () => void controller.commitPreview(key),
-            onBlur: () => void controller.commitPreview(key)
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("output", { htmlFor: `${id}-${key}`, children: `${state.settings[key]}${unit}` })
-      ] }, key);
-    }
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { "data-acrylic-settings": "", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "壁纸" }),
-      toggle("enabled", "显示壁纸"),
-      toggle("fluent", "Win10 风格"),
-      toggle("reveal", "悬停与按压光效", locked || !state.settings.fluent),
-      state.url ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { className: "acrylic-preview", src: state.url, alt: "壁纸预览" }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "acrylic-filename", children: state.name || "未选择图片" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "input",
-        {
-          ref: input,
-          type: "file",
-          accept: "image/png,image/jpeg,image/webp",
-          hidden: true,
-          onChange: (event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file) void controller.upload(file);
-          }
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "acrylic-row", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", disabled: locked, onClick: () => input.current?.click(), children: state.busy ? "正在处理…" : "选择图片" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", disabled: locked || !state.url, onClick: () => void controller.remove(), children: "移除图片" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", disabled: locked, onClick: () => void controller.reset(), children: "恢复默认" })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "acrylic-row", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "填充方式" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          import_dsh_client_ui_primitives.SegmentedControl,
-          {
-            id: `${id}-fit`,
-            label: "填充方式",
-            value: state.settings.fit,
-            disabled: locked,
-            onChange: (fit) => void controller.commit({ fit }),
-            options: FIT_OPTIONS
-          }
-        )
-      ] }),
-      Object.entries(FIT_HINTS).map(([fit, text]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { id: `${id}-fit-${fit}-panel`, role: "tabpanel", "aria-labelledby": `${id}-fit-${fit}`, hidden: state.settings.fit !== fit, children: text }, fit)),
-      slider("blur", "模糊", "px"),
-      slider("tint", "遮罩", "%"),
-      slider("noise", "颗粒", "%"),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "支持 PNG、JPEG、WebP，最大 20 MiB。图片仅保存在本机。" }),
-      state.error ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "alert", children: `未能保存，请重试。${state.error}` }) : null,
-      state.loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "status", children: "正在加载…" }) : null
-    ] });
-  };
+	return function AcrylicSettings() {
+		const state = (0, react.useSyncExternalStore)(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+		const input = (0, react.useRef)(null);
+		const id = (0, react.useId)();
+		const locked = state.loading || state.busy;
+		function toggle(key, title, disabled = locked) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: "acrylic-row",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+					type: "checkbox",
+					checked: state.settings[key],
+					disabled,
+					onChange: (event) => void controller.commit({ [key]: event.target.checked })
+				}), ` ${title}`] })
+			});
+		}
+		function slider(key, title, unit) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: "acrylic-row",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("label", {
+						htmlFor: `${id}-${key}`,
+						children: title
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+						id: `${id}-${key}`,
+						type: "range",
+						min: 0,
+						max: LIMITS[key],
+						step: 1,
+						value: state.settings[key],
+						disabled: locked,
+						onChange: (event) => controller.preview({ [key]: Number(event.target.value) }),
+						onPointerUp: () => void controller.commitPreview(key),
+						onKeyUp: () => void controller.commitPreview(key),
+						onBlur: () => void controller.commitPreview(key)
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("output", {
+						htmlFor: `${id}-${key}`,
+						children: `${state.settings[key]}${unit}`
+					})
+				]
+			}, key);
+		}
+		return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+			"data-acrylic-settings": "",
+			children: [
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", { children: "壁纸" }),
+				toggle("enabled", "显示壁纸"),
+				toggle("fluent", "Win10 风格"),
+				toggle("reveal", "悬停与按压光效", locked || !state.settings.fluent),
+				state.url ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("img", {
+					className: "acrylic-preview",
+					src: state.url,
+					alt: "壁纸预览"
+				}) : null,
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					className: "acrylic-filename",
+					children: state.name || "未选择图片"
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+					ref: input,
+					type: "file",
+					accept: "image/png,image/jpeg,image/webp",
+					hidden: true,
+					onChange: (event) => {
+						const file = event.target.files?.[0];
+						event.target.value = "";
+						if (file) controller.upload(file);
+					}
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: "acrylic-row",
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							disabled: locked,
+							onClick: () => input.current?.click(),
+							children: state.busy ? "正在处理…" : "选择图片"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							disabled: locked || !state.url,
+							onClick: () => void controller.remove(),
+							children: "移除图片"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							disabled: locked,
+							onClick: () => void controller.reset(),
+							children: "恢复默认"
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: "acrylic-row",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: "填充方式" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.SegmentedControl, {
+						id: `${id}-fit`,
+						label: "填充方式",
+						value: state.settings.fit,
+						disabled: locked,
+						onChange: (fit) => void controller.commit({ fit }),
+						options: FIT_OPTIONS
+					})]
+				}),
+				Object.entries(FIT_HINTS).map(([fit, text]) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					id: `${id}-fit-${fit}-panel`,
+					role: "tabpanel",
+					"aria-labelledby": `${id}-fit-${fit}`,
+					hidden: state.settings.fit !== fit,
+					children: text
+				}, fit)),
+				slider("blur", "模糊", "px"),
+				slider("tint", "遮罩", "%"),
+				slider("noise", "颗粒", "%"),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: "支持 PNG、JPEG、WebP，最大 20 MiB。图片仅保存在本机。" }),
+				state.error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					role: "alert",
+					children: `未能保存，请重试。${state.error}`
+				}) : null,
+				state.loading ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					role: "status",
+					children: "正在加载…"
+				}) : null
+			]
+		});
+	};
 }
-
 // src/client.ts
 var inject = ["slots", "theme"];
 function apply(ctx) {
-  const controller = createController(window);
-  const appearance = createAppearance(document, window, ctx.theme);
-  const render = () => appearance.update(controller.getSnapshot());
-  const unsubscribe = controller.subscribe(render);
-  render();
-  ctx.effect(() => () => {
-    unsubscribe();
-    appearance.dispose();
-    controller.dispose();
-  }, "acrylic wallpaper lifecycle");
-  ctx.effect(() => {
-    const sheet = createStyleSheet(document, `${PLUGIN_ID}-settings`, PANEL_CSS);
-    sheet.toggle(true);
-    return sheet.dispose;
-  });
-  ctx.effect(() => {
-    const sheet = createStyleSheet(document, `${PLUGIN_ID}-hide-diff-hover`, `
+	const controller = createController(window);
+	const appearance = createAppearance(document, window, ctx.theme);
+	const render = () => appearance.update(controller.getSnapshot());
+	const unsubscribe = controller.subscribe(render);
+	render();
+	ctx.effect(() => () => {
+		unsubscribe();
+		appearance.dispose();
+		controller.dispose();
+	}, "acrylic wallpaper lifecycle");
+	ctx.effect(() => {
+		const sheet = createStyleSheet(document, `${PLUGIN_ID}-settings`, PANEL_CSS);
+		sheet.toggle(true);
+		return sheet.dispose;
+	});
+	ctx.effect(() => {
+		const sheet = createStyleSheet(document, `${PLUGIN_ID}-hide-diff-hover`, `
       body > div:has(> [data-changes-hover-preview]) {
         display: none !important;
       }
     `);
-    sheet.toggle(true);
-    return sheet.dispose;
-  });
-  ctx.slots.inject("settings.section", () => ctx.slots.register({
-    name: "settings.section",
-    id: "acrylic-wallpaper",
-    order: 32,
-    label: "壁纸"
-  }, createSettingsPanel(controller)));
+		sheet.toggle(true);
+		return sheet.dispose;
+	});
+	ctx.slots.inject("settings.section", () => ctx.slots.register({
+		name: "settings.section",
+		id: "acrylic-wallpaper",
+		order: 32,
+		label: "壁纸"
+	}, createSettingsPanel(controller)));
 }
+exports.apply = apply;
+exports.inject = inject;
 
     return module.exports;
   },

@@ -5,11 +5,11 @@
 所有插件业务源码使用 TypeScript，放在包内 `src/`。组件用 `.tsx`，类型声明用 `.d.ts`。每包必须提供 `typecheck` 和 `build` 脚本，能从根目录通过 pnpm 递归执行。
 
 - 启用 `strict`，新建配置同时开启 `noUncheckedIndexedAccess` 和 `exactOptionalPropertyTypes`。
-- esbuild 只做转译和打包，不能代替类型检查。使用 esbuild 的 `build` 必须先运行 `typecheck`；直接使用 tsc 的构建可由编译本身检查类型。
+- Vite 只做转译和打包，不能代替类型检查。每包 `build` 必须先运行 TypeScript 7 原生 `tsc` 的 `typecheck`，再执行 `build.ts`；声明文件由 `tsc --emitDeclarationOnly` 生成。共享适配在 `tools/build-plugin.ts`，构建脚本也纳入 strict 检查。
 - 外部数据和错误先按 `unknown` 处理，再缩窄类型。宿主没有可用声明时，在适配边界定义最小接口，不用宽泛的 `any` 冒充兼容。
 - 不通过 `allowJs`、`checkJs: false`、`@ts-nocheck` 或关闭 strict 留下 JavaScript 实现。新增功能不能写回编译后的 `.js`。
 
-JavaScript 只用于生成产物、构建与维护脚本，以及现有无业务逻辑的空宿主入口。空入口一旦需要配置、服务或其他运行逻辑，先迁入 TypeScript 并纳入构建。既有测试文件的语言不在插件源码约束范围内，测试变更仍受 [质量规则](quality.md) 限制。
+JavaScript 只用于生成产物和既有维护脚本。空宿主入口也放在 `src/index.ts` 并纳入构建；构建入口使用 `build.ts`，由 Node 原生执行，不引入另一套运行时。测试变更受 [质量规则](quality.md) 限制。
 
 以当前 package exports 为准生成产物，不无故变更对外路径。根目录被跟踪的客户端产物随源码重新构建并提交；`lib/` 已被根 ignore 规则排除，不强行加入版本控制。不要手改生成文件。
 
@@ -33,6 +33,6 @@ JavaScript 只用于生成产物、构建与维护脚本，以及现有无业务
 
 ## 文档与依赖
 
-新增依赖前确认是否可由宿主提供，保持与现有工具链版本一致；依赖变动同步根 lockfile。不因引入一个插件而更换整仓包管理器或新增另一套 lockfile。
+新增依赖前确认是否可由宿主提供。所有直接依赖版本在根 `pnpm-workspace.yaml` 的 catalog 中维护，各包引用 `catalog:`；peer 兼容范围使用命名 catalog，不与开发时的精确版本混淆。依赖变动同步根 lockfile，不创建子包锁文件。构建工具在根声明，各包保留自身类型和运行时依赖。
 
 修改安装命令、配置项、导出路径、构建方式或用户行为时同步对应插件 README。跨插件规则写在本目录，单包实现细节留在该包，不重复维护两份事实源。

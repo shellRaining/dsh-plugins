@@ -22,13 +22,17 @@
 
 ## 开发
 
-pnpm（v12+）monorepo，Node 20+：
+开发环境使用 Node 24.9+、pnpm 12.6.0（由根 `packageManager` 固定）。插件运行时要求仍以各包的 `engines` 为准：
 
 ```sh
 pnpm install
 pnpm typecheck # 全部插件类型检查
-pnpm build     # 全部插件构建（typecheck + esbuild/tsc）
+pnpm build     # 全部插件构建（typecheck + Vite；有 types 导出的包另生成声明）
 ```
+
+构建使用 Vite 8 / Rolldown，类型检查使用 TypeScript 7 原生编译器 `tsc`（原 tsgo 项目的正式版本）。共享构建适配在 `tools/build-plugin.ts`，各包用 `build.ts` 声明入口、产物与 external；客户端继续按 DSH ModuleLoader 契约输出，不启动独立 Vite 页面。
+
+所有直接依赖版本集中在 `pnpm-workspace.yaml` 的 `catalog` / `catalogs` 中，各包 `package.json` 保留依赖名并引用 `catalog:`；peer 兼容范围使用独立的 `peers` catalog。仓库只保留根锁文件。新增或升级依赖先修改 catalog，再运行 `pnpm install`。`pnpm pack` / `pnpm publish` 会把 catalog 引用转换成普通版本，不影响插件独立安装。
 
 发布由 GitHub Actions 完成：修改插件的版本号并推送到 main，流水线会把 npm 上还没有的版本发布出去，细节见 [docs/quality.md](docs/quality.md)。
 

@@ -86,9 +86,9 @@ git+https://github.com/shellRaining/dsh-session-title-layout.git
 ## 开发
 
 ```sh
-pnpm install
-pnpm typecheck
-pnpm build   # 生成 lib/；lib/ 已提交，所以 git 安装无需构建
+pnpm install # 在 monorepo 根目录运行；开发环境 Node 24.9+
+pnpm --filter @shellraining/dsh-session-title-layout typecheck
+pnpm --filter @shellraining/dsh-session-title-layout build # Vite 生成 JS，原生 tsc 生成声明；lib/ 不提交
 ```
 
 纯逻辑（配置、prompt、解析、渲染）在 `src/format.ts`，`src/index.ts` 只负责接到 dsh 上。

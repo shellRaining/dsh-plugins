@@ -1,5 +1,34 @@
 packages:
   - "plugins/*"
+
+# 所有直接依赖版本在此维护；各包保留自己的依赖声明与独立发布边界。
+catalogMode: strict
+sharedWorkspaceLockfile: true
+catalog:
+  "@deepseek-ai/cordis": "4.0.5"
+  "@deepseek-ai/dsh-agent": "0.2.1-rc.2"
+  "@deepseek-ai/dsh-brand": "0.2.1-rc.2"
+  "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.3"
+  "@deepseek-ai/dsh-client-ui-theme": "0.2.1-rc.3"
+  "@deepseek-ai/dsh-llm": "0.2.1-rc.2"
+  "@deepseek-ai/dsh-session": "0.2.1-rc.2"
+  "@deepseek-ai/dsh-session-projection": "0.2.1-rc.2"
+  "@deepseek-ai/dsh-session-title": "0.2.1-rc.2"
+  "@types/node": "24.19.2"
+  "@types/react": "18.3.31"
+  "@types/react-dom": "18.3.7"
+  "@types/semver": "7.8.0"
+  "happy-dom": "20.11.6"
+  "mermaid": "11.17.2"
+  "semver": "7.8.5"
+  "typescript": "7.0.2"
+  "vite": "8.3.5"
+
+# 宿主兼容范围与开发时安装的精确版本分开维护。
+catalogs:
+  peers:
+    "@deepseek-ai/cordis": "~4.0.5"
+
 allowBuilds:
-  # The platform binary arrives as an optional dependency; the install script is not needed.
+  # 平台二进制通过 optionalDependencies 安装，不运行安装脚本。
   esbuild: false

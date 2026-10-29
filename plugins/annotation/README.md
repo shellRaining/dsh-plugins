@@ -22,6 +22,14 @@ dsh plugin --profile web add @shellraining/dsh-local-annotation
 
 批注引用通过宿主的 `inputTriggers.registerSource` 注册来源和 `codec`，用会话 scope 上的 `slash/input-insert-reference` 事件插入输入框；消息气泡里的批注块由 `uiConversation.userText` 规则识别，再通过 `conversation.user.text.node` slot 渲染。插件不拦截键盘，也不改宿主 DOM。
 
+## 开发
+
+开发使用仓库根目录的 Node 24.9+ / pnpm 环境，依赖版本统一由根 `pnpm-workspace.yaml` 的 catalog 管理。`build.ts` 调用共享 Vite 构建，构建前先执行 TypeScript 7 原生 `tsc` 类型检查。客户端保持 DSH ModuleLoader 加载方式，宿主入口和发布路径不变。
+
+```sh
+pnpm --filter @shellraining/dsh-local-annotation build
+```
+
 ## 许可
 
 MIT

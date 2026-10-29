@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-local-annotation",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "type": "module",
   "description": "原生高亮与就地批注，批注以输入框引用随消息发送",
   "main": "./lib/index.js",
@@ -15,17 +15,16 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "build": "pnpm run typecheck && node build.mjs"
+    "build": "pnpm run typecheck && node build.ts"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.3",
-    "@types/react": "18.3.31",
-    "@types/react-dom": "18.3.7",
-    "esbuild": "0.28.2",
-    "typescript": "5.9.3"
+    "@deepseek-ai/dsh-client-ui-primitives": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:"
   },
   "dsh": {
     "bundle": {

@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-inline-code-copy",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "description": "点击助手输出中的行内代码即复制其内容",
   "main": "./index.js",
@@ -10,14 +10,14 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm run typecheck && node build.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
-    "typescript": "5.9.3"
+    "typescript": "catalog:"
   },
   "dsh": {
     "bundle": {

@@ -10,6 +10,8 @@ pnpm typecheck
 pnpm build
 ```
 
+开发环境为 Node 24.9+，pnpm 版本由根 `packageManager` 固定；依赖版本统一在 `pnpm-workspace.yaml` 的 catalog 维护，构建使用 Vite，类型检查使用 TypeScript 7 原生 `tsc`。
+
 单包开发用 `pnpm --filter <包名> typecheck` 或 `pnpm --filter <包名> build`。完整交付前依次运行类型检查与构建。
 
 ## 何时读什么
@@ -21,7 +23,7 @@ pnpm build
 
 ## 核心约束
 
-- 所有插件实现必须使用 TypeScript，源码放在 `src/`，React 使用 TSX。启用 `strict`；不得用 `allowJs`、`@ts-nocheck`、批量 `any` 或关闭检查来完成迁移。JavaScript 构建产物、构建脚本和既有空宿主入口不属于业务源码，详见 [插件开发规范](docs/plugins.md)。
+- 所有插件实现必须使用 TypeScript，源码放在 `src/`，React 使用 TSX。启用 `strict`；不得用 `allowJs`、`@ts-nocheck`、批量 `any` 或关闭检查来完成迁移。空宿主入口同样使用 TypeScript，构建入口使用 `build.ts`；JavaScript 仅保留生成产物和既有维护脚本，详见 [插件开发规范](docs/plugins.md)。
 - agent 不得自行新增或改写测试，包括主 agent、子 agent、临时测试脚本和快照。库内不保留测试套件；需要新增测试时先说明原因并取得用户明确授权，详见 [质量与验证](docs/quality.md)。
 - 通过官方 profile、bundle patch 和 client 注入 API 接入 DSH，不直接修改宿主源码。不跨插件导入内部源码，不把独立插件合并成一个安装单元。
 - 依赖宿主提供的 React、服务和设计变量，不另建一套 UI 运行时。注册的 ModuleLoader id、包名和依赖声明必须一致。

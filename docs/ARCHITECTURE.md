@@ -21,9 +21,11 @@ flowchart LR
 ## 模块边界
 
 - `plugins/*/src/`：TypeScript / TSX 实现与局部类型契约。
-- `plugins/*/build.mjs`、`tsconfig*.json`：单包构建配置。简单插件直接用 tsc，需打包或包裹 ModuleLoader 的插件用 esbuild。
+- `plugins/*/build.ts`、`tsconfig*.json`：单包入口、external 和严格类型检查配置。TypeScript 7 原生 `tsc` 负责检查，Vite 8 / Rolldown 负责 JavaScript 构建；对外提供 types 的包另用 `tsc --emitDeclarationOnly` 生成声明。
+- `tools/build-plugin.ts`：共享的 DSH 构建适配。客户端输出单文件 CJS 并封装 ModuleLoader；已自行注册 ModuleLoader 的源码输出无导出的 IIFE，宿主输出 ESM；关闭输出目录清空和 public 复制，原子替换产物。
+- `pnpm-workspace.yaml`：workspace 成员及全部直接依赖版本的 catalog。各包保留依赖声明和独立发布边界，根锁文件记录整个工作区。
 - `plugins/*/README.md`：插件用途、安装与开发说明。
-- `test/`：既有仓库级检查，覆盖宿主入口、客户端注册和 bundle patch 结构。
+- `tools/tsconfig.json`：检查共享工具和各包 `build.ts`，Node 原生执行可擦除类型的 TypeScript 构建脚本；仓库不保留测试套件。
 - `docs/`：跨插件的架构、开发和验证规则，不复制各包的实现细节。
 
 插件之间不直接引用内部源码，也不依赖另一个插件已经安装。出现重复实现时，先判断是否值得提取公共包；没有稳定的多个调用方，不提前增加共享层。

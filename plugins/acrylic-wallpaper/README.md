@@ -51,6 +51,8 @@ Reveal 与控件使用同一透视映射，光点转换到控件局部坐标。�
 
 ## 开发
 
+开发使用仓库根目录的 Node 24.9+ / pnpm 环境，依赖版本统一由根 `pnpm-workspace.yaml` 的 catalog 管理。`build.ts` 调用共享 Vite 构建，构建前先执行 TypeScript 7 原生 `tsc` 类型检查。客户端保持 DSH ModuleLoader 加载方式，宿主入口和发布路径不变。
+
 ```sh
 pnpm --filter @shellraining/dsh-acrylic-wallpaper typecheck
 pnpm --filter @shellraining/dsh-acrylic-wallpaper build

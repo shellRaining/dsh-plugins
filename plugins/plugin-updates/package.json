@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-plugin-updates",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "在插件页检查 npm 来源插件的新版本，一键更新或安装指定版本",
   "main": "./lib/index.js",
@@ -16,20 +16,19 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.host.json && tsc -p tsconfig.client.json",
-    "build": "pnpm run typecheck && node build.mjs"
+    "build": "pnpm run typecheck && node build.ts"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.3",
-    "@types/node": "24.19.2",
-    "@types/react": "18.3.31",
-    "@types/react-dom": "18.3.7",
-    "@types/semver": "7.8.0",
-    "esbuild": "0.28.2",
-    "semver": "7.8.5",
-    "typescript": "5.9.3"
+    "@deepseek-ai/dsh-client-ui-primitives": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@types/semver": "catalog:",
+    "semver": "catalog:",
+    "typescript": "catalog:"
   },
   "dsh": {
     "bundle": {
