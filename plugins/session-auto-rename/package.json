@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-session-auto-rename",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "根据对话内容自动命名会话，支持自定义标题格式和摘要语言。",
   "keywords": [
     "deepseek-harness",

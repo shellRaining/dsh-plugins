@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-fluent-theme",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "Windows 10 风格主题，提供亚克力背景、Reveal 光效和交互动效。",
   "main": "./index.js",

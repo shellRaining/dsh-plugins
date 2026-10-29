@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-inline-code-copy",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "description": "点击助手回复中的行内代码即可复制。",
   "main": "./index.js",

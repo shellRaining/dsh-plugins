@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-mermaid",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "description": "渲染 Mermaid 图表，支持切换代码和图表视图。",
   "type": "module",
   "license": "MIT",

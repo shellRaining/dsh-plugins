@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-side-chat",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "description": "从当前会话派生临时侧边对话，可能修改工作区文件。",
   "main": "./lib/index.js",
