@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-layout-presets",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "DSH 右栏比例预设、窗口缩放时保持比例和双击分割线等分",
   "main": "./lib/index.js",
@@ -10,7 +10,8 @@
     "./package.json": "./package.json",
     "./cordis.patch.yml": "./cordis.patch.yml"
   },
-  "files": ["lib", "cordis.patch.yml", "README.md"],
+  "icon": "./icon.png",
+  "files": ["lib", "cordis.patch.yml", "README.md", "icon.png"],
   "scripts": {
     "build": "pnpm run typecheck && node build.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
