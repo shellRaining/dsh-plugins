@@ -1,12 +1,13 @@
 {
   "name": "@shellraining/dsh-brand",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "dsh": {
     "bundle": {
@@ -21,7 +22,7 @@
       ]
     }
   },
-  "description": "Personal brand layer (logo, product name) for the DSH web UI; fork it to apply your own brand",
+  "description": "将侧栏和欢迎页的品牌标识替换为 shellRaining 品牌。",
   "license": "MIT",
   "author": "shellRaining",
   "repository": {
@@ -47,5 +48,12 @@
     "typescript": "catalog:",
     "@types/react": "catalog:"
   },
-  "icon": "./icon.png"
+  "icon": "./icon.png",
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "icon.png",
+    "locale"
+  ]
 }

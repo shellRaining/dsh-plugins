@@ -1,19 +1,21 @@
 {
   "name": "@shellraining/dsh-plugin-updates",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "type": "module",
-  "description": "在插件页检查 npm 来源插件的新版本，一键更新或安装指定版本",
+  "description": "检查 npm 插件更新，支持批量更新和安装指定版本。",
   "main": "./lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "lib",
     "cordis.patch.yml",
-    "icon.png"
+    "icon.png",
+    "locale"
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.host.json && tsc -p tsconfig.client.json",

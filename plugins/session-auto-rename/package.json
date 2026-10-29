@@ -1,7 +1,7 @@
 {
-  "name": "@shellraining/dsh-session-title-layout",
-  "version": "0.2.4",
-  "description": "DeepSeek Harness session-title provider with a configurable layout (type, date, summary), separator and summary language.",
+  "name": "@shellraining/dsh-session-auto-rename",
+  "version": "0.1.0",
+  "description": "根据对话内容自动命名会话，支持自定义标题格式和摘要语言。",
   "keywords": [
     "deepseek-harness",
     "dsh",
@@ -13,9 +13,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/shellRaining/dsh-plugins.git",
-    "directory": "plugins/session-title-layout"
+    "directory": "plugins/session-auto-rename"
   },
-  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/session-title-layout#readme",
+  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/session-auto-rename#readme",
   "bugs": "https://github.com/shellRaining/dsh-plugins/issues",
   "type": "module",
   "main": "./lib/index.js",

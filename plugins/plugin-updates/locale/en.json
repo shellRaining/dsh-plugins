@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Plugin Updates",
+    "description": "Check for npm plugin updates, update multiple plugins, or install a specific version."
+  }
+}

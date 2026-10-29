@@ -1,4 +1,4 @@
-# dsh-local-annotation
+# 批注
 
 选中助手回复或侧栏文件预览里的文字，就地写批注。高亮用浏览器原生的 CSS Custom Highlight API，数据存在本机 IndexedDB。
 
@@ -12,10 +12,14 @@
 
 点击原文高亮或编号可以重新编辑批注；如果它不在当前草稿里，编辑卡片上有「附加到输入框」按钮。
 
+## 从旧包迁移
+
+本包原名 `@shellraining/dsh-local-annotation`。备份 profile 配置，移除旧包后再安装新包，不要同时启用两者。保持相同的浏览器来源和用户数据，已有批注和显示偏好会继续从原来的本地存储读取。Cordis 配置 ID `local-annotation`、草稿与消息中的批注引用格式保持不变。
+
 ## 安装
 
 ```sh
-dsh plugin --profile web add @shellraining/dsh-local-annotation
+dsh plugin --profile web add @shellraining/dsh-annotation
 ```
 
 ## 实现说明
@@ -27,7 +31,7 @@ dsh plugin --profile web add @shellraining/dsh-local-annotation
 开发使用仓库根目录的 Node 24.9+ / pnpm 环境，依赖版本统一由根 `pnpm-workspace.yaml` 的 catalog 管理。`build.ts` 调用共享 Vite 构建，构建前先执行 TypeScript 7 原生 `tsc` 类型检查。客户端保持 DSH ModuleLoader 加载方式，宿主入口和发布路径不变。
 
 ```sh
-pnpm --filter @shellraining/dsh-local-annotation build
+pnpm --filter @shellraining/dsh-annotation build
 ```
 
 ## 许可

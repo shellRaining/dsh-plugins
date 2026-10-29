@@ -1,6 +1,6 @@
-# dsh-mermaid
+# Mermaid 图表
 
-Mermaid 代码/图表双视图渲染，图标与配色对接 DSH 主题 token。fork 自 [MrmoLabs/dsh-mermaid](https://github.com/MrmoLabs/dsh-mermaid)（MIT）。
+渲染 Mermaid 图表，支持切换代码和图表视图。图标与配色对接 DSH 主题 token。fork 自 [MrmoLabs/dsh-mermaid](https://github.com/MrmoLabs/dsh-mermaid)（MIT）。
 
 ## 安装
 

@@ -1,19 +1,21 @@
 {
-  "name": "@shellraining/dsh-acrylic-wallpaper",
-  "version": "0.1.8",
+  "name": "@shellraining/dsh-fluent-theme",
+  "version": "0.1.0",
   "type": "module",
-  "description": "本地静态壁纸与克制的 Acrylic 模糊、色调遮罩和噪点",
+  "description": "Windows 10 风格主题，提供亚克力背景、Reveal 光效和交互动效。",
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "index.js",
     "client.js",
     "cordis.patch.yml",
-    "icon.png"
+    "icon.png",
+    "locale"
   ],
   "scripts": {
     "host-tokens": "node scripts/host-tokens.mjs",
@@ -49,9 +51,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/shellRaining/dsh-plugins.git",
-    "directory": "plugins/acrylic-wallpaper"
+    "directory": "plugins/fluent-theme"
   },
-  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/acrylic-wallpaper#readme",
+  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/fluent-theme#readme",
   "bugs": "https://github.com/shellRaining/dsh-plugins/issues",
   "keywords": [
     "deepseek-harness",

@@ -1,6 +1,6 @@
-# dsh-brand
+# shellRaining 品牌
 
-个人品牌层：占用侧栏与 Hero 的品牌槽位，替换官方 mark。fork 本包并替换资源即可换成你自己的品牌。
+将侧栏和欢迎页的品牌标识替换为 shellRaining 品牌。fork 本包并替换资源即可换成你自己的品牌。
 
 ## 安装
 

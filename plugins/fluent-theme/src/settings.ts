@@ -1,5 +1,5 @@
-// Plugin identity and the persisted settings schema. Every reader (storage,
-// controller, panel) normalizes through here, so older records stay valid.
+// Stable storage/channel identity retained after the fluent-theme package rename.
+// Every reader normalizes through this schema so older records stay valid.
 export const PLUGIN_ID = 'dsh-acrylic-wallpaper';
 
 export const FITS = Object.freeze(['cover', 'contain', 'stretch', 'tile'] as const);

@@ -1,12 +1,13 @@
 {
   "name": "@shellraining/dsh-sidebar-session-preview",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "dsh": {
     "bundle": {
@@ -20,7 +21,7 @@
       ]
     }
   },
-  "description": "Hover preview of sessions in the DSH sidebar",
+  "description": "悬停侧栏会话时预览最近消息。",
   "license": "MIT",
   "author": "shellRaining",
   "repository": {
@@ -45,5 +46,12 @@
   "devDependencies": {
     "typescript": "catalog:"
   },
-  "icon": "./icon.png"
+  "icon": "./icon.png",
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "icon.png",
+    "locale"
+  ]
 }

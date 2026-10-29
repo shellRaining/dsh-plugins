@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session Auto Rename",
+    "description": "Automatically name sessions from the conversation, with a configurable title format and summary language."
+  }
+}

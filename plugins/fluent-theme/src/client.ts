@@ -35,6 +35,6 @@ export function apply(ctx: ClientContext) {
     return sheet.dispose;
   });
   ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section', id: 'acrylic-wallpaper', order: 32, label: '壁纸',
+    name: 'settings.section', id: 'acrylic-wallpaper', order: 32, label: 'Win10 Fluent 主题',
   }, createSettingsPanel(controller)));
 }

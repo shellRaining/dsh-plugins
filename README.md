@@ -1,21 +1,37 @@
 # dsh-plugins · shellRaining 的 DSH 插件集
 
-[DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 插件合集：壁纸、批注、侧边会话、Mermaid 渲染、会话标题版式等。全部走官方 profile 机制挂载，不改 DSH 源码；按需单独安装。
+[DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 插件合集：Win10 Fluent 主题、批注、侧边对话、Mermaid 图表、会话自动命名等。全部走官方 profile 机制挂载，不改 DSH 源码；按需单独安装。
 
 ## 插件索引
 
 | 图标 | 插件 | 功能 | 安装 |
 | --- | --- | --- | --- |
-| <img src="plugins/acrylic-wallpaper/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-acrylic-wallpaper](plugins/acrylic-wallpaper) | 本地静态壁纸 + 克制的 Acrylic 模糊、色调遮罩和噪点 | `dsh plugin --profile web add @shellraining/dsh-acrylic-wallpaper` |
-| <img src="plugins/annotation/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-local-annotation](plugins/annotation) | 原生高亮、就地批注卡片与显式引用插入（IndexedDB 本地存储） | `dsh plugin --profile web add @shellraining/dsh-local-annotation` |
-| <img src="plugins/side-chat/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-side-chat](plugins/side-chat) | 右侧边栏派生当前会话的临时对话，可真实修改工作区文件，不污染主会话 | `dsh plugin --profile web add @shellraining/dsh-side-chat` |
-| <img src="plugins/mermaid/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-mermaid](plugins/mermaid) | Mermaid 代码/图表双视图渲染（fork 自 [MrmoLabs/dsh-mermaid](https://github.com/MrmoLabs/dsh-mermaid)，集成主题与设计变量） | `dsh plugin --profile web add @shellraining/dsh-mermaid` |
-|  | [@shellraining/dsh-streamdown](plugins/streamdown) | 助手回复平滑出字、逐字淡入，生成结束不换渲染器（引擎 fork 自 [lobehub/streamdown](https://github.com/lobehub/streamdown)） | `dsh plugin --profile web add @shellraining/dsh-streamdown` |
-| <img src="plugins/session-title-layout/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-session-title-layout](plugins/session-title-layout) | 会话标题版式定制：`<type>：<摘要>`，可配分隔符与摘要语言 | `dsh plugin --profile web add @shellraining/dsh-session-title-layout` |
-| <img src="plugins/sidebar-session-preview/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-sidebar-session-preview](plugins/sidebar-session-preview) | 侧栏会话悬浮预览 | `dsh plugin --profile web add @shellraining/dsh-sidebar-session-preview` |
-| <img src="plugins/inline-code-copy/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-inline-code-copy](plugins/inline-code-copy) | 点击助手输出中的行内代码即复制 | `dsh plugin --profile web add @shellraining/dsh-inline-code-copy` |
-| <img src="plugins/plugin-updates/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-plugin-updates](plugins/plugin-updates) | 在插件页检查 npm 来源插件的新版本，一键更新或安装指定版本 | `dsh plugin --profile web add @shellraining/dsh-plugin-updates` |
-| <img src="plugins/shellraining-brand/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-brand](plugins/shellraining-brand) | 个人品牌层：替换侧栏与 Hero 的 logo/产品名。fork 它换成你自己的品牌 | `dsh plugin --profile web add @shellraining/dsh-brand` |
+| <img src="plugins/fluent-theme/icon.png" width="36" height="36" alt="" /> | [Win10 Fluent 主题](plugins/fluent-theme) | Windows 10 风格的亚克力背景、Reveal 光效和交互动效 | `dsh plugin --profile web add @shellraining/dsh-fluent-theme` |
+| <img src="plugins/annotation/icon.png" width="36" height="36" alt="" /> | [批注](plugins/annotation) | 选中文字添加批注，随消息发送原文和批注 | `dsh plugin --profile web add @shellraining/dsh-annotation` |
+| <img src="plugins/side-chat/icon.png" width="36" height="36" alt="" /> | [侧边对话](plugins/side-chat) | 派生临时对话，不追加到主会话，但可修改工作区文件 | `dsh plugin --profile web add @shellraining/dsh-side-chat` |
+| <img src="plugins/mermaid/icon.png" width="36" height="36" alt="" /> | [Mermaid 图表](plugins/mermaid) | 切换 Mermaid 代码与图表视图 | `dsh plugin --profile web add @shellraining/dsh-mermaid` |
+|  | [Streamdown](plugins/streamdown) | 助手回复流式渲染，引擎 fork 自 lobehub/streamdown | `dsh plugin --profile web add @shellraining/dsh-streamdown` |
+| <img src="plugins/session-auto-rename/icon.png" width="36" height="36" alt="" /> | [会话自动命名](plugins/session-auto-rename) | 根据对话自动命名，支持自定义标题格式和摘要语言 | `dsh plugin --profile web add @shellraining/dsh-session-auto-rename` |
+| <img src="plugins/sidebar-session-preview/icon.png" width="36" height="36" alt="" /> | [会话悬浮预览](plugins/sidebar-session-preview) | 悬停侧栏会话，预览最近消息 | `dsh plugin --profile web add @shellraining/dsh-sidebar-session-preview` |
+| <img src="plugins/inline-code-copy/icon.png" width="36" height="36" alt="" /> | [行内代码复制](plugins/inline-code-copy) | 点击助手回复中的行内代码即可复制 | `dsh plugin --profile web add @shellraining/dsh-inline-code-copy` |
+| <img src="plugins/plugin-updates/icon.png" width="36" height="36" alt="" /> | [插件更新](plugins/plugin-updates) | 检查 npm 插件新版本，更新或安装指定版本 | `dsh plugin --profile web add @shellraining/dsh-plugin-updates` |
+| <img src="plugins/shellraining-brand/icon.png" width="36" height="36" alt="" /> | [shellRaining 品牌](plugins/shellraining-brand) | 替换侧栏和首页的品牌标识；fork 后可替换为自己的资源 | `dsh plugin --profile web add @shellraining/dsh-brand` |
+
+## 包名迁移
+
+以下三个插件以新 npm 包名发布，旧包不会自动升级为新包：
+
+| 旧包 | 新包 |
+| --- | --- |
+| `@shellraining/dsh-acrylic-wallpaper` | `@shellraining/dsh-fluent-theme` |
+| `@shellraining/dsh-local-annotation` | `@shellraining/dsh-annotation` |
+| `@shellraining/dsh-session-title-layout` | `@shellraining/dsh-session-auto-rename` |
+
+迁移前备份 profile 配置，移除旧包后再安装新包，不要同时启用新旧实现。不要清除浏览器站点数据；在相同来源下，壁纸、批注和显示偏好继续使用原来的本地存储。
+
+Cordis 配置 ID `acrylic-wallpaper`、`local-annotation`、`session-title-layout` 保持不变，按 ID 编写的配置覆盖可以保留。显式引用旧 npm 包名或源码目录的配置需要改为新名称；主题和自动命名的源码目录分别改为 `plugins/fluent-theme`、`plugins/session-auto-rename`。迁移失败时移除新包并恢复旧包与备份配置，不清理本地存储。
+
+列表显示名称由包内 `locale/zh.json` 和 `locale/en.json` 的 `meta` 提供，与安装用的 npm 包名分开维护。Streamdown 保留项目名，上游来源和许可见各插件说明。
 
 ## 兼容性
 

@@ -1,6 +1,6 @@
-# dsh-session-title-layout
+# 会话自动命名
 
-[English](README.md) | 简体中文
+[简明说明](README.md) | 配置详解
 
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）的会话标题 provider。它让模型只生成标题中有意义的部分，再按你选的版式拼起来，例如：
 
@@ -30,11 +30,13 @@ dsh 同一时间只允许一个异步标题 provider。本包的 bundle 会禁�
 
 ## 安装
 
-在 Plugins 页面安装，或让 agent 调用 `plugin_manager` 的 `install_bundle`，目标为：
+在 Plugins 页面安装 `@shellraining/dsh-session-auto-rename`，或运行：
 
-```text
-git+https://github.com/shellRaining/dsh-session-title-layout.git
+```sh
+dsh plugin --profile web add @shellraining/dsh-session-auto-rename
 ```
+
+从旧包迁移时，先备份配置并移除 `@shellraining/dsh-session-title-layout`，不要同时启用两者。原来的配置 ID `session-title-layout` 保持不变，迁移说明见 [简明说明](README.md)。
 
 安装 bundle 会插入一行默认配置（`conventional` 版式）。要自定义，在 profile 的 `cordis.patch.yml` 里覆盖这一行：
 
@@ -87,8 +89,8 @@ git+https://github.com/shellRaining/dsh-session-title-layout.git
 
 ```sh
 pnpm install # 在 monorepo 根目录运行；开发环境 Node 24.9+
-pnpm --filter @shellraining/dsh-session-title-layout typecheck
-pnpm --filter @shellraining/dsh-session-title-layout build # Vite 生成 JS，原生 tsc 生成声明；lib/ 不提交
+pnpm --filter @shellraining/dsh-session-auto-rename typecheck
+pnpm --filter @shellraining/dsh-session-auto-rename build # Vite 生成 JS，原生 tsc 生成声明；lib/ 不提交
 ```
 
 纯逻辑（配置、prompt、解析、渲染）在 `src/format.ts`，`src/index.ts` 只负责接到 dsh 上。

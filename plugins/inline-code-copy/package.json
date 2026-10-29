@@ -1,13 +1,14 @@
 {
   "name": "@shellraining/dsh-inline-code-copy",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
-  "description": "点击助手输出中的行内代码即复制其内容",
+  "description": "点击助手回复中的行内代码即可复制。",
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "scripts": {
     "build": "pnpm run typecheck && node build.ts",
@@ -48,5 +49,12 @@
   "publishConfig": {
     "access": "public"
   },
-  "icon": "./icon.png"
+  "icon": "./icon.png",
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "icon.png",
+    "locale"
+  ]
 }

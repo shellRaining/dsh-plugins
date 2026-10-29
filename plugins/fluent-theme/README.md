@@ -1,11 +1,15 @@
-# dsh-acrylic-wallpaper
+# Win10 Fluent 主题
 
-本地静态壁纸与克制的 Acrylic 模糊、色调遮罩和噪点，全部取材 DSH 设计变量（--dsw-*），跟随主题与外观设置。
+Windows 10 风格主题，提供本地壁纸、Acrylic 亚克力材质、Reveal 光效、按压反馈和侧栏动效。沿用 DSH 设计变量（--dsw-*），跟随明暗主题与外观设置；这是网页近似，不是原生 Windows 控件的完整复刻。
+
+## 从旧包迁移
+
+本包原名 `@shellraining/dsh-acrylic-wallpaper`。备份 profile 配置，移除旧包后再安装新包，不要同时启用两者。保持相同的浏览器来源和用户数据，已有壁纸和设置会继续使用原来的本地存储，无需重新导入。Cordis 配置 ID `acrylic-wallpaper` 和已有主题 DOM 标记保持不变。
 
 ## 安装
 
 ```sh
-dsh plugin --profile web add @shellraining/dsh-acrylic-wallpaper
+dsh plugin --profile web add @shellraining/dsh-fluent-theme
 ```
 
 ## Reveal 光效
@@ -54,8 +58,8 @@ Reveal 与控件使用同一透视映射，光点转换到控件局部坐标。�
 开发使用仓库根目录的 Node 24.9+ / pnpm 环境，依赖版本统一由根 `pnpm-workspace.yaml` 的 catalog 管理。`build.ts` 调用共享 Vite 构建，构建前先执行 TypeScript 7 原生 `tsc` 类型检查。客户端保持 DSH ModuleLoader 加载方式，宿主入口和发布路径不变。
 
 ```sh
-pnpm --filter @shellraining/dsh-acrylic-wallpaper typecheck
-pnpm --filter @shellraining/dsh-acrylic-wallpaper build
+pnpm --filter @shellraining/dsh-fluent-theme typecheck
+pnpm --filter @shellraining/dsh-fluent-theme build
 ```
 
 主聊天气泡通过宿主 CSS 模块动态解析，不依赖构建哈希；模块未加载时跳过，加载后自动更新。侧边聊天使用其作用域内的普通气泡类，排除待发送消息。升级宿主或侧边聊天后，应在实际 DSH 页面检查消息边缘、内部按钮、文本选择、滚动遮挡及插件启停。构建完成不代表界面已更新，需确认宿主加载的是该构建目录，再刷新页面。

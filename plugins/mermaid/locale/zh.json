@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Mermaid 图表",
+    "description": "渲染 Mermaid 图表，支持切换代码和图表视图。"
+  }
+}

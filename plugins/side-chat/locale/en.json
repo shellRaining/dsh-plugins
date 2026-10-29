@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Side Chat",
+    "description": "Fork the current session into a temporary side chat that may modify workspace files."
+  }
+}

@@ -1,6 +1,6 @@
-# dsh-streamdown
+# Streamdown
 
-替换助手回复的渲染方式：生成时按平滑的节奏出字，正在生成的段落逐字淡入；回复写完后继续用同一棵渲染树，排版不会跳。流式引擎 fork 自 [lobehub/streamdown](https://github.com/lobehub/streamdown)（MIT），改成能在 DSH 的 React 18 上运行。
+让助手回复平滑出字、逐字淡入，生成结束时保持排版稳定。流式引擎 fork 自 [lobehub/streamdown](https://github.com/lobehub/streamdown)（MIT），改成能在 DSH 的 React 18 上运行。
 
 ## 安装
 

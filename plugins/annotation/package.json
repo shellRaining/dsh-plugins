@@ -1,18 +1,20 @@
 {
-  "name": "@shellraining/dsh-local-annotation",
-  "version": "0.2.4",
+  "name": "@shellraining/dsh-annotation",
+  "version": "0.1.0",
   "type": "module",
-  "description": "原生高亮与就地批注，批注以输入框引用随消息发送",
+  "description": "选中文字添加批注，并将原文与批注随消息发送。",
   "main": "./lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "lib",
     "cordis.patch.yml",
-    "icon.png"
+    "icon.png",
+    "locale"
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

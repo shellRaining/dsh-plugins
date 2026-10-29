@@ -1,19 +1,21 @@
 {
   "name": "@shellraining/dsh-side-chat",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
-  "description": "侧边会话：在右侧边栏派生当前会话的临时对话，可真实修改工作区文件，不污染主会话；界面使用 DSH 设计变量与原生组件",
+  "description": "从当前会话派生临时侧边对话，可能修改工作区文件。",
   "main": "./lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "lib",
     "cordis.patch.yml",
-    "icon.png"
+    "icon.png",
+    "locale"
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.host.json && tsc -p tsconfig.client.json",

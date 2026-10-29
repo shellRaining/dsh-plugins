@@ -59,8 +59,8 @@ export function createSettingsPanel(controller: Controller): ComponentType {
     }
     return (
       <section data-acrylic-settings="">
-        <h2>壁纸</h2>
-        {toggle('enabled', '显示壁纸')}
+        <h2>Win10 Fluent 主题</h2>
+        {toggle('enabled', '启用主题')}
         {toggle('fluent', 'Win10 风格')}
         {toggle('reveal', '悬停与按压光效', locked || !state.settings.fluent)}
         {state.url ? <img className="acrylic-preview" src={state.url} alt="壁纸预览" /> : null}
