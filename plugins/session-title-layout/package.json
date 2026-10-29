@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-session-title-layout",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "DeepSeek Harness session-title provider with a configurable layout (type, date, summary), separator and summary language.",
   "keywords": [
     "deepseek-harness",
@@ -20,7 +20,7 @@
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
-  "icon": "./icon.svg",
+  "icon": "./icon.png",
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
@@ -34,7 +34,8 @@
     "lib",
     "locale",
     "icon.svg",
-    "cordis.patch.yml"
+    "cordis.patch.yml",
+    "icon.png"
   ],
   "engines": {
     "node": ">=20",

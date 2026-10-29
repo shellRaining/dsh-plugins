@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-acrylic-wallpaper",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "type": "module",
   "description": "本地静态壁纸与克制的 Acrylic 模糊、色调遮罩和噪点",
   "main": "./index.js",
@@ -12,7 +12,8 @@
   "files": [
     "index.js",
     "client.js",
-    "cordis.patch.yml"
+    "cordis.patch.yml",
+    "icon.png"
   ],
   "scripts": {
     "host-tokens": "node scripts/host-tokens.mjs",
@@ -59,5 +60,6 @@
   ],
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "icon": "./icon.png"
 }

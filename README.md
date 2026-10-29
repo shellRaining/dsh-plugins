@@ -4,17 +4,17 @@
 
 ## 插件索引
 
-| 插件 | 功能 | 安装 |
-| --- | --- | --- |
-| [@shellraining/dsh-acrylic-wallpaper](plugins/acrylic-wallpaper) | 本地静态壁纸 + 克制的 Acrylic 模糊、色调遮罩和噪点 | `dsh plugin --profile web add @shellraining/dsh-acrylic-wallpaper` |
-| [@shellraining/dsh-local-annotation](plugins/annotation) | 原生高亮、就地批注卡片与显式引用插入（IndexedDB 本地存储） | `dsh plugin --profile web add @shellraining/dsh-local-annotation` |
-| [@shellraining/dsh-side-chat](plugins/side-chat) | 右侧边栏派生当前会话的临时对话，可真实修改工作区文件，不污染主会话 | `dsh plugin --profile web add @shellraining/dsh-side-chat` |
-| [@shellraining/dsh-mermaid](plugins/mermaid) | Mermaid 代码/图表双视图渲染（fork 自 [MrmoLabs/dsh-mermaid](https://github.com/MrmoLabs/dsh-mermaid)，集成主题与设计变量） | `dsh plugin --profile web add @shellraining/dsh-mermaid` |
-| [@shellraining/dsh-session-title-layout](plugins/session-title-layout) | 会话标题版式定制：`<type>：<摘要>`，可配分隔符与摘要语言 | `dsh plugin --profile web add @shellraining/dsh-session-title-layout` |
-| [@shellraining/dsh-sidebar-session-preview](plugins/sidebar-session-preview) | 侧栏会话悬浮预览 | `dsh plugin --profile web add @shellraining/dsh-sidebar-session-preview` |
-| [@shellraining/dsh-inline-code-copy](plugins/inline-code-copy) | 点击助手输出中的行内代码即复制 | `dsh plugin --profile web add @shellraining/dsh-inline-code-copy` |
-| [@shellraining/dsh-plugin-updates](plugins/plugin-updates) | 在插件页检查 npm 来源插件的新版本，一键更新或安装指定版本 | `dsh plugin --profile web add @shellraining/dsh-plugin-updates` |
-| [@shellraining/dsh-brand](plugins/shellraining-brand) | 个人品牌层：替换侧栏与 Hero 的 logo/产品名。fork 它换成你自己的品牌 | `dsh plugin --profile web add @shellraining/dsh-brand` |
+| 图标 | 插件 | 功能 | 安装 |
+| --- | --- | --- | --- |
+| <img src="plugins/acrylic-wallpaper/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-acrylic-wallpaper](plugins/acrylic-wallpaper) | 本地静态壁纸 + 克制的 Acrylic 模糊、色调遮罩和噪点 | `dsh plugin --profile web add @shellraining/dsh-acrylic-wallpaper` |
+| <img src="plugins/annotation/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-local-annotation](plugins/annotation) | 原生高亮、就地批注卡片与显式引用插入（IndexedDB 本地存储） | `dsh plugin --profile web add @shellraining/dsh-local-annotation` |
+| <img src="plugins/side-chat/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-side-chat](plugins/side-chat) | 右侧边栏派生当前会话的临时对话，可真实修改工作区文件，不污染主会话 | `dsh plugin --profile web add @shellraining/dsh-side-chat` |
+| <img src="plugins/mermaid/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-mermaid](plugins/mermaid) | Mermaid 代码/图表双视图渲染（fork 自 [MrmoLabs/dsh-mermaid](https://github.com/MrmoLabs/dsh-mermaid)，集成主题与设计变量） | `dsh plugin --profile web add @shellraining/dsh-mermaid` |
+| <img src="plugins/session-title-layout/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-session-title-layout](plugins/session-title-layout) | 会话标题版式定制：`<type>：<摘要>`，可配分隔符与摘要语言 | `dsh plugin --profile web add @shellraining/dsh-session-title-layout` |
+| <img src="plugins/sidebar-session-preview/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-sidebar-session-preview](plugins/sidebar-session-preview) | 侧栏会话悬浮预览 | `dsh plugin --profile web add @shellraining/dsh-sidebar-session-preview` |
+| <img src="plugins/inline-code-copy/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-inline-code-copy](plugins/inline-code-copy) | 点击助手输出中的行内代码即复制 | `dsh plugin --profile web add @shellraining/dsh-inline-code-copy` |
+| <img src="plugins/plugin-updates/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-plugin-updates](plugins/plugin-updates) | 在插件页检查 npm 来源插件的新版本，一键更新或安装指定版本 | `dsh plugin --profile web add @shellraining/dsh-plugin-updates` |
+| <img src="plugins/shellraining-brand/icon.png" width="36" height="36" alt="" /> | [@shellraining/dsh-brand](plugins/shellraining-brand) | 个人品牌层：替换侧栏与 Hero 的 logo/产品名。fork 它换成你自己的品牌 | `dsh plugin --profile web add @shellraining/dsh-brand` |
 
 ## 兼容性
 
