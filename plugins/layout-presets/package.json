@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-layout-presets",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "description": "DSH 右栏比例预设、窗口缩放时保持比例和双击分割线等分",
   "main": "./lib/index.js",
