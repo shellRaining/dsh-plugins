@@ -54,8 +54,15 @@ function SelfNotice({ t, version }: { readonly t: Translate; readonly version: s
 }
 
 function operationText(t: Translate, operation: Operation): string {
-  const params = { name: operation.name, from: operation.from, to: operation.to, reason: operation.reason ?? '' };
+  const raw = operation.reason ?? '';
+  const reason = raw.includes('ERR_PNPM_RESOLUTION_POLICY_VIOLATIONS_UNHANDLED') ? t('error.policy')
+    : raw === 'installation-inconsistent' ? t('error.inconsistent')
+    : raw === 'plugin-state-changed' ? t('error.stateChanged') : raw;
+  const params = { name: operation.name, from: operation.from, to: operation.to, reason };
   switch (operation.phase) {
+    case 'checking': return t('op.checking', params);
+    case 'check-failed': return t('op.checkFailed', params);
+    case 'current': return t('op.current', params);
     case 'removing': return t('op.removing', params);
     case 'installing': return t(operation.restoring ? 'op.restoring' : 'op.installing', params);
     case 'done': return t('op.done', params);
@@ -73,8 +80,8 @@ function operationText(t: Translate, operation: Operation): string {
 export function OperationToast({ t, useUpdates, actions }: Shared): ReactNode {
   const operation = useUpdates(state => state.operation);
   if (operation?.toast === undefined) return null;
-  const failed = operation.phase === 'failed' || operation.phase === 'remove-failed';
-  const restorable = operation.phase === 'failed' && !operation.restoring;
+  const failed = operation.phase === 'failed' || operation.phase === 'remove-failed' || operation.phase === 'check-failed';
+  const restorable = operation.phase === 'failed' && operation.recoverable;
   return (
     <Toast
       key={operation.toast}
@@ -91,13 +98,13 @@ export function OperationToast({ t, useUpdates, actions }: Shared): ReactNode {
 function OperationBanner({ t, operation, actions }: { readonly t: Translate; readonly operation: Operation; readonly actions: Actions }): ReactNode {
   const params = { from: operation.from };
   const busy = isBusy(operation);
-  const failed = operation.phase === 'failed' || operation.phase === 'remove-failed';
+  const failed = operation.phase === 'failed' || operation.phase === 'remove-failed' || operation.phase === 'check-failed';
   const text = operationText(t, operation);
   return (
     <div className="dpu-banner" role={failed ? 'alert' : 'status'} {...failed ? { 'data-tone': 'error' } : {}}>
       <div className="dpu-banner-row">
         <span>{text}</span>
-        {operation.phase === 'failed' && !operation.restoring
+        {operation.phase === 'failed' && operation.recoverable
           ? <Button size="sm" variant="outline" onClick={() => { void actions.restore(); }}>{t('op.restore', params)}</Button>
           : null}
         {busy ? null : <Button size="sm" variant="ghost" onClick={actions.dismiss}>{t('op.dismiss')}</Button>}
@@ -235,6 +242,13 @@ export function ListControls({ t, useUpdates, actions }: Shared): ReactNode {
     if (target !== undefined && candidate.name !== SELF) targets.set(candidate.name, target);
   }
   const portals: ReactNode[] = [];
+  if (anchors.status !== undefined && operation !== undefined) {
+    portals.push(createPortal(
+      <OperationBanner t={t} operation={operation} actions={actions} />,
+      anchors.status,
+      'operation',
+    ));
+  }
   if (anchors.head !== undefined && targets.size > 0) {
     portals.push(createPortal(
       <Button size="sm" variant="outline" icon={<IconDownloadOutlineRegular size={13} />} disabled={busy} onClick={() => { void actions.updateAll(); }}>

@@ -13,6 +13,7 @@ const MOUNT = 'data-plugin-updates-mount';
 
 export interface Anchors {
   readonly head?: HTMLElement;
+  readonly status?: HTMLElement;
   readonly cards: ReadonlyMap<string, HTMLElement>;
 }
 
@@ -41,11 +42,12 @@ function scan(document: Document): Anchors {
     const end = card.querySelector('[role="switch"]')?.parentElement;
     if (name && end) cards.set(name, mountIn(end, 'card', true));
   }
-  return { ...head === undefined ? {} : { head }, cards };
+  const status = mountIn(group, 'status', false);
+  return { ...head === undefined ? {} : { head }, status, cards };
 }
 
 function same(a: Anchors, b: Anchors): boolean {
-  if (a.head !== b.head || a.cards.size !== b.cards.size) return false;
+  if (a.head !== b.head || a.status !== b.status || a.cards.size !== b.cards.size) return false;
   for (const [name, node] of a.cards) if (b.cards.get(name) !== node) return false;
   return true;
 }

@@ -37,7 +37,7 @@ export interface Candidate {
   readonly enabled: boolean;
 }
 
-export type OperationPhase = 'removing' | 'installing' | 'done' | 'restart' | 'failed' | 'remove-failed';
+export type OperationPhase = 'checking' | 'removing' | 'installing' | 'current' | 'done' | 'restart' | 'failed' | 'remove-failed' | 'check-failed';
 
 export interface Operation {
   readonly name: string;
@@ -46,6 +46,8 @@ export interface Operation {
   readonly enabled: boolean;
   readonly phase: OperationPhase;
   readonly restoring: boolean;
+  /** Only offer recovery after confirming the old bundle was removed. */
+  readonly recoverable?: boolean;
   readonly reason?: string;
   readonly output?: string;
   readonly logPath?: string;
@@ -68,7 +70,7 @@ export function updateTarget(candidate: Candidate, lookup: Lookup | undefined): 
 }
 
 export function isBusy(operation: Operation | undefined): boolean {
-  return operation?.phase === 'removing' || operation?.phase === 'installing';
+  return operation?.phase === 'checking' || operation?.phase === 'removing' || operation?.phase === 'installing';
 }
 
 function record(value: unknown): Readonly<Record<string, unknown>> {
@@ -77,6 +79,16 @@ function record(value: unknown): Readonly<Record<string, unknown>> {
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** pnpm may print successful checks before the actual error. Keep the full output separately. */
+function failureReason(result: RemoteResult<ChangeResult>): string {
+  if (!result.ok) return result.error.message;
+  const { error, packageResult, application } = result.value;
+  const diagnostic = error?.diagnostic?.trim();
+  const lines = (diagnostic || packageResult?.output || '').split('\n').map(line => line.trim()).filter(Boolean);
+  const failure = lines.find(line => /\bERR[_!\s]|\berror\b|\bfatal\b/i.test(line));
+  return failure ?? error?.code ?? diagnostic ?? application;
 }
 
 /** `name@range` as pnpm records a registry dependency; git, link, file and tarball sources do not parse. */
@@ -155,6 +167,14 @@ export class UpdatesStore implements Source<UpdatesState> {
   };
 
   private async load(): Promise<void> {
+    try {
+      await this.loadBundles();
+    } catch {
+      if (!this.disposed) this.patch({ status: 'error' });
+    }
+  }
+
+  private async loadBundles(): Promise<void> {
     const generation = ++this.generation;
     this.patch({ status: this.state.status === 'ready' ? 'ready' : 'loading' });
     const pm = this.ctx.remote.pluginManager;
@@ -234,15 +254,15 @@ export class UpdatesStore implements Source<UpdatesState> {
   /** Switch one plugin to `version`: uninstall it, then install that exact version with its enabled state. */
   readonly install = async (name: string, version: string): Promise<boolean> => {
     const candidate = this.state.candidates.find(item => item.name === name);
-    if (candidate === undefined || name === SELF || isBusy(this.state.operation)) return false;
+    if (this.disposed || candidate === undefined || name === SELF || isBusy(this.state.operation) || valid(version) === null) return false;
     return this.run({ name, from: candidate.version, to: version, enabled: candidate.enabled, restoring: false }, true);
   };
 
   /** Put back the version a failed switch removed; the plugin is no longer installed, so only install. */
   readonly restore = async (): Promise<void> => {
     const failed = this.state.operation;
-    if (failed?.phase !== 'failed' || failed.restoring) return;
-    await this.run({ name: failed.name, from: failed.to, to: failed.from, enabled: failed.enabled, restoring: true }, false);
+    if (this.disposed || failed?.phase !== 'failed' || !failed.recoverable) return;
+    await this.run({ name: failed.name, from: failed.from, to: failed.from, enabled: failed.enabled, restoring: true }, false);
   };
 
   /** The outcome toast finished; the banner in the tab keeps the result. */
@@ -269,36 +289,73 @@ export class UpdatesStore implements Source<UpdatesState> {
 
   private async run(base: Omit<Operation, 'phase'>, remove: boolean): Promise<boolean> {
     const pm = this.ctx.remote.pluginManager;
-    const fail = (phase: 'failed' | 'remove-failed', result: RemoteResult<ChangeResult>): false => {
+    let failurePhase: 'check-failed' | 'failed' | 'remove-failed' = 'check-failed';
+    let recoverable = false;
+    const fail = (result: RemoteResult<ChangeResult>): false => {
       const value = result.ok ? result.value : undefined;
-      const output = value?.packageResult?.output.trim();
+      const output = value?.packageResult?.output.trim() || value?.error?.diagnostic;
       const logPath = value?.packageResult?.logPath;
-      const reason = result.ok
-        ? value?.error?.diagnostic?.split('\n')[0] ?? value?.error?.code ?? value?.application ?? ''
-        : result.error.message;
-      this.patch({ operation: { ...base, phase, reason, toast: Date.now(), ...output ? { output } : {}, ...logPath ? { logPath } : {} } });
+      this.patch({ operation: {
+        ...base, phase: failurePhase, recoverable, reason: failureReason(result), toast: Date.now(),
+        ...output ? { output } : {}, ...logPath ? { logPath } : {},
+      } });
       return false;
     };
-    if (remove) {
-      this.patch({ operation: { ...base, phase: 'removing' } });
-      const removed = await pm.removeBundle(base.name);
-      // Without HMR the running bundle cannot be removed; the install then overwrites it, as the plugin page does.
-      const stopProfile = removed.ok && removed.value.error?.code === 'stop-profile';
-      if (!stopProfile && (!removed.ok || removed.value.application === 'failed' || removed.value.application === 'cancelled')) {
-        return fail('remove-failed', removed);
+    this.patch({ operation: { ...base, phase: 'checking' } });
+    try {
+      // Re-read before any destructive step: a button or recovery banner may be stale.
+      const listed = await pm.listBundles();
+      if (this.disposed) return false;
+      if (!listed.ok) return fail(listed);
+      const current = listed.value.find(bundle => bundle.name === base.name && bundle.installed);
+      if (current !== undefined && valid(current.version ?? '') === valid(base.to)) {
+        this.patch({ operation: { ...base, phase: 'current', toast: Date.now() } });
+        return true;
       }
+      if (remove) {
+        if (current === undefined || !npmInstalled(current)) {
+          return fail({ ok: true, value: { application: 'failed', error: { code: 'plugin-state-changed' } } });
+        }
+        const declared = valid(current.source?.slice(`${base.name}@`.length) ?? '');
+        if (declared !== null && declared !== valid(current.version ?? '')) {
+          return fail({ ok: true, value: { application: 'failed', error: { code: 'installation-inconsistent' } } });
+        }
+        base = { ...base, from: current.version ?? base.from, enabled: current.enabled };
+        failurePhase = 'remove-failed';
+        this.patch({ operation: { ...base, phase: 'removing' } });
+        const removed = await pm.removeBundle(base.name);
+        // Without HMR, remove refuses the active bundle; install can overwrite it instead.
+        const stopProfile = removed.ok && removed.value.error?.code === 'stop-profile';
+        if (!stopProfile && (!removed.ok || removed.value.application === 'failed' || removed.value.application === 'cancelled')) {
+          return fail(removed);
+        }
+        recoverable = !stopProfile;
+      } else {
+        // Never overwrite a plugin installed elsewhere after a failed update.
+        if (current !== undefined) {
+          return fail({ ok: true, value: { application: 'failed', error: { code: 'plugin-state-changed' } } });
+        }
+        recoverable = true;
+      }
+      if (this.disposed) return false;
+      failurePhase = 'failed';
+      this.patch({ operation: { ...base, phase: 'installing' } });
+      const installed = await pm.installBundle(`${base.name}@${base.to}`, {
+        enabled: base.enabled,
+        saveExact: true,
+        requestId: `${SELF}:${Date.now()}`,
+      });
+      if (!installed.ok || installed.value.application === 'failed' || installed.value.application === 'cancelled') {
+        return fail(installed);
+      }
+      const to = installed.value.version ?? base.to;
+      this.patch({ operation: { ...base, to, toast: Date.now(), phase: installed.value.application === 'restart-required' ? 'restart' : 'done' } });
+      return true;
+    } catch (error) {
+      return fail({ ok: false, error: { message: errorText(error) } });
+    } finally {
+      // Host notifications can race with completion or be missed after a reconnect.
+      if (!this.disposed) await this.load();
     }
-    this.patch({ operation: { ...base, phase: 'installing' } });
-    const installed = await pm.installBundle(`${base.name}@${base.to}`, {
-      enabled: base.enabled,
-      saveExact: true,
-      requestId: `${SELF}:${Date.now()}`,
-    });
-    if (!installed.ok || installed.value.application === 'failed' || installed.value.application === 'cancelled') {
-      return fail('failed', installed);
-    }
-    const to = installed.value.version ?? base.to;
-    this.patch({ operation: { ...base, to, toast: Date.now(), phase: installed.value.application === 'restart-required' ? 'restart' : 'done' } });
-    return true;
   }
 }
