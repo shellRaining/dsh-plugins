@@ -1,0 +1,4 @@
+# Insert the client-only plugin into the DSH web profile roster.
+- insert:
+    - id: ui-streamdown
+      name: '@shellraining/dsh-streamdown'

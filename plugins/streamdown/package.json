@@ -1,0 +1,86 @@
+{
+  "name": "@shellraining/dsh-streamdown",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Streamdown 风格的助手输出渲染：平滑出字、逐字淡入，生成中与生成后共用同一渲染管线",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "pnpm run typecheck && node build.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "hast-util-to-jsx-runtime": "catalog:",
+    "html-url-attributes": "catalog:",
+    "katex": "catalog:",
+    "marked": "catalog:",
+    "mdast-util-gfm": "catalog:",
+    "mdast-util-math": "catalog:",
+    "micromark-core-commonmark": "catalog:",
+    "micromark-extension-gfm": "catalog:",
+    "micromark-extension-math": "catalog:",
+    "micromark-factory-space": "catalog:",
+    "micromark-util-character": "catalog:",
+    "micromark-util-classify-character": "catalog:",
+    "micromark-util-sanitize-uri": "catalog:",
+    "micromark-util-symbol": "catalog:",
+    "remark-parse": "catalog:",
+    "remark-rehype": "catalog:",
+    "remend": "catalog:",
+    "unified": "catalog:",
+    "unist-util-visit": "catalog:",
+    "vfile": "catalog:"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-client-ui-primitives": "catalog:",
+    "@types/hast": "catalog:",
+    "@types/mdast": "catalog:",
+    "@types/react": "catalog:",
+    "micromark-util-types": "catalog:",
+    "typescript": "catalog:"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-attachment"
+      ]
+    }
+  },
+  "license": "MIT",
+  "author": "shellRaining",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shellRaining/dsh-plugins.git",
+    "directory": "plugins/streamdown"
+  },
+  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/streamdown#readme",
+  "bugs": "https://github.com/shellRaining/dsh-plugins/issues",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "streamdown",
+    "markdown"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
