@@ -7,11 +7,22 @@ import type { Feature } from './feature.ts';
 // commits; the forced style pass applies the new columns before the transition
 // exists. The left sidebar then always snaps, right-panel toggles often do, and
 // the conversation jumps. When a toggle lands without the host transition,
-// replay it with the frame's own computed timing. Drags, viewport solves and
-// the host's instant and fullscreen presentations stay unanimated, as in the
-// host.
+// replay it with the frame's own computed timing; a host transition that did
+// start is replaced by the same replay, so every toggle runs one way. Drags,
+// viewport solves and the host's instant and fullscreen presentations stay
+// unanimated, as in the host.
+//
+// Each conversation body also publishes its width to its parent from a
+// ResizeObserver, and the whole transcript inherits that custom property: on
+// every animated frame the host recalculated the style of every message and
+// re-wrapped its text, about 40% of the frame's main-thread time in a long
+// conversation. During the replay each body carries its final width itself,
+// measured before the motion starts, so those writes stop at the body. The
+// text takes its final width at once and the column then only moves.
 const PROPERTY = 'grid-template-columns';
 const STILL = '[data-dragging],[data-rightbar-fullscreen],[data-rightbar-instant]';
+const BODY = '[data-conversation-content]';
+const COLUMN_WIDTH = '--dsh-conversation-column-width';
 
 type View = Window & typeof globalThis;
 
@@ -39,8 +50,29 @@ export function createFrameMotion(document: Document, window: View): Feature<boo
   let enabled = false;
   let frame: HTMLElement | null = null;
   let replay: Animation | null = null;
+  // Bodies holding their final width, with the inline value each had before.
+  let pinned: (readonly [body: HTMLElement, value: string, priority: string])[] = [];
 
-  function stop() { replay?.cancel(); replay = null; }
+  function release() {
+    for (const [body, value, priority] of pinned) {
+      if (value) body.style.setProperty(COLUMN_WIDTH, value, priority);
+      else body.style.removeProperty(COLUMN_WIDTH);
+    }
+    pinned = [];
+  }
+  function stop() { replay?.cancel(); replay = null; release(); }
+  // Called at the new columns before the replay starts: the reads share one
+  // forced layout of the final state, then the writes follow.
+  function pin(target: HTMLElement) {
+    const widths: (readonly [HTMLElement, number])[] = [];
+    for (const body of target.querySelectorAll(BODY)) {
+      if (body instanceof window.HTMLElement && body.offsetWidth) widths.push([body, body.offsetWidth]);
+    }
+    for (const [body, width] of widths) {
+      pinned.push([body, body.style.getPropertyValue(COLUMN_WIDTH), body.style.getPropertyPriority(COLUMN_WIDTH)]);
+      body.style.setProperty(COLUMN_WIDTH, `${width}px`);
+    }
+  }
   function acquire(): boolean {
     if (frame?.isConnected) return true;
     stop(); observer.disconnect(); frame = null;
@@ -72,10 +104,17 @@ export function createFrameMotion(document: Document, window: View): Feature<boo
     if (!from || !to || from === to) return;
     stop();
     if (!target.hasAttribute('data-animating')) return;
-    // Reading computed style starts a host transition that survived the commit.
+    // Reading computed style starts a host transition that survived the
+    // commit; cancel it so that the replay below runs in its place.
     const options = timing(target);
-    if (!options || target.getAnimations().some(animation => animation instanceof window.CSSTransition && animation.transitionProperty === PROPERTY)) return;
-    replay = target.animate([{ gridTemplateColumns: from }, { gridTemplateColumns: to }], options);
+    if (!options) return;
+    for (const animation of target.getAnimations()) {
+      if (animation instanceof window.CSSTransition && animation.transitionProperty === PROPERTY) animation.cancel();
+    }
+    pin(target);
+    const current = target.animate([{ gridTemplateColumns: from }, { gridTemplateColumns: to }], options);
+    current.addEventListener('finish', () => { if (replay === current) { replay = null; release(); } });
+    replay = current;
   }
   // Toggles follow input; re-find a frame the host replaced since.
   function ensure() {

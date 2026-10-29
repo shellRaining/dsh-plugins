@@ -1149,6 +1149,8 @@ function createMotion(document2, window2, { onSettle } = {}) {
 // src/frame-motion.ts
 var PROPERTY = "grid-template-columns";
 var STILL = "[data-dragging],[data-rightbar-fullscreen],[data-rightbar-instant]";
+var BODY = "[data-conversation-content]";
+var COLUMN_WIDTH = "--dsh-conversation-column-width";
 function items(value) {
   const parts = [];
   let depth2 = 0, start = 0;
@@ -1174,9 +1176,28 @@ function createFrameMotion(document2, window2) {
   let enabled = false;
   let frame = null;
   let replay = null;
+  let pinned = [];
+  function release() {
+    for (const [body, value, priority] of pinned) {
+      if (value) body.style.setProperty(COLUMN_WIDTH, value, priority);
+      else body.style.removeProperty(COLUMN_WIDTH);
+    }
+    pinned = [];
+  }
   function stop() {
     replay?.cancel();
     replay = null;
+    release();
+  }
+  function pin(target) {
+    const widths = [];
+    for (const body of target.querySelectorAll(BODY)) {
+      if (body instanceof window2.HTMLElement && body.offsetWidth) widths.push([body, body.offsetWidth]);
+    }
+    for (const [body, width] of widths) {
+      pinned.push([body, body.style.getPropertyValue(COLUMN_WIDTH), body.style.getPropertyPriority(COLUMN_WIDTH)]);
+      body.style.setProperty(COLUMN_WIDTH, `${width}px`);
+    }
   }
   function acquire() {
     if (frame?.isConnected) return true;
@@ -1212,8 +1233,19 @@ function createFrameMotion(document2, window2) {
     stop();
     if (!target.hasAttribute("data-animating")) return;
     const options = timing(target);
-    if (!options || target.getAnimations().some((animation) => animation instanceof window2.CSSTransition && animation.transitionProperty === PROPERTY)) return;
-    replay = target.animate([{ gridTemplateColumns: from }, { gridTemplateColumns: to }], options);
+    if (!options) return;
+    for (const animation of target.getAnimations()) {
+      if (animation instanceof window2.CSSTransition && animation.transitionProperty === PROPERTY) animation.cancel();
+    }
+    pin(target);
+    const current = target.animate([{ gridTemplateColumns: from }, { gridTemplateColumns: to }], options);
+    current.addEventListener("finish", () => {
+      if (replay === current) {
+        replay = null;
+        release();
+      }
+    });
+    replay = current;
   }
   function ensure() {
     if (acquire()) finder.disconnect();
@@ -2026,6 +2058,8 @@ function createPressMotion(document2, window2, modules, refresh) {
 var FRAME2 = "body[data-acrylic-wallpaper] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var FLUENT_FRAME = "body[data-acrylic-wallpaper][data-acrylic-fluent] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var DOCK_TINT = "rgb(var(--acrylic-tint-rgb) / .08)";
+var TERMINAL_HOST = `${FRAME2} :has(> .xterm)`;
+var TERMINAL_SURFACE = `${FRAME2} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)`;
 var COMPACTION_HEADER = 'button[aria-expanded="true"]:has(> span > [data-compaction-disclosure])';
 var CODE_BANNER = ".md-code-block > :has(> [data-code-block-banner])";
 var TINT = { light: "247 247 247", dark: "24 24 24" };
@@ -2057,29 +2091,30 @@ ${FRAME2} { ${CANVAS_RULES.clear} }
 /* Keep terminal palette sampling opaque: the host also uses this color for
    inverse text, selection and cursor contrast. Paint wallpaper over the fill
    instead of feeding transparent black into the emulator's theme. */
-${FRAME2} > [data-shell-overlay], ${FRAME2} :has(> .xterm) { ${CANVAS_RULES.restore} }
+${FRAME2} > [data-shell-overlay], ${TERMINAL_HOST} { ${CANVAS_RULES.restore} }
 /* Both the host padding and xterm's inline-painted scroll surface need the
    material. clip-path clips viewport-fixed decoration without changing its
    containing block; fixed coordinates keep it aligned with the main wallpaper.
-   Only DOM-rendered terminals are supported; never cover canvas renderers. */
-${FRAME2} :has(> .xterm .xterm-rows),
-${FRAME2} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport) {
+   The padding layers stay under the raised .xterm, so they cover no renderer;
+   the surface layers lie inside xterm and are limited to the DOM renderer. */
+${TERMINAL_HOST},
+${TERMINAL_SURFACE} {
   isolation: isolate; clip-path: inset(0);
 }
-${FRAME2} :has(> .xterm .xterm-rows)::before,
-${FRAME2} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)::before {
+${TERMINAL_HOST}::before,
+${TERMINAL_SURFACE}::before {
   content: ''; position: fixed; inset: var(--acrylic-terminal-inset); z-index: 0; pointer-events: none;
   background-color: rgb(var(--acrylic-tint-rgb));
   background-image: var(--acrylic-terminal-image); background-position: center;
   background-size: var(--acrylic-terminal-size); background-repeat: var(--acrylic-terminal-repeat);
   filter: blur(var(--acrylic-terminal-blur));
 }
-${FRAME2} :has(> .xterm .xterm-rows)::after,
-${FRAME2} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)::after {
+${TERMINAL_HOST}::after,
+${TERMINAL_SURFACE}::after {
   content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background: rgb(var(--acrylic-tint-rgb) / var(--acrylic-terminal-tint));
 }
-${FRAME2} :has(> .xterm .xterm-rows) > .xterm,
+${TERMINAL_HOST} > .xterm,
 ${FRAME2} .xterm:has(.xterm-rows) .xterm-screen { position: relative; z-index: 1; }
 
 /* Reading surfaces (center column, docked panes) gain the same subtle tint. */

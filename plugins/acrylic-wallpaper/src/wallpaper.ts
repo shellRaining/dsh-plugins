@@ -15,6 +15,13 @@ const FRAME = 'body[data-acrylic-wallpaper] div:has(> [data-shell-bottom]):has(>
 // Win10 mode replays the frame's column transition (frame-motion.ts).
 const FLUENT_FRAME = 'body[data-acrylic-wallpaper][data-acrylic-fluent] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])';
 const DOCK_TINT = 'rgb(var(--acrylic-tint-rgb) / .08)';
+// xterm's parent (the host padding). Rules whose subject is a bare :has() are
+// tested on every element in every style recalc; keep the argument child-only.
+// A descendant argument (> .xterm .xterm-rows) walked each element's subtree
+// and was the costliest selector in a long conversation's style recalcs.
+const TERMINAL_HOST = `${FRAME} :has(> .xterm)`;
+// xterm's own scroll surface, painted only by the DOM renderer.
+const TERMINAL_SURFACE = `${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)`;
 const COMPACTION_HEADER = 'button[aria-expanded="true"]:has(> span > [data-compaction-disclosure])';
 const CODE_BANNER = '.md-code-block > :has(> [data-code-block-banner])';
 const TINT = { light: '247 247 247', dark: '24 24 24' };
@@ -49,29 +56,30 @@ ${FRAME} { ${CANVAS_RULES.clear} }
 /* Keep terminal palette sampling opaque: the host also uses this color for
    inverse text, selection and cursor contrast. Paint wallpaper over the fill
    instead of feeding transparent black into the emulator's theme. */
-${FRAME} > [data-shell-overlay], ${FRAME} :has(> .xterm) { ${CANVAS_RULES.restore} }
+${FRAME} > [data-shell-overlay], ${TERMINAL_HOST} { ${CANVAS_RULES.restore} }
 /* Both the host padding and xterm's inline-painted scroll surface need the
    material. clip-path clips viewport-fixed decoration without changing its
    containing block; fixed coordinates keep it aligned with the main wallpaper.
-   Only DOM-rendered terminals are supported; never cover canvas renderers. */
-${FRAME} :has(> .xterm .xterm-rows),
-${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport) {
+   The padding layers stay under the raised .xterm, so they cover no renderer;
+   the surface layers lie inside xterm and are limited to the DOM renderer. */
+${TERMINAL_HOST},
+${TERMINAL_SURFACE} {
   isolation: isolate; clip-path: inset(0);
 }
-${FRAME} :has(> .xterm .xterm-rows)::before,
-${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)::before {
+${TERMINAL_HOST}::before,
+${TERMINAL_SURFACE}::before {
   content: ''; position: fixed; inset: var(--acrylic-terminal-inset); z-index: 0; pointer-events: none;
   background-color: rgb(var(--acrylic-tint-rgb));
   background-image: var(--acrylic-terminal-image); background-position: center;
   background-size: var(--acrylic-terminal-size); background-repeat: var(--acrylic-terminal-repeat);
   filter: blur(var(--acrylic-terminal-blur));
 }
-${FRAME} :has(> .xterm .xterm-rows)::after,
-${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)::after {
+${TERMINAL_HOST}::after,
+${TERMINAL_SURFACE}::after {
   content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background: rgb(var(--acrylic-tint-rgb) / var(--acrylic-terminal-tint));
 }
-${FRAME} :has(> .xterm .xterm-rows) > .xterm,
+${TERMINAL_HOST} > .xterm,
 ${FRAME} .xterm:has(.xterm-rows) .xterm-screen { position: relative; z-index: 1; }
 
 /* Reading surfaces (center column, docked panes) gain the same subtle tint. */
