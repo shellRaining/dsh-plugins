@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-annotation",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "选中文字添加批注，并将原文与批注随消息发送。",
   "main": "./lib/index.js",
