@@ -7,9 +7,11 @@ import { depression, forgetProjection, project, releaseEase, type Depression } f
 const MARKER = 'data-acrylic-press-motion';
 const INVERSE = '--acrylic-press-inverse';
 const SIDES = ['top', 'right', 'bottom', 'left'] as const;
+// A control that clips its content would clip the hit-area pseudo as well, so
+// it gets none ("clip"); begin() probes its deepest pose instead.
 const CSS = `
 [${MARKER}="static"] { position:relative; }
-[${MARKER}]::after {
+[${MARKER}]:not([${MARKER}="clip"])::after {
   content:''; position:absolute; display:block; pointer-events:auto; z-index:-1;
   inset:var(--acrylic-press-top) var(--acrylic-press-right) var(--acrylic-press-bottom) var(--acrylic-press-left);
   transform:var(${INVERSE}); transform-origin:50% 50%; transform-box:border-box;
@@ -41,6 +43,10 @@ interface Press {
 const GEOMETRY = ['display','visibility','pointer-events','position','scale','rotate','translate','transform-origin','transform-box','zoom','overflow-x','overflow-y','clip-path','mask-image','contain','anchor-name', ...SIDES.map(side => `border-${side}-width`)];
 const geometry = (css: CSSStyleDeclaration) => GEOMETRY.map(name => css.getPropertyValue(name)).join(';');
 const pseudoGeometry = (css: CSSStyleDeclaration) => ['content','position','display','pointer-events','z-index','top','right','bottom','left','width','height','transform-origin','background-image','background-color','border-width'].map(name => css.getPropertyValue(name)).join(';');
+const SHAPE_KEYS = ['transform','scale','rotate','translate','width','height','opacity'];
+// hidden/clip only clip; auto and scroll make a scroll container, still excluded.
+const clips = (css: CSSStyleDeclaration) => [css.overflowX, css.overflowY].some(value => value !== 'visible');
+const scrolls = (css: CSSStyleDeclaration) => [css.overflowX, css.overflowY].some(value => value === 'auto' || value === 'scroll');
 
 /** Semantic actions share one lifecycle; geometry is a separately checked capability. */
 export function createPressMotion(document: Document, window: View, modules: HostModules, refresh: () => void): Feature<boolean> {
@@ -75,10 +81,17 @@ export function createPressMotion(document: Document, window: View, modules: Hos
     }
     return true;
   }
+  function shapes(animation: Animation): boolean {
+    return animation.effect instanceof window.KeyframeEffect
+      && animation.effect.getKeyframes().some(key => SHAPE_KEYS.some(name => key[name] !== undefined));
+  }
   function moving(target: HTMLElement): boolean {
-    return target.getAnimations().some(animation => animation.playState === 'running'
-      && animation.effect instanceof window.KeyframeEffect
-      && animation.effect.getKeyframes().some(key => ['transform','scale','rotate','translate','width','height','opacity'].some(name => key[name] !== undefined)));
+    return target.getAnimations().some(animation => animation.playState === 'running' && shapes(animation));
+  }
+  // A settled CSS entrance (the sidebar's wide-in) keeps its animation-name but
+  // leaves getAnimations(). Pending, paused or geometry-filling ones still count.
+  function animated(target: HTMLElement): boolean {
+    return target.getAnimations().some(animation => animation.playState !== 'finished' || shapes(animation));
   }
   function flatAncestors(target: HTMLElement): boolean {
     for (let parent = target.parentElement; parent; parent = parent.parentElement) {
@@ -91,11 +104,11 @@ export function createPressMotion(document: Document, window: View, modules: Hos
   function canTransform(target: HTMLElement, css: CSSStyleDeclaration): boolean {
     if (target.hasAttribute(MARKER) || css.display.startsWith('table') || css.display === 'inline'
       || css.transform !== 'none' || css.scale !== 'none' || css.rotate !== 'none' || css.translate !== 'none'
-      || css.clipPath !== 'none' || css.maskImage !== 'none' || css.overflowX !== 'visible' || css.overflowY !== 'visible'
-      || /paint|strict|content/.test(css.contain) || css.animationName !== 'none'
+      || css.clipPath !== 'none' || css.maskImage !== 'none' || scrolls(css)
+      || /paint|strict|content/.test(css.contain)
       || !['', '1', 'normal'].includes(css.getPropertyValue('zoom'))
       || (css.getPropertyValue('anchor-name').trim() && css.getPropertyValue('anchor-name').trim() !== 'none')
-      || moving(target)
+      || animated(target)
       || (css.transitionDuration.split(',').some(value => parseFloat(value) > 0)
         && css.transitionProperty.split(',').some(name => /^(all|scale|transform)$/.test(name.trim())))) return false;
     const pseudo = window.getComputedStyle(target, '::after');
@@ -103,6 +116,24 @@ export function createPressMotion(document: Document, window: View, modules: Hos
     // A tilted ancestor would require composing its projection as well as ours
     // to position the body-mounted Reveal. Fall back rather than misalign it.
     return flatAncestors(target) && childrenSafe(target, css.position !== 'static');
+  }
+  // A clipped control clips the hit-area pseudo too. If its deepest pose moves
+  // the pressed point off the control, pointerup and click would land on what
+  // lies behind, so it keeps the flat pressed surface. The probe restores the
+  // styles synchronously, before anything paints.
+  function keepsPointer(target: HTMLElement, input: Input, pose: Depression, width: number, height: number): boolean {
+    if (!('pointerId' in input)) return true;
+    const style = target.style;
+    const saved = ['transform', 'transform-origin', 'transform-box'].map(name => [name, style.getPropertyValue(name), style.getPropertyPriority(name)] as const);
+    style.setProperty('transform-origin', '50% 50%', 'important');
+    style.setProperty('transform-box', 'border-box', 'important');
+    style.setProperty('transform', project(window, target, width, height, pose, 1).transform, 'important');
+    const hit = document.elementFromPoint(input.x, input.y);
+    for (const [name, value, priority] of saved) {
+      if (value) style.setProperty(name, value, priority); else style.removeProperty(name);
+    }
+    forgetProjection(target);
+    return hit !== null && target.contains(hit);
   }
   function own(current: Press, name: string, value: string, priority = '') {
     const style = current.target.style;
@@ -140,8 +171,9 @@ export function createPressMotion(document: Document, window: View, modules: Hos
       own(current, 'transform', projection.transform, 'important');
       own(current, INVERSE, projection.inverse.toString());
     } else {
-      // Clipped, stretched-hit, table and already transformed controls retain
-      // their native geometry but still get a pressed surface, never silence.
+      // Scroll containers, stretched-hit, table and already transformed
+      // controls, and clipped ones whose tilt would leave the pressed point,
+      // retain their native geometry but still get a pressed surface.
       const tint = `color-mix(in srgb,var(--dsw-alias-interactive-bg-active) ${Math.round(amount * 100)}%,transparent)`;
       own(current, 'background-image', `linear-gradient(${tint},${tint}),${current.background}`, 'important');
     }
@@ -178,20 +210,23 @@ export function createPressMotion(document: Document, window: View, modules: Hos
     if (!available(target)) return;
     const css = window.getComputedStyle(target), rect = target.getBoundingClientRect();
     if (!rect.width || !rect.height || css.visibility !== 'visible' || css.pointerEvents === 'none') return;
-    const geometric = !reduced.matches && canTransform(target, css);
-    const borders = SIDES.map(side => css.getPropertyValue(`border-${side}-width`));
-    const position = css.position;
     const u = 'pointerId' in input ? (input.x - rect.left) / rect.width : .5;
     const v = 'pointerId' in input ? (input.y - rect.top) / rect.height : .5;
-    const current: Press = { target, input, held: true, geometric, drag: Boolean(target.closest('[draggable="true"],[data-dockkit-tab]')), width: rect.width, height: rect.height, pose: depression(rect.width, rect.height, u, v), amount: 0, releasedAt: 0, saved: new Map(), owned: new Map(), geometry: '', pseudo: '', hostStyle: '', background: css.backgroundImage };
+    const pose = depression(rect.width, rect.height, u, v);
+    const clipped = clips(css);
+    const geometric = !reduced.matches && canTransform(target, css)
+      && (!clipped || keepsPointer(target, input, pose, rect.width, rect.height));
+    const borders = SIDES.map(side => css.getPropertyValue(`border-${side}-width`));
+    const position = css.position;
+    const current: Press = { target, input, held: true, geometric, drag: Boolean(target.closest('[draggable="true"],[data-dockkit-tab]')), width: rect.width, height: rect.height, pose, amount: 0, releasedAt: 0, saved: new Map(), owned: new Map(), geometry: '', pseudo: '', hostStyle: '', background: css.backgroundImage };
     press = current;
     if (geometric) {
       own(current, 'transform-origin', '50% 50%', 'important');
       own(current, 'transform-box', 'border-box', 'important');
       SIDES.forEach((side, index) => own(current, `--acrylic-press-${side}`, `-${borders[index]}`));
-      target.setAttribute(MARKER, position === 'static' ? 'static' : '');
+      target.setAttribute(MARKER, clipped ? 'clip' : position === 'static' ? 'static' : '');
       paint(current, 0);
-      if (position === 'static' && window.getComputedStyle(target).position !== 'relative') return clear();
+      if (!clipped && position === 'static' && window.getComputedStyle(target).position !== 'relative') return clear();
     }
     if (!geometric) paint(current, 1);
     current.geometry = geometry(window.getComputedStyle(target));

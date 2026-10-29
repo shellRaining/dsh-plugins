@@ -12,6 +12,9 @@ import { COMPOSER_CARD } from './composer.ts';
 // document/PDF previews, file tree, browser chrome, schedule and other pages).
 // Cards, code, inputs, menus and dialogs keep their own fills.
 const FRAME = 'body[data-acrylic-wallpaper] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])';
+// Win10 mode replays the frame's column transition (frame-motion.ts).
+const FLUENT_FRAME = 'body[data-acrylic-wallpaper][data-acrylic-fluent] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])';
+const DOCK_TINT = 'rgb(var(--acrylic-tint-rgb) / .08)';
 const COMPACTION_HEADER = 'button[aria-expanded="true"]:has(> span > [data-compaction-disclosure])';
 const CODE_BANNER = '.md-code-block > :has(> [data-code-block-banner])';
 const TINT = { light: '247 247 247', dark: '24 24 24' };
@@ -74,13 +77,21 @@ ${FRAME} .xterm:has(.xterm-rows) .xterm-screen { position: relative; z-index: 1;
 /* Reading surfaces (center column, docked panes) gain the same subtle tint. */
 ${FRAME} > div:nth-child(2),
 ${FRAME} [data-dockkit-host="dock"] > [data-dockkit-content],
-${FRAME} [data-dockkit-empty] { background: rgb(var(--acrylic-tint-rgb) / .08); }
+${FRAME} [data-dockkit-empty] { background: ${DOCK_TINT}; }
 /* A right panel without its own track (narrow window, fullscreen) lies over
    the conversation; give its panes in-app acrylic instead of see-through. */
 ${FRAME}:is([data-rightbar-collapsed], [data-rightbar-fullscreen]) [data-rightbar-col] [data-dockkit-host="dock"] > [data-dockkit-content],
 ${FRAME}:is([data-rightbar-collapsed], [data-rightbar-fullscreen]) [data-rightbar-col] [data-dockkit-empty] {
   background: ${CANVAS_RULES.acrylic};
   backdrop-filter: blur(30px) saturate(1.2);
+}
+/* The frame drops the track as soon as a close starts. While Win10 mode
+   animates the columns, the closing panel slides off beside the widening
+   conversation, not over it: keep the docked tint instead of an opaque slab.
+   Instant exits (from fullscreen) do not animate and keep the acrylic. */
+${FLUENT_FRAME}[data-animating]:not([data-rightbar-instant], [data-rightbar-fullscreen]) [data-sidebar-right-panel]:not([data-sidebar-right-open]) :is([data-dockkit-host="dock"] > [data-dockkit-content], [data-dockkit-empty]) {
+  background: ${DOCK_TINT};
+  backdrop-filter: none;
 }
 
 /* Sticky rows that used the canvas to hide scrolled content become acrylic

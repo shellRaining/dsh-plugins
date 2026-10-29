@@ -1146,6 +1146,101 @@ function createMotion(document2, window2, { onSettle } = {}) {
   } };
 }
 
+// src/frame-motion.ts
+var PROPERTY = "grid-template-columns";
+var STILL = "[data-dragging],[data-rightbar-fullscreen],[data-rightbar-instant]";
+function items(value) {
+  const parts = [];
+  let depth2 = 0, start = 0;
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index];
+    if (char === "(") depth2++;
+    else if (char === ")") depth2--;
+    else if (char === "," && depth2 === 0) {
+      parts.push(value.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  parts.push(value.slice(start).trim());
+  return parts;
+}
+var milliseconds = (value) => (value.endsWith("ms") ? 1 : 1e3) * (parseFloat(value) || 0);
+function createFrameMotion(document2, window2) {
+  const probe = document2.createElement("div");
+  const observer = new window2.MutationObserver(onChange);
+  const finder = new window2.MutationObserver(() => {
+    if (acquire()) finder.disconnect();
+  });
+  let enabled = false;
+  let frame = null;
+  let replay = null;
+  function stop() {
+    replay?.cancel();
+    replay = null;
+  }
+  function acquire() {
+    if (frame?.isConnected) return true;
+    stop();
+    observer.disconnect();
+    frame = null;
+    const candidate = document2.querySelector("[data-shell-bottom]")?.parentElement;
+    if (!(candidate instanceof window2.HTMLElement) || !candidate.querySelector(":scope > [data-rightbar-col]")) return false;
+    frame = candidate;
+    observer.observe(frame, { attributes: true, attributeOldValue: true, attributeFilter: ["style", "data-animating", "data-dragging"] });
+    return true;
+  }
+  function timing(target) {
+    const css = window2.getComputedStyle(target);
+    const index = items(css.transitionProperty).findIndex((name) => name === PROPERTY || name === "all");
+    if (index < 0) return null;
+    const at = (value) => {
+      const list = items(value);
+      return list[index % list.length] ?? "";
+    };
+    const duration = milliseconds(at(css.transitionDuration));
+    return duration > 0 ? { duration, delay: milliseconds(at(css.transitionDelay)), easing: at(css.transitionTimingFunction) || "ease" } : null;
+  }
+  function onChange(records) {
+    const target = frame;
+    if (!enabled || !target) return;
+    if (target.matches(STILL)) return stop();
+    const change = records.find((record2) => record2.attributeName === "style");
+    if (!change) return;
+    probe.setAttribute("style", change.oldValue ?? "");
+    const from = probe.style.gridTemplateColumns, to = target.style.gridTemplateColumns;
+    if (!from || !to || from === to) return;
+    stop();
+    if (!target.hasAttribute("data-animating")) return;
+    const options = timing(target);
+    if (!options || target.getAnimations().some((animation) => animation instanceof window2.CSSTransition && animation.transitionProperty === PROPERTY)) return;
+    replay = target.animate([{ gridTemplateColumns: from }, { gridTemplateColumns: to }], options);
+  }
+  function ensure() {
+    if (acquire()) finder.disconnect();
+    else finder.observe(document2.body, { childList: true, subtree: true });
+  }
+  const onInput = () => {
+    if (!frame?.isConnected) ensure();
+  };
+  const LISTENERS = ["pointerdown", "keydown"];
+  function update(next) {
+    if (next === enabled) return;
+    enabled = next;
+    for (const type of LISTENERS) {
+      if (enabled) document2.addEventListener(type, onInput, { capture: true, passive: true });
+      else document2.removeEventListener(type, onInput, { capture: true });
+    }
+    if (enabled) return ensure();
+    stop();
+    observer.disconnect();
+    finder.disconnect();
+    frame = null;
+  }
+  return { update, dispose() {
+    update(false);
+  } };
+}
+
 // src/press.ts
 var PRESS_RADIUS = 210;
 var PRESS_CSS = `
@@ -1636,7 +1731,7 @@ var INVERSE = "--acrylic-press-inverse";
 var SIDES = ["top", "right", "bottom", "left"];
 var CSS = `
 [${MARKER}="static"] { position:relative; }
-[${MARKER}]::after {
+[${MARKER}]:not([${MARKER}="clip"])::after {
   content:''; position:absolute; display:block; pointer-events:auto; z-index:-1;
   inset:var(--acrylic-press-top) var(--acrylic-press-right) var(--acrylic-press-bottom) var(--acrylic-press-left);
   transform:var(${INVERSE}); transform-origin:50% 50%; transform-box:border-box;
@@ -1646,6 +1741,9 @@ var CSS = `
 var GEOMETRY = ["display", "visibility", "pointer-events", "position", "scale", "rotate", "translate", "transform-origin", "transform-box", "zoom", "overflow-x", "overflow-y", "clip-path", "mask-image", "contain", "anchor-name", ...SIDES.map((side) => `border-${side}-width`)];
 var geometry = (css) => GEOMETRY.map((name) => css.getPropertyValue(name)).join(";");
 var pseudoGeometry = (css) => ["content", "position", "display", "pointer-events", "z-index", "top", "right", "bottom", "left", "width", "height", "transform-origin", "background-image", "background-color", "border-width"].map((name) => css.getPropertyValue(name)).join(";");
+var SHAPE_KEYS = ["transform", "scale", "rotate", "translate", "width", "height", "opacity"];
+var clips = (css) => [css.overflowX, css.overflowY].some((value) => value !== "visible");
+var scrolls = (css) => [css.overflowX, css.overflowY].some((value) => value === "auto" || value === "scroll");
 function createPressMotion(document2, window2, modules, refresh) {
   const reduced = window2.matchMedia("(prefers-reduced-motion: reduce)");
   const sheet = createStyleSheet(document2, "dsh-acrylic-wallpaper-press-motion", CSS);
@@ -1676,8 +1774,14 @@ function createPressMotion(document2, window2, modules, refresh) {
     }
     return true;
   }
+  function shapes(animation) {
+    return animation.effect instanceof window2.KeyframeEffect && animation.effect.getKeyframes().some((key) => SHAPE_KEYS.some((name) => key[name] !== void 0));
+  }
   function moving(target) {
-    return target.getAnimations().some((animation) => animation.playState === "running" && animation.effect instanceof window2.KeyframeEffect && animation.effect.getKeyframes().some((key) => ["transform", "scale", "rotate", "translate", "width", "height", "opacity"].some((name) => key[name] !== void 0)));
+    return target.getAnimations().some((animation) => animation.playState === "running" && shapes(animation));
+  }
+  function animated(target) {
+    return target.getAnimations().some((animation) => animation.playState !== "finished" || shapes(animation));
   }
   function flatAncestors(target) {
     for (let parent = target.parentElement; parent; parent = parent.parentElement) {
@@ -1687,10 +1791,25 @@ function createPressMotion(document2, window2, modules, refresh) {
     return true;
   }
   function canTransform(target, css) {
-    if (target.hasAttribute(MARKER) || css.display.startsWith("table") || css.display === "inline" || css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.translate !== "none" || css.clipPath !== "none" || css.maskImage !== "none" || css.overflowX !== "visible" || css.overflowY !== "visible" || /paint|strict|content/.test(css.contain) || css.animationName !== "none" || !["", "1", "normal"].includes(css.getPropertyValue("zoom")) || css.getPropertyValue("anchor-name").trim() && css.getPropertyValue("anchor-name").trim() !== "none" || moving(target) || css.transitionDuration.split(",").some((value) => parseFloat(value) > 0) && css.transitionProperty.split(",").some((name) => /^(all|scale|transform)$/.test(name.trim()))) return false;
+    if (target.hasAttribute(MARKER) || css.display.startsWith("table") || css.display === "inline" || css.transform !== "none" || css.scale !== "none" || css.rotate !== "none" || css.translate !== "none" || css.clipPath !== "none" || css.maskImage !== "none" || scrolls(css) || /paint|strict|content/.test(css.contain) || !["", "1", "normal"].includes(css.getPropertyValue("zoom")) || css.getPropertyValue("anchor-name").trim() && css.getPropertyValue("anchor-name").trim() !== "none" || animated(target) || css.transitionDuration.split(",").some((value) => parseFloat(value) > 0) && css.transitionProperty.split(",").some((name) => /^(all|scale|transform)$/.test(name.trim()))) return false;
     const pseudo = window2.getComputedStyle(target, "::after");
     if (pseudo.content !== "none" && pseudo.content !== "normal") return false;
     return flatAncestors(target) && childrenSafe(target, css.position !== "static");
+  }
+  function keepsPointer(target, input, pose, width, height) {
+    if (!("pointerId" in input)) return true;
+    const style = target.style;
+    const saved = ["transform", "transform-origin", "transform-box"].map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)]);
+    style.setProperty("transform-origin", "50% 50%", "important");
+    style.setProperty("transform-box", "border-box", "important");
+    style.setProperty("transform", project(window2, target, width, height, pose, 1).transform, "important");
+    const hit = document2.elementFromPoint(input.x, input.y);
+    for (const [name, value, priority] of saved) {
+      if (value) style.setProperty(name, value, priority);
+      else style.removeProperty(name);
+    }
+    forgetProjection(target);
+    return hit !== null && target.contains(hit);
   }
   function own2(current, name, value, priority = "") {
     const style = current.target.style;
@@ -1766,20 +1885,22 @@ function createPressMotion(document2, window2, modules, refresh) {
     if (!available(target)) return;
     const css = window2.getComputedStyle(target), rect = target.getBoundingClientRect();
     if (!rect.width || !rect.height || css.visibility !== "visible" || css.pointerEvents === "none") return;
-    const geometric = !reduced.matches && canTransform(target, css);
-    const borders = SIDES.map((side) => css.getPropertyValue(`border-${side}-width`));
-    const position = css.position;
     const u = "pointerId" in input ? (input.x - rect.left) / rect.width : 0.5;
     const v = "pointerId" in input ? (input.y - rect.top) / rect.height : 0.5;
-    const current = { target, input, held: true, geometric, drag: Boolean(target.closest('[draggable="true"],[data-dockkit-tab]')), width: rect.width, height: rect.height, pose: depression(rect.width, rect.height, u, v), amount: 0, releasedAt: 0, saved: /* @__PURE__ */ new Map(), owned: /* @__PURE__ */ new Map(), geometry: "", pseudo: "", hostStyle: "", background: css.backgroundImage };
+    const pose = depression(rect.width, rect.height, u, v);
+    const clipped = clips(css);
+    const geometric = !reduced.matches && canTransform(target, css) && (!clipped || keepsPointer(target, input, pose, rect.width, rect.height));
+    const borders = SIDES.map((side) => css.getPropertyValue(`border-${side}-width`));
+    const position = css.position;
+    const current = { target, input, held: true, geometric, drag: Boolean(target.closest('[draggable="true"],[data-dockkit-tab]')), width: rect.width, height: rect.height, pose, amount: 0, releasedAt: 0, saved: /* @__PURE__ */ new Map(), owned: /* @__PURE__ */ new Map(), geometry: "", pseudo: "", hostStyle: "", background: css.backgroundImage };
     press = current;
     if (geometric) {
       own2(current, "transform-origin", "50% 50%", "important");
       own2(current, "transform-box", "border-box", "important");
       SIDES.forEach((side, index) => own2(current, `--acrylic-press-${side}`, `-${borders[index]}`));
-      target.setAttribute(MARKER, position === "static" ? "static" : "");
+      target.setAttribute(MARKER, clipped ? "clip" : position === "static" ? "static" : "");
       paint(current, 0);
-      if (position === "static" && window2.getComputedStyle(target).position !== "relative") return clear();
+      if (!clipped && position === "static" && window2.getComputedStyle(target).position !== "relative") return clear();
     }
     if (!geometric) paint(current, 1);
     current.geometry = geometry(window2.getComputedStyle(target));
@@ -1903,6 +2024,8 @@ function createPressMotion(document2, window2, modules, refresh) {
 
 // src/wallpaper.ts
 var FRAME2 = "body[data-acrylic-wallpaper] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
+var FLUENT_FRAME = "body[data-acrylic-wallpaper][data-acrylic-fluent] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
+var DOCK_TINT = "rgb(var(--acrylic-tint-rgb) / .08)";
 var COMPACTION_HEADER = 'button[aria-expanded="true"]:has(> span > [data-compaction-disclosure])';
 var CODE_BANNER = ".md-code-block > :has(> [data-code-block-banner])";
 var TINT = { light: "247 247 247", dark: "24 24 24" };
@@ -1962,13 +2085,21 @@ ${FRAME2} .xterm:has(.xterm-rows) .xterm-screen { position: relative; z-index: 1
 /* Reading surfaces (center column, docked panes) gain the same subtle tint. */
 ${FRAME2} > div:nth-child(2),
 ${FRAME2} [data-dockkit-host="dock"] > [data-dockkit-content],
-${FRAME2} [data-dockkit-empty] { background: rgb(var(--acrylic-tint-rgb) / .08); }
+${FRAME2} [data-dockkit-empty] { background: ${DOCK_TINT}; }
 /* A right panel without its own track (narrow window, fullscreen) lies over
    the conversation; give its panes in-app acrylic instead of see-through. */
 ${FRAME2}:is([data-rightbar-collapsed], [data-rightbar-fullscreen]) [data-rightbar-col] [data-dockkit-host="dock"] > [data-dockkit-content],
 ${FRAME2}:is([data-rightbar-collapsed], [data-rightbar-fullscreen]) [data-rightbar-col] [data-dockkit-empty] {
   background: ${CANVAS_RULES.acrylic};
   backdrop-filter: blur(30px) saturate(1.2);
+}
+/* The frame drops the track as soon as a close starts. While Win10 mode
+   animates the columns, the closing panel slides off beside the widening
+   conversation, not over it: keep the docked tint instead of an opaque slab.
+   Instant exits (from fullscreen) do not animate and keep the acrylic. */
+${FLUENT_FRAME}[data-animating]:not([data-rightbar-instant], [data-rightbar-fullscreen]) [data-sidebar-right-panel]:not([data-sidebar-right-open]) :is([data-dockkit-host="dock"] > [data-dockkit-content], [data-dockkit-empty]) {
+  background: ${DOCK_TINT};
+  backdrop-filter: none;
 }
 
 /* Sticky rows that used the canvas to hide scrolled content become acrylic
@@ -2085,6 +2216,7 @@ function createAppearance(document2, window2, theme) {
   const reveal = createReveal(document2, window2, modules);
   const pressMotion = createPressMotion(document2, window2, modules, reveal.sync);
   const motion = createMotion(document2, window2, { onSettle: reveal.refresh });
+  const frameMotion = createFrameMotion(document2, window2);
   const wallpaper = createWallpaper(document2, window2);
   const media = [window2.matchMedia("(forced-colors: active)"), window2.matchMedia("(prefers-reduced-transparency: reduce)")];
   let snapshot = null;
@@ -2099,6 +2231,7 @@ function createAppearance(document2, window2, theme) {
     adapters.update(win10);
     elevation.update(win10);
     motion.update(win10);
+    frameMotion.update(win10);
     pressMotion.update(win10);
     reveal.update(Boolean(win10 && settings?.reveal));
     wallpaper.update(on && snapshot?.url && settings ? { url: snapshot.url, settings } : null);
@@ -2112,7 +2245,7 @@ function createAppearance(document2, window2, theme) {
     dispose() {
       disposed = true;
       media.forEach((query) => query.removeEventListener("change", render));
-      for (const feature of [fluent, adapters, elevation, motion, pressMotion, reveal, wallpaper]) feature.dispose();
+      for (const feature of [fluent, adapters, elevation, motion, frameMotion, pressMotion, reveal, wallpaper]) feature.dispose();
       modules.dispose();
       document2.body.removeAttribute(FLUENT_MARKER);
       snapshot = null;

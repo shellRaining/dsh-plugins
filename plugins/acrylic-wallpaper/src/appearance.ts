@@ -7,6 +7,7 @@ import { createFluentTheme } from './theme.ts';
 import { createAdapters } from './adapters.ts';
 import { createElevation } from './elevation.ts';
 import { createMotion } from './motion.ts';
+import { createFrameMotion } from './frame-motion.ts';
 import { createReveal } from './reveal.ts';
 import { createPressMotion } from './press-motion.ts';
 import { createWallpaper } from './wallpaper.ts';
@@ -23,6 +24,7 @@ export function createAppearance(document: Document, window: Window & typeof glo
   const reveal = createReveal(document, window, modules);
   const pressMotion = createPressMotion(document, window, modules, reveal.sync);
   const motion = createMotion(document, window, { onSettle: reveal.refresh });
+  const frameMotion = createFrameMotion(document, window);
   const wallpaper = createWallpaper(document, window);
   // Contrast and transparency preferences switch the whole material off.
   const media = [window.matchMedia('(forced-colors: active)'), window.matchMedia('(prefers-reduced-transparency: reduce)')];
@@ -38,6 +40,7 @@ export function createAppearance(document: Document, window: Window & typeof glo
     adapters.update(win10);
     elevation.update(win10);
     motion.update(win10);
+    frameMotion.update(win10);
     pressMotion.update(win10);
     reveal.update(Boolean(win10 && settings?.reveal));
     wallpaper.update(on && snapshot?.url && settings ? { url: snapshot.url, settings } : null);
@@ -48,7 +51,7 @@ export function createAppearance(document: Document, window: Window & typeof glo
     dispose() {
       disposed = true;
       media.forEach(query => query.removeEventListener('change', render));
-      for (const feature of [fluent, adapters, elevation, motion, pressMotion, reveal, wallpaper]) feature.dispose();
+      for (const feature of [fluent, adapters, elevation, motion, frameMotion, pressMotion, reveal, wallpaper]) feature.dispose();
       modules.dispose();
       document.body.removeAttribute(FLUENT_MARKER);
       snapshot = null;
