@@ -21,13 +21,22 @@ const keepUrl = (url: string): string => url;
  * every block. The same tree serves streaming and settled states, so a reply
  * never swaps renderers when it finishes.
  */
-export const StreamMarkdown = memo(function StreamMarkdown({ text, env }: { text: string; env: MarkdownEnv }) {
+interface StreamMarkdownProps {
+  text: string;
+  env: MarkdownEnv;
+  variant?: 'body' | 'compact';
+  interrupted?: boolean;
+}
+
+export const StreamMarkdown = memo(function StreamMarkdown({ text, env, variant = 'body', interrupted = false }: StreamMarkdownProps) {
   const remarkRehypeOptions = useMemo(() => ({ footnoteLabel: env.labels.footnotes }), [env.labels.footnotes]);
   return (
     <MarkdownEnvProvider value={env}>
       <Streamdown
-        className={md.root}
+        className={variant === 'compact' ? `${md.root} dsh-sd-md-compact` : md.root}
         content={text}
+        streaming={env.streaming}
+        interrupted={interrupted}
         components={components}
         rehypePlugins={REHYPE_PLUGINS}
         remarkPlugins={REMARK_PLUGINS}

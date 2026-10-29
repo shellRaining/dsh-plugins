@@ -54,6 +54,7 @@ export interface PluginManagerRemote {
   registries(): Promise<RemoteResult<Registries>>;
   listVersionExemptions(): Promise<RemoteResult<{ readonly exemptions: Readonly<Record<string, readonly string[]>> }>>;
   removeBundle(name: string): Promise<RemoteResult<ChangeResult>>;
+  setBundleEnabled(name: string, enabled: boolean): Promise<RemoteResult<ChangeResult>>;
   installBundle(spec: string, options?: InstallOptions): Promise<RemoteResult<ChangeResult>>;
 }
 

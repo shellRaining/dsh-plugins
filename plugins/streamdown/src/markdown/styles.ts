@@ -1,7 +1,7 @@
 /**
  * Visual parity with the host Markdown sheet: ui-primitives
  * `MarkdownText.module.css` 0.2.1-rc.3 (MIT, Copyright (c) 2026 DeepSeek),
- * body variant only, with the CSS-module classes renamed to `dsh-sd-*`.
+ * body and compact variants, with the CSS-module classes renamed to `dsh-sd-*`.
  * Re-diff this block against the host sheet on every DSH upgrade.
  */
 export const MARKDOWN_CSS = `
@@ -170,6 +170,60 @@ export const MARKDOWN_CSS = `
   outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 3px;
 }
+/* Compact reasoning follows the host's secondary typography. */
+.dsh-sd-md-compact {
+  max-width: 100%;
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(20px + var(--dsh-content-font-delta-secondary, 0px));
+  color: var(--dsw-alias-label-tertiary);
+}
+.dsh-sd-md-compact :is(h1, h2, h3, h4, h5, h6) {
+  margin: 8px 0 4px;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+}
+.dsh-sd-md-compact :is(p, ul, ol, blockquote) { margin: 4px 0; }
+.dsh-sd-md-compact li:not(:first-child) { margin-top: 2px; }
+.dsh-sd-md-compact li > p { margin: 4px 0; }
+.dsh-sd-md-compact li::marker { line-height: inherit; color: inherit; }
+.dsh-sd-md-compact blockquote { padding-left: 8px; }
+.dsh-sd-md-compact hr { margin: 8px 0; }
+.dsh-sd-md-compact a,
+.dsh-sd-md-compact .dsh-sd-file-mention { font-weight: inherit; color: inherit; text-decoration: underline dotted; }
+.dsh-sd-md-compact a:hover,
+.dsh-sd-md-compact a:focus,
+.dsh-sd-md-compact .dsh-sd-file-mention:hover,
+.dsh-sd-md-compact .dsh-sd-file-mention:focus { text-decoration-color: currentColor; }
+.dsh-sd-md-compact :not(pre) > code {
+  display: inline;
+  font: inherit;
+  font-family: var(--ds-font-family-code);
+  font-size: 1em !important;
+  border-radius: var(--dsw-radius-xs);
+  padding: 0 3px;
+  box-decoration-break: clone;
+}
+.dsh-sd-md.dsh-sd-md-compact .md-code-block { margin: 4px 0; color: inherit; }
+.dsh-sd-md-compact .md-code-block > :has(> [data-code-block-banner]) { position: static; z-index: auto; }
+.dsh-sd-md-compact pre,
+.dsh-sd-md-compact pre :is(code, span) { color: inherit !important; }
+.dsh-sd-md.dsh-sd-md-compact .dsh-sd-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  margin: 4px 0;
+  padding-left: 0;
+}
+.dsh-sd-md.dsh-sd-md-compact .dsh-sd-table-scroll > table { z-index: auto; }
+.dsh-sd-md-compact :is(th, td) { padding: 4px 8px; font: inherit; }
+.dsh-sd-md-compact th { font-weight: 600; }
+.dsh-sd-md-compact .katex { font-size: 1em; }
+.dsh-sd-md-compact :is(p, h1, h2, h3, h4, h5, h6, ul, ol):has(.katex) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 1px;
+}
+.dsh-sd-md-compact .katex-display { margin: 4px 0; }
 /* Plugin addition: TeX that has not parsed yet while its block streams. */
 .dsh-sd-math-pending { color: var(--dsw-alias-label-tertiary); white-space: pre-wrap; }
 `;

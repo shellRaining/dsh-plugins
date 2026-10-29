@@ -95,38 +95,67 @@ export class SelfUpdater {
   private async run(base: Omit<Stored, 'phase'>): Promise<void> {
     const step = (phase: SelfUpdatePhase, extra: Partial<SelfUpdateStatus> = {}): Promise<void> =>
       this.save({ ...base, ...extra, phase, ...isRunning({ ...base, phase }) ? {} : { finishedAt: Date.now() } });
+    let failure: Partial<SelfUpdateStatus> | undefined;
     try {
-      const removed = await this.manager.removeBundle(SELF);
-      if (failed(removed)) {
-        // Removal deselects the bundle before pnpm runs; turn it back on if pnpm then failed.
-        await this.reselect();
-        await step('failed', { reason: reasonOf(removed), ...details(removed) });
+      const previous = (await this.manager.listBundles()).find(bundle => bundle.name === SELF);
+      if (npmVersion(previous) !== base.from || previous === undefined) {
+        await step('failed', { reason: 'plugin-state-changed' });
+        return;
+      }
+      const removed = await this.manager.removeBundle(SELF).catch((error: unknown): ChangeResult =>
+        ({ application: 'failed', error: { code: 'remove-failed', diagnostic: text(error) } }));
+      // Only a no-HMR refusal permits replacing an installed dependency.
+      const stopProfile = removed.error?.code === 'stop-profile';
+      if (!stopProfile && failed(removed)) {
+        failure = { reason: reasonOf(removed), ...details(removed) };
+        const recoveryReason = await this.reselect(previous);
+        await step('failed', { ...failure, ...recoveryReason ? { recoveryReason } : {} });
         return;
       }
       await step('installing');
-      const installed = await this.manager.installBundle(`${SELF}@${base.to}`, { enabled: true, saveExact: true });
+      const installed = await this.manager.installBundle(`${SELF}@${base.to}`, { enabled: true, saveExact: true })
+        .catch((error: unknown): ChangeResult =>
+          ({ application: 'failed', error: { code: 'install-failed', diagnostic: text(error) } }));
       if (!failed(installed)) {
         await step(installed.application === 'restart-required' ? 'restart' : 'done', { to: installed.version ?? base.to });
         return;
       }
-      const failure = { reason: reasonOf(installed), ...details(installed) };
+      failure = { reason: reasonOf(installed), ...details(installed) };
+      // Installation can fail during activation after the package has been saved.
+      // Never overwrite that package or one installed concurrently from elsewhere.
+      const current = (await this.manager.listBundles()).find(bundle => bundle.name === SELF && bundle.installed);
+      if (stopProfile || current !== undefined) {
+        await step('failed', failure);
+        return;
+      }
       await step('restoring', failure);
       const restored = await this.manager.installBundle(`${SELF}@${base.from}`, { enabled: true, saveExact: true });
       if (failed(restored)) {
         this.logger.warn('[plugin-updates] could not restore %s@%s: %s', SELF, base.from, reasonOf(restored));
-        await step('failed', { ...failure, reason: `${failure.reason}\n${reasonOf(restored)}` });
+        await step('failed', { ...failure, recoveryReason: reasonOf(restored) });
         return;
       }
-      await step('restored', failure);
+      await step('restored', { ...failure,
+        ...restored.application === 'restart-required' ? { recoveryReason: 'restart-required' } : {},
+      });
     } catch (error) {
       this.logger.warn('[plugin-updates] self-update stopped: %s', text(error));
-      await step('failed', { reason: text(error) }).catch(() => undefined);
+      await step('failed', failure === undefined ? { reason: text(error) } : { ...failure, recoveryReason: text(error) }).catch(() => undefined);
     }
   }
 
-  private async reselect(): Promise<void> {
-    const bundle = (await this.manager.listBundles()).find(item => item.name === SELF);
-    if (bundle?.installed === true && !bundle.enabled) await this.manager.setBundleEnabled(SELF, true);
+  private async reselect(previous: Bundle): Promise<string | undefined> {
+    if (!previous.enabled) return undefined;
+    try {
+      const bundle = (await this.manager.listBundles()).find(item => item.name === SELF);
+      if (!bundle?.installed || bundle.version !== previous.version || bundle.source !== previous.source) return 'plugin-state-changed';
+      if (bundle.enabled) return undefined;
+      const restored = await this.manager.setBundleEnabled(SELF, true);
+      if (failed(restored)) return reasonOf(restored);
+      return restored.application === 'applied' ? undefined : 'restart-required';
+    } catch (error) {
+      return text(error);
+    }
   }
 
   private async save(status: Stored): Promise<void> {

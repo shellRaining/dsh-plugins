@@ -71,6 +71,7 @@ export interface AssistantNodeProps {
 export interface SlotEntry {
   component: unknown;
   options: { key?: string; priority?: number };
+  locale?: string;
   inject?: (...args: unknown[]) => unknown;
 }
 

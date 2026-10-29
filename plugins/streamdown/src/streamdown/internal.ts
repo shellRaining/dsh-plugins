@@ -8,7 +8,8 @@ export const getNow = (): number => {
 // records, and arrays. Functions and class instances are compared by
 // reference (caller is expected to memoise callbacks via useCallback).
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  typeof value === 'object' && value !== null &&
+  (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 
 export const isDeepEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
@@ -29,7 +30,7 @@ export const isDeepEqual = (a: unknown, b: unknown): boolean => {
   if (keysA.length !== keysB.length) return false;
 
   for (const key of keysA) {
-    if (!isDeepEqual(a[key], b[key])) return false;
+    if (!Object.hasOwn(b, key) || !isDeepEqual(a[key], b[key])) return false;
   }
 
   return true;

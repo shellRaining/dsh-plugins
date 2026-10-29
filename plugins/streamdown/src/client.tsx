@@ -1,6 +1,7 @@
 import { AssistantNodeView } from './chat/AssistantNodeView.tsx';
 import { presentationSource } from './chat/presentation.ts';
 import { CHAT_CSS } from './chat/styles.ts';
+import { installToolMotion } from './chat/toolMotion.ts';
 import type { ClientContext } from './host.ts';
 import { MARKDOWN_CSS } from './markdown/styles.ts';
 import { STREAMDOWN_CSS } from './streamdown/index.ts';
@@ -16,6 +17,12 @@ export const inject = ['slots'];
 const SHADOW_PRIORITY = -1;
 
 export function apply(ctx: ClientContext): void {
+  if (typeof ctx.slots?.inject !== 'function' || typeof ctx.slots.register !== 'function' ||
+    typeof ctx.slots.entries !== 'function') {
+    console.warn('dsh-streamdown: unsupported slot API; keeping the host renderer');
+    return;
+  }
+  ctx.effect(installToolMotion, `${name}: tool state motion`);
   ctx.effect(() => {
     const style = document.createElement('style');
     style.dataset.plugin = name;

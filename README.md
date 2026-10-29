@@ -17,6 +17,8 @@
 | <img src="plugins/plugin-updates/icon.png" width="36" height="36" alt="" /> | [插件更新](plugins/plugin-updates) | 检查 npm 插件新版本，更新或安装指定版本 | `dsh plugin --profile web add @shellraining/dsh-plugin-updates` |
 | <img src="plugins/shellraining-brand/icon.png" width="36" height="36" alt="" /> | [shellRaining 品牌](plugins/shellraining-brand) | 替换侧栏和首页的品牌标识；fork 后可替换为自己的资源 | `dsh plugin --profile web add @shellraining/dsh-brand` |
 
+新增插件：[布局预设](plugins/layout-presets/README.md)，支持对话区与右栏比例保持、宽度比例预设和双击等分。安装：`dsh plugin --profile web add @shellraining/dsh-layout-presets`，兼容性限制见子包文档。
+
 ## 包名迁移
 
 以下三个插件以新 npm 包名发布，旧包不会自动升级为新包：

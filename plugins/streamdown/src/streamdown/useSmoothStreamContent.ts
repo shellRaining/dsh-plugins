@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { RemendOptions } from 'remend';
 
 import { createBlockLexer } from './blockLexer.ts';
 import { findOpenFenceLanguage } from './fenceState.ts';
 import { getNow, useStableValue } from './internal.ts';
 import type { StreamSmoothingPreset } from './types.ts';
+import { usePageHidden, useReducedMotion } from './useReducedMotion.ts';
+
+const COMPLETION_DRAIN_MS = 220;
 
 interface StreamSmoothingPresetConfig {
   activeInputWindowMs: number;
@@ -119,6 +122,8 @@ export const countChars = (text: string): number => {
 
 interface UseSmoothStreamContentOptions {
   enabled?: boolean;
+  streaming?: boolean;
+  interrupted?: boolean;
   preset?: StreamSmoothingPreset;
   /** Options for the remend pass that completes the open tail block. */
   remend?: RemendOptions | undefined;
@@ -127,8 +132,11 @@ interface UseSmoothStreamContentOptions {
 
 export const useSmoothStreamContent = (
   content: string,
-  { enabled = true, preset = 'balanced', remend, tailUnitsRef }: UseSmoothStreamContentOptions = {},
+  { enabled = true, streaming = true, interrupted = false, preset = 'balanced', remend, tailUnitsRef }: UseSmoothStreamContentOptions = {},
 ): string => {
+  const reducedMotion = useReducedMotion();
+  const hidden = usePageHidden();
+  const immediate = !enabled || interrupted || reducedMotion || hidden;
   const config = PRESET_CONFIG[preset];
   const [displayedContent, setDisplayedContent] = useState(content);
   const remendOptions = useStableValue(remend);
@@ -152,6 +160,14 @@ export const useSmoothStreamContent = (
   const rafRef = useRef<number | null>(null);
   const lastFrameTsRef = useRef<number | null>(null);
   const wakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drainDeadlineRef = useRef<number | null>(null);
+  const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearDrain = useCallback(() => {
+    if (drainTimerRef.current !== null) clearTimeout(drainTimerRef.current);
+    drainTimerRef.current = null;
+    drainDeadlineRef.current = null;
+  }, []);
 
   const clearWakeTimer = useCallback(() => {
     if (wakeTimerRef.current !== null) {
@@ -171,7 +187,8 @@ export const useSmoothStreamContent = (
   const stopScheduling = useCallback(() => {
     stopFrameLoop();
     clearWakeTimer();
-  }, [clearWakeTimer, stopFrameLoop]);
+    clearDrain();
+  }, [clearDrain, clearWakeTimer, stopFrameLoop]);
 
   const startFrameLoopRef = useRef<() => void>(() => {});
 
@@ -211,6 +228,7 @@ export const useSmoothStreamContent = (
       estimatedTailUnitsRef.current = findTailUnits(nextContent);
       lastInputTsRef.current = now;
       lastInputCountRef.current = chars.length;
+      completePrefixRef.current = { content: '', count: 0 };
     },
     [config.defaultCps, stopScheduling],
   );
@@ -225,7 +243,12 @@ export const useSmoothStreamContent = (
       const backlog = targetCount - displayedCount;
 
       if (backlog <= 0) {
-        stopFrameLoop();
+        stopScheduling();
+        return;
+      }
+      const deadline = drainDeadlineRef.current;
+      if (deadline !== null && getNow() >= deadline) {
+        syncImmediate(targetContentRef.current);
         return;
       }
 
@@ -255,7 +278,7 @@ export const useSmoothStreamContent = (
 
       const now = getNow();
       const idleMs = now - lastInputTsRef.current;
-      const inputActive = idleMs <= config.activeInputWindowMs;
+      const inputActive = deadline === null && idleMs <= config.activeInputWindowMs;
       const settling = !inputActive && idleMs >= config.settleAfterMs;
 
       const baseCps = clamp(emaCpsRef.current, config.minCps, config.maxCps);
@@ -269,7 +292,9 @@ export const useSmoothStreamContent = (
       const desiredDisplayed = Math.max(0, targetCount - targetLagChars);
 
       let currentCps: number;
-      if (inputActive) {
+      if (deadline !== null) {
+        currentCps = backlog * 1000 / Math.max(1, deadline - now);
+      } else if (inputActive) {
         const backlogPressure = targetLagChars > 0 ? backlog / targetLagChars : 1;
         const chunkPressure = targetLagChars > 0 ? chunkSizeEmaRef.current / targetLagChars : 1;
         const arrivalPressure = arrivalCpsEmaRef.current / Math.max(baseCps, 1);
@@ -367,12 +392,14 @@ export const useSmoothStreamContent = (
     lexBufferedContent,
     scheduleFrameWake,
     stopFrameLoop,
+    stopScheduling,
+    syncImmediate,
     tailUnitsRef,
   ]);
   startFrameLoopRef.current = startFrameLoop;
 
-  useEffect(() => {
-    if (!enabled) {
+  useLayoutEffect(() => {
+    if (immediate) {
       syncImmediate(content);
       return;
     }
@@ -446,10 +473,25 @@ export const useSmoothStreamContent = (
     config.maxFlushCps,
     config.minCps,
     content,
-    enabled,
+    immediate,
     startFrameLoop,
     syncImmediate,
   ]);
+
+  useLayoutEffect(() => {
+    if (streaming || immediate) {
+      clearDrain();
+      return;
+    }
+    if (displayedContentRef.current === targetContentRef.current) return;
+    if (drainDeadlineRef.current === null) {
+      drainDeadlineRef.current = getNow() + COMPLETION_DRAIN_MS;
+      // RAF may stop in a hidden/throttled window. The deadline is also checked
+      // in tick, and visibility changes synchronously discard any backlog.
+      drainTimerRef.current = setTimeout(() => syncImmediate(targetContentRef.current), COMPLETION_DRAIN_MS);
+    }
+    startFrameLoop();
+  }, [clearDrain, content, immediate, startFrameLoop, streaming, syncImmediate]);
 
   useEffect(() => {
     return () => {
@@ -457,5 +499,6 @@ export const useSmoothStreamContent = (
     };
   }, [stopScheduling]);
 
-  return displayedContent;
+  // Corrections and cancellation must never paint a frame of stale buffered text.
+  return immediate || !content.startsWith(targetContentRef.current) ? content : displayedContent;
 };

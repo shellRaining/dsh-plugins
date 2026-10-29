@@ -1,4 +1,4 @@
-import { createContext, memo, useContext, useId, useMemo, useRef } from 'react';
+import { createContext, memo, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { RemendOptions } from 'remend';
 import type { Pluggable, PluggableList } from 'unified';
 
@@ -12,7 +12,8 @@ import { STREAM_TAIL_TAG, StreamTail } from './StreamTail.tsx';
 import { STREAM_FADE_DURATION, STREAMDOWN_ANIMATED_CLASS } from './styles.ts';
 import type { StreamAnimationGranularity, StreamSmoothingPreset } from './types.ts';
 import { countChars, useSmoothStreamContent } from './useSmoothStreamContent.ts';
-import { type BlockInfo, type BlockState, useStreamQueue } from './useStreamQueue.ts';
+import { type BlockInfo, type BlockState } from './useStreamQueue.ts';
+import { usePageHidden, useReducedMotion } from './useReducedMotion.ts';
 
 const EMPTY_PLUGINS: PluggableList = [];
 
@@ -56,11 +57,7 @@ const StreamdownBlock = memo<Options>(
   ({ children, ...rest }) => {
     return <CachedMarkdown {...rest}>{children}</CachedMarkdown>;
   },
-  (prevProps, nextProps) =>
-    prevProps.children === nextProps.children &&
-    prevProps.components === nextProps.components &&
-    isSamePlugins(prevProps.rehypePlugins, nextProps.rehypePlugins) &&
-    isSamePlugins(prevProps.remarkPlugins, nextProps.remarkPlugins),
+  (prevProps, nextProps) => isDeepEqual(prevProps, nextProps),
 );
 
 StreamdownBlock.displayName = 'StreamdownBlock';
@@ -95,6 +92,8 @@ interface UpdateBlockAnimationArgs {
   renderNow: number;
   revealClock: { lastTs: number };
   runtimes: Map<number, BlockRuntime>;
+  baselineLength: number;
+  finishing: boolean;
 }
 
 const MIN_STREAM_CHAR_PACE_MS = 2;
@@ -115,6 +114,8 @@ const updateBlockAnimation = ({
   renderNow,
   revealClock,
   runtimes,
+  baselineLength,
+  finishing,
 }: UpdateBlockAnimationArgs): Map<number, BlockAnimationMeta> => {
   const blockAnimationMeta = new Map<number, BlockAnimationMeta>();
   const alive = new Set<number>();
@@ -134,7 +135,8 @@ const updateBlockAnimation = ({
     if (!runtime) {
       runtime = {
         births: [],
-        blockBirth: state === 'revealed' ? renderNow : undefined,
+        blockBirth: state === 'revealed' && block.startOffset >= baselineLength ? renderNow : undefined,
+        baseline: block.startOffset < baselineLength,
         charCount: 0,
         rawLength: -1,
         settled: false,
@@ -173,9 +175,9 @@ const updateBlockAnimation = ({
         revealedNewChars = true;
         const gapMs = Math.min(Math.max(renderNow - revealClock.lastTs, 16), MAX_REVEAL_GAP_MS);
         pace = Math.min(charDelay, Math.max(gapMs / newChars, MIN_STREAM_CHAR_PACE_MS));
-        capMs = gapMs + STREAM_FADE_DURATION;
+        capMs = gapMs;
       }
-      runtime.pacing = { capMs, pace };
+      runtime.pacing = finishing ? { capMs: 0, pace: 0 } : { capMs, pace };
       runtime.charCount = nextCharCount;
       runtime.rawLength = block.content.length;
     }
@@ -223,38 +225,51 @@ interface StreamdownBlocksProps {
   markdownOptions: Omit<Options, 'children'>;
   remendOptions: RemendOptions | undefined;
   tailUnitsRef: { current: number };
+  streaming: boolean;
+  finishing: boolean;
+  animate: boolean;
+  revision: number;
 }
 
 const StreamdownBlocks = memo<StreamdownBlocksProps>(
-  ({ className, content: smoothedContent, granularity, markdownOptions, remendOptions, tailUnitsRef }) => {
+  ({ className, content: smoothedContent, granularity, markdownOptions, remendOptions, tailUnitsRef, streaming, finishing, animate, revision }) => {
     const { components: baseComponents, ...rest } = markdownOptions;
     const baseRehypePlugins = useStablePlugins(markdownOptions.rehypePlugins ?? EMPTY_PLUGINS);
     const remarkPlugins = useStablePlugins(markdownOptions.remarkPlugins ?? EMPTY_PLUGINS);
     const generatedId = useId();
-    const lexBlocks = useMemo(() => createBlockLexer(remendOptions), [remendOptions]);
+    const lexBlocks = useMemo(() => createBlockLexer(remendOptions), [remendOptions, revision]);
 
     const components = useMemo<Options['components']>(
       () => ({ ...baseComponents, [STREAM_TAIL_TAG]: StreamTail }),
       [baseComponents],
     );
 
-    const { blocks } = useMemo(() => lexBlocks(smoothedContent), [lexBlocks, smoothedContent]);
+    const { blocks } = useMemo(() => lexBlocks(smoothedContent, streaming), [lexBlocks, smoothedContent, streaming]);
     tailUnitsRef.current = blocks.at(-1)?.content.length ?? 0;
 
-    const { getBlockState, charDelay } = useStreamQueue(blocks, true);
+    const getBlockState = (index: number): BlockState => streaming && index === blocks.length - 1 ? 'streaming' : 'revealed';
     const blockRuntimesRef = useRef<Map<number, BlockRuntime>>(new Map());
     const blockPluginsRef = useRef<Map<number, BlockPluginsCacheEntry>>(new Map());
     const revealClockRef = useRef<{ lastTs: number }>({ lastTs: 0 });
+    const animationSession = useRef({ revision, baselineLength: smoothedContent.length });
+    if (animationSession.current.revision !== revision || !animate || !streaming) {
+      blockRuntimesRef.current.clear();
+      blockPluginsRef.current.clear();
+      revealClockRef.current.lastTs = 0;
+      animationSession.current = { revision, baselineLength: smoothedContent.length };
+    }
 
-    const blockAnimationMeta = updateBlockAnimation({
+    const blockAnimationMeta = animate && streaming ? updateBlockAnimation({
       blocks,
-      charDelay,
+      charDelay: 18,
       getBlockState,
       pluginsCache: blockPluginsRef.current,
       renderNow: getNow(),
       revealClock: revealClockRef.current,
       runtimes: blockRuntimesRef.current,
-    });
+      baselineLength: animationSession.current.baselineLength,
+      finishing,
+    }) : undefined;
 
     const resolveBlockPlugins = (startOffset: number, settled: boolean): PluggableList => {
       if (settled) return baseRehypePlugins;
@@ -291,10 +306,8 @@ const StreamdownBlocks = memo<StreamdownBlocksProps>(
     return (
       <div className={className ? `${STREAMDOWN_ANIMATED_CLASS} ${className}` : STREAMDOWN_ANIMATED_CLASS}>
         {blocks.map((block: BlockInfo, index) => {
-          const animationMeta = blockAnimationMeta.get(block.startOffset);
-          if (!animationMeta) return null;
-
-          const plugins = resolveBlockPlugins(block.startOffset, animationMeta.settled);
+          const animationMeta = blockAnimationMeta?.get(block.startOffset);
+          const plugins = resolveBlockPlugins(block.startOffset, animationMeta?.settled ?? true);
 
           return (
             <StreamdownBlockContext.Provider
@@ -323,6 +336,10 @@ export interface StreamdownProps extends Omit<Options, 'children'> {
   /** Fork: extra class for the root element, next to the animation scope class. */
   className?: string | undefined;
   content: string;
+  /** Upstream production; the display may briefly drain after this becomes false. */
+  streaming?: boolean | undefined;
+  /** Cancellation bypasses both buffering and pending fades. */
+  interrupted?: boolean | undefined;
   granularity?: StreamAnimationGranularity | undefined;
   preprocess?: ((text: string) => string) | undefined;
   /**
@@ -338,18 +355,53 @@ export interface StreamdownProps extends Omit<Options, 'children'> {
 // a memoized child keyed on the smoother's output — so the expensive block
 // pipeline runs per reveal commit, not per chunk AND per commit.
 export const Streamdown = memo<StreamdownProps>(
-  ({ className, content, granularity = 'char', preprocess, remend, smoothing, ...rest }) => {
+  ({ className, content, streaming = true, interrupted = false, granularity = 'char', preprocess, remend, smoothing, ...rest }) => {
     const preprocessed = useMemo(
       () => (preprocess ? preprocess(content) : content),
       [content, preprocess],
     );
+    const reducedMotion = useReducedMotion();
+    const hidden = usePageHidden();
+    const animate = !reducedMotion && !hidden && !interrupted;
+    const source = useRef({ content: preprocessed, revision: 0, streaming });
+    if (!preprocessed.startsWith(source.current.content) || streaming && !source.current.streaming) source.current.revision++;
+    source.current.content = preprocessed;
+    source.current.streaming = streaming;
+    const revision = source.current.revision;
     const tailUnitsRef = useRef(0);
     const remendOptions = useStableValue(remend);
     const smoothedContent = useSmoothStreamContent(preprocessed, {
+      streaming,
+      interrupted,
       preset: smoothing ?? 'balanced',
       remend: remendOptions,
       tailUnitsRef,
     });
+    const draining = smoothedContent !== preprocessed;
+    const wasActive = useRef(streaming || draining);
+    const [fadeComplete, setFadeComplete] = useState(false);
+    const finishDeadline = useRef<number | null>(null);
+    // A finite final fade keeps the last reveal from being cut off. It shares
+    // the completion budget even when the producer sends a late correction.
+    useEffect(() => {
+      if (streaming) {
+        wasActive.current = true;
+        finishDeadline.current = null;
+        setFadeComplete(false);
+        return;
+      }
+      if (!animate) {
+        setFadeComplete(true);
+        return;
+      }
+      if (!wasActive.current) return;
+      finishDeadline.current ??= getNow() + 220 + STREAM_FADE_DURATION;
+      if (draining) return;
+      const delay = Math.min(MAX_REVEAL_GAP_MS + STREAM_FADE_DURATION, Math.max(0, finishDeadline.current - getNow()));
+      const timer = setTimeout(() => setFadeComplete(true), delay);
+      return () => clearTimeout(timer);
+    }, [animate, draining, preprocessed, streaming]);
+    const displayStreaming = !interrupted && (streaming || draining || animate && wasActive.current && !fadeComplete);
     const markdownOptions = useStableValue(rest);
 
     return (
@@ -360,6 +412,10 @@ export const Streamdown = memo<StreamdownProps>(
         markdownOptions={markdownOptions}
         remendOptions={remendOptions}
         tailUnitsRef={tailUnitsRef}
+        streaming={displayStreaming}
+        finishing={!streaming}
+        animate={animate}
+        revision={revision}
       />
     );
   },

@@ -62,18 +62,20 @@ interface StreamTailProps {
 // delaysRef, so an equal tail would produce identical output.
 export const StreamTail = memo<StreamTailProps>(
   ({ node }) => {
-    const delaysRef = useRef<Map<number, CSSProperties | null>>(new Map());
+    const delaysRef = useRef<Map<number, { birth: number; style: CSSProperties | null }>>(new Map());
     const data = readStreamTailData(node);
     if (!data) return null;
 
+    const alive = new Set(data.items.flatMap((item) => typeof item === 'string' ? [] : [item.key]));
+    for (const key of delaysRef.current.keys()) if (!alive.has(key)) delaysRef.current.delete(key);
     const now = getNow();
     const styleOf = (item: StreamCharItem): CSSProperties | null => {
       if (item.birth === null) return null;
       const cached = delaysRef.current.get(item.key);
-      if (cached !== undefined) return cached;
+      if (cached?.birth === item.birth) return cached.style;
       const elapsed = now - item.birth;
       const style = elapsed >= STREAM_FADE_DURATION ? null : { animationDelay: `${-elapsed}ms` };
-      delaysRef.current.set(item.key, style);
+      delaysRef.current.set(item.key, { birth: item.birth, style });
       return style;
     };
 

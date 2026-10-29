@@ -1,0 +1,3 @@
+- insert:
+    - id: layout-presets
+      name: '@shellraining/dsh-layout-presets'

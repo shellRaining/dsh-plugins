@@ -63,9 +63,10 @@ export const AssistantNodeView = memo(function AssistantNodeView({
   const blocks = data.blocks;
   const labels = useMemo(() => markdownLabels(t), [t]);
   const images = useMemo(() => imageLabels(t), [t]);
-  const env = useMemo<MarkdownEnv>(() => ({
-    streaming, labels, imageLabels: images, mentions, openFile, cwd,
-  }), [cwd, images, labels, mentions, openFile, streaming]);
+  const settledEnv = useMemo<MarkdownEnv>(() => ({
+    streaming: false, labels, imageLabels: images, mentions, openFile, cwd,
+  }), [cwd, images, labels, mentions, openFile]);
+  const streamingEnv = useMemo<MarkdownEnv>(() => ({ ...settledEnv, streaming: true }), [settledEnv]);
 
   if (!(streaming || interrupted || blocks.some((block) => block.kind !== 'tool-call'))) return null;
   const last = blocks.length - 1;
@@ -75,11 +76,13 @@ export const AssistantNodeView = memo(function AssistantNodeView({
     if (block === undefined) continue;
     if (groupPart === 'reasoning' && block.kind !== 'reasoning') continue;
     if (groupPart === 'response' && block.kind === 'reasoning') continue;
+    const blockStreaming = streaming && i === last;
+    const env = blockStreaming ? streamingEnv : settledEnv;
     switch (block.kind) {
       case 'text':
         rendered.push(live
-          ? <StreamMarkdown key={i} text={block.text} env={env} />
-          : <MarkdownText key={i} text={block.text} streaming={streaming} labels={labels} fileMentions={mentions} pathImages={localPathImages} />);
+          ? <StreamMarkdown key={i} text={block.text} env={env} interrupted={interrupted} />
+          : <MarkdownText key={i} text={block.text} streaming={blockStreaming} labels={labels} fileMentions={mentions} pathImages={localPathImages} />);
         break;
       case 'reasoning':
         if (block.text.trim() === '') break;
@@ -87,7 +90,9 @@ export const AssistantNodeView = memo(function AssistantNodeView({
           <ProcessReasoning key={i} hidden={reasoningHidden} reveal={revealProcess} useGroupAction={useGroupAction}>
             <ReasoningRow
               text={block.text}
-              running={streaming && i === last}
+              running={blockStreaming}
+              env={env}
+              interrupted={interrupted}
               usePresentation={usePresentation}
               useDisclosure={useDisclosure}
               renderFactorySlot={renderFactorySlot}

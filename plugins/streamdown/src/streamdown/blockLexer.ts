@@ -66,7 +66,12 @@ export const createBlockLexer = (remendOptions?: RemendOptions) => {
     frozenRaw += processedTail.slice(0, cutEnd);
   };
 
-  return (content: string): LexedBlocks => {
+  return (content: string, streaming = true): LexedBlocks => {
+    if (!streaming) {
+      // Final syntax comes from the original source, never remend's synthetic
+      // closing delimiters. Source-offset keys survive wherever grammar permits.
+      return { blocks: toBlocks(marked.lexer(content), 0), completeEnd: content.length, processed: content };
+    }
     if (!content.startsWith(frozenRaw)) {
       frozenRaw = '';
       frozenBlocks = [];

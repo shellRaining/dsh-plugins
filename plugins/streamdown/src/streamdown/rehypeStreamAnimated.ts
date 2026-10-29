@@ -15,6 +15,8 @@ export interface StreamAnimatedRuntime {
    * `pacing` (or supplied up front by legacy callers).
    */
   births: number[];
+  /** The first parse establishes already-visible text without replaying it. */
+  baseline?: boolean;
   pacing?: StreamBirthPacing;
   /**
    * Per char, indexed like `births`: `undefined` = not rendered yet,
@@ -130,6 +132,11 @@ export const rehypeStreamAnimated = (options: StreamAnimatedOptions = {}) => {
       const births = resolvedRuntime.births;
       for (let i = from; i < from + count; i++) {
         if (births[i] !== undefined) continue;
+        if (resolvedRuntime.baseline) {
+          births[i] = Number.NEGATIVE_INFINITY;
+          resolvedRuntime.skipped[i] = true;
+          continue;
+        }
         const previous = i > 0 ? births[i - 1] : undefined;
         const chained = previous === undefined ? now : previous + pacing.pace;
         births[i] = Math.min(now + pacing.capMs, Math.max(chained, now));
@@ -150,8 +157,8 @@ export const rehypeStreamAnimated = (options: StreamAnimatedOptions = {}) => {
         if (animate) {
           ensureBirths(startIndex, charCount);
           if (isSkipped(startIndex)) {
-            tailStarted = true;
-            items.push({ birth: null, key: startIndex, value: segment });
+            if (tailStarted) items.push(segment);
+            else text += segment;
             return;
           }
           if (!hasFaded(startIndex)) {
@@ -209,5 +216,6 @@ export const rehypeStreamAnimated = (options: StreamAnimatedOptions = {}) => {
       }
       return undefined;
     }) as BuildVisitor<Root, 'element'>);
+    if (resolvedRuntime) resolvedRuntime.baseline = false;
   };
 };

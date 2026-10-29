@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-plugin-updates",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "type": "module",
   "description": "检查 npm 插件更新，支持批量更新和安装指定版本。",
   "main": "./lib/index.js",

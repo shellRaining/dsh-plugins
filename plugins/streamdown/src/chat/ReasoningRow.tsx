@@ -1,7 +1,9 @@
 import { DisclosureRow, IconThinkOutlineRegular, TextShimmer } from '@deepseek-ai/dsh-client-ui-primitives';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 
 import type { AssistantNodeProps } from '../host.ts';
+import type { MarkdownEnv } from '../markdown/env.ts';
+import { StreamMarkdown } from '../markdown/StreamMarkdown.tsx';
 
 const THINK_ICON = <IconThinkOutlineRegular size={14} />;
 
@@ -27,34 +29,49 @@ function latestCompletedParagraphFirstLine(text: string): string {
   }
 }
 
-type ReasoningRowProps = Pick<AssistantNodeProps, 'usePresentation' | 'useDisclosure' | 'renderFactorySlot' | 't'> & {
+type ReasoningBodyProps = Pick<AssistantNodeProps, 'renderFactorySlot'> & {
   text: string;
   running: boolean;
+  env: MarkdownEnv;
+  interrupted: boolean;
 };
 
+// 每次展开独立选择渲染器；结束不换树，收起则卸载，避免隐藏正文继续解析。
+const ReasoningBody = memo(function ReasoningBody({ text, running, env, interrupted, renderFactorySlot }: ReasoningBodyProps) {
+  const [live] = useState(() => running);
+  return live
+    ? <StreamMarkdown text={text} env={env} variant="compact" interrupted={interrupted} />
+    : renderFactorySlot('conversation.chat.reasoning.content', { text, running });
+});
+
+type ReasoningRowProps = ReasoningBodyProps & Pick<AssistantNodeProps, 'usePresentation' | 'useDisclosure' | 't'>;
+
 /**
- * Port of ui-chat's ReasoningRow (0.2.1-rc.3, MIT, DeepSeek). The body renders
- * through the root `conversation.chat.reasoning.content` Factory, the same
- * content the official body slot uses; this entry cannot own that child slot.
+ * Port of ui-chat's ReasoningRow (0.2.1-rc.3, MIT, DeepSeek). Reasoning opened
+ * while running keeps StreamMarkdown until collapsed. Already settled content
+ * uses the root Factory; this entry still cannot own the official body slot.
  */
-export const ReasoningRow = memo(function ReasoningRow({ text, running, usePresentation, useDisclosure, renderFactorySlot, t }: ReasoningRowProps) {
+export const ReasoningRow = memo(function ReasoningRow({ text, running, env, interrupted, usePresentation, useDisclosure, renderFactorySlot, t }: ReasoningRowProps) {
   const { expanded, toggle } = useDisclosure();
-  const summaryText = running ? latestCompletedParagraphFirstLine(text) : firstLine(text);
-  const summary = useMemo(() => summaryText.replaceAll('**', ''), [summaryText]);
+  const summary = useMemo(() => (
+    running ? latestCompletedParagraphFirstLine(text) : firstLine(text)
+  ).replaceAll('**', ''), [running, text]);
   const preview = usePresentation((policy) => !expanded && summary !== '' && (running || policy.settledReasoningPreview));
   const collapsedContent = useMemo(() => (
     <>
       <span className="dsh-sd-think-separator" data-shimmer-decoration aria-hidden />
       <span className="dsh-sd-think-summary" data-streaming={running || undefined}>
-        <span className="dsh-sd-think-summary-text">
+        <span key={summary} className="dsh-sd-think-summary-text">
           <TextShimmer>{summary}</TextShimmer>
         </span>
       </span>
     </>
   ), [running, summary]);
-  const content = useMemo(() => expanded
-    ? <div className="dsh-sd-think-body">{renderFactorySlot('conversation.chat.reasoning.content', { text, running })}</div>
-    : undefined, [expanded, renderFactorySlot, running, text]);
+  const content = expanded ? (
+    <div className="dsh-sd-think-body">
+      <ReasoningBody text={text} running={running} env={env} interrupted={interrupted} renderFactorySlot={renderFactorySlot} />
+    </div>
+  ) : undefined;
   return (
     <div
       className="dsh-sd-think"

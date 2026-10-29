@@ -46,10 +46,9 @@ function hastText(node: Element | ElementContent | undefined): string {
   return node.children.map(hastText).join('');
 }
 
-/** Fences keep incremental highlighting only while they are the open tail of a running message. */
+/** Keep incremental rendering until the displayed tail has drained, not just until upstream stops. */
 function useBlockStreaming(): boolean {
-  const { streaming } = useMarkdownEnv();
-  return useStreamdownBlockState() === 'streaming' && streaming;
+  return useStreamdownBlockState() === 'streaming';
 }
 
 function Pre({ node }: HastProps) {

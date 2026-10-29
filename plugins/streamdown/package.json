@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-streamdown",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "description": "让助手回复平滑出字、逐字淡入，生成结束时保持排版稳定。",
   "main": "./lib/index.js",

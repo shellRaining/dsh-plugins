@@ -25,6 +25,7 @@ export interface SelfUpdateStatus {
   readonly to: string;
   readonly phase: SelfUpdatePhase;
   readonly reason?: string;
+  readonly recoveryReason?: string;
   readonly output?: string;
   readonly logPath?: string;
   readonly finishedAt?: number;

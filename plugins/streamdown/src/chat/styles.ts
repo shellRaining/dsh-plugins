@@ -65,7 +65,18 @@ export const CHAT_CSS = `
 }
 .dsh-sd-think-summary-text { text-overflow: ellipsis; display: block; overflow: hidden; }
 .dsh-sd-think-summary[data-streaming] { mask-image: linear-gradient(90deg, #000 calc(100% - 48px), #0000); }
-.dsh-sd-think-summary[data-streaming] .dsh-sd-think-summary-text { text-overflow: clip; overflow: visible; }
+@keyframes dsh-sd-summary-in {
+  from { opacity: .65; }
+  to { opacity: 1; }
+}
+.dsh-sd-think-summary[data-streaming] .dsh-sd-think-summary-text {
+  text-overflow: clip;
+  overflow: visible;
+  animation: dsh-sd-summary-in 140ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dsh-sd-think-summary[data-streaming] .dsh-sd-think-summary-text { animation: none; }
+}
 .dsh-sd-think:not([data-preview]) .dsh-sd-think-separator,
 .dsh-sd-think:not([data-preview]) .dsh-sd-think-summary { display: none; }
 .dsh-sd-think-body { padding: 4px 0 4px calc(22px + var(--dsh-content-font-delta, 0px)); min-width: 0; }

@@ -78,13 +78,17 @@ function SelfNotice({ t, version, busy, onUpdate }: {
 }
 
 function operationText(t: Translate, operation: Operation): string {
-  const raw = operation.reason ?? '';
-  const reason = raw.includes('ERR_PNPM_RESOLUTION_POLICY_VIOLATIONS_UNHANDLED') ? t('error.policy')
+  const localize = (raw: string): string => raw.includes('ERR_PNPM_RESOLUTION_POLICY_VIOLATIONS_UNHANDLED') ? t('error.policy')
     : raw === 'installation-inconsistent' ? t('error.inconsistent')
     : raw === 'plugin-state-changed' ? t('error.stateChanged')
     : raw === 'interrupted' ? t('error.interrupted')
     : raw === 'self-busy' ? t('error.selfBusy')
+    : raw === 'bundle-in-use' ? t('error.bundleInUse')
+    : raw === 'stop-profile' ? t('error.stopProfile')
+    : raw === 'restart-required' ? t('error.restartRequired')
     : raw === 'self-not-npm' ? t('error.stateChanged') : raw;
+  const reason = localize(operation.reason ?? '') + (operation.recoveryReason
+    ? `\n${t('error.recoveryFailed', { reason: localize(operation.recoveryReason) })}` : '');
   const params = { name: operation.name, from: operation.from, to: operation.to, reason };
   switch (operation.phase) {
     case 'checking': return t('op.checking', params);

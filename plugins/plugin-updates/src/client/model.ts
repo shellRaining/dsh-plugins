@@ -52,6 +52,7 @@ export interface Operation {
   /** Only offer recovery after confirming the old bundle was removed. */
   readonly recoverable?: boolean;
   readonly reason?: string;
+  readonly recoveryReason?: string;
   readonly output?: string;
   readonly logPath?: string;
   /** Distinguishes one outcome toast from the next; cleared when the toast is done. */
@@ -118,6 +119,7 @@ function selfOperation(status: SelfUpdateStatus, toast: boolean): Operation {
     phase,
     restoring: status.phase === 'restoring',
     ...status.reason === undefined ? {} : { reason: status.reason },
+    ...status.recoveryReason === undefined ? {} : { recoveryReason: status.recoveryReason },
     ...status.output === undefined ? {} : { output: status.output },
     ...status.logPath === undefined ? {} : { logPath: status.logPath },
     ...toast ? { toast: Date.now() } : {},
@@ -377,17 +379,37 @@ export class UpdatesStore implements Source<UpdatesState> {
     }
   };
 
+  /** Restore selection only while the failed removal still refers to the same installation. */
+  private async restoreEnabled(previous: Bundle): Promise<string | undefined> {
+    if (!previous.enabled) return undefined;
+    const pm = this.ctx.remote.pluginManager;
+    try {
+      const listed = await pm.listBundles();
+      if (!listed.ok) return listed.error.message;
+      const current = listed.value.find(bundle => bundle.name === previous.name);
+      if (!current?.installed || current.version !== previous.version || current.source !== previous.source) return 'plugin-state-changed';
+      if (current.enabled) return undefined;
+      const restored = await pm.setBundleEnabled(previous.name, true);
+      if (!restored.ok || restored.value.application === 'failed' || restored.value.application === 'cancelled') return failureReason(restored);
+      if (restored.value.application !== 'applied') return 'restart-required';
+      return undefined;
+    } catch (error) {
+      return errorText(error);
+    }
+  }
+
   private async run(base: Omit<Operation, 'phase'>, remove: boolean): Promise<boolean> {
     const pm = this.ctx.remote.pluginManager;
     let failurePhase: 'check-failed' | 'failed' | 'remove-failed' = 'check-failed';
     let recoverable = false;
-    const fail = (result: RemoteResult<ChangeResult>): false => {
+    const fail = (result: RemoteResult<ChangeResult>, recoveryReason?: string): false => {
       const value = result.ok ? result.value : undefined;
       const output = value?.packageResult?.output.trim() || value?.error?.diagnostic;
       const logPath = value?.packageResult?.logPath;
       this.patch({ operation: {
         ...base, phase: failurePhase, recoverable, reason: failureReason(result), toast: Date.now(),
         ...output ? { output } : {}, ...logPath ? { logPath } : {},
+        ...recoveryReason ? { recoveryReason } : {},
       } });
       return false;
     };
@@ -413,11 +435,12 @@ export class UpdatesStore implements Source<UpdatesState> {
         base = { ...base, from: current.version ?? base.from, enabled: current.enabled };
         failurePhase = 'remove-failed';
         this.patch({ operation: { ...base, phase: 'removing' } });
-        const removed = await pm.removeBundle(base.name);
+        const removed = await pm.removeBundle(base.name).catch((error: unknown): RemoteResult<ChangeResult> =>
+          ({ ok: false, error: { message: errorText(error) } }));
         // Without HMR, remove refuses the active bundle; install can overwrite it instead.
         const stopProfile = removed.ok && removed.value.error?.code === 'stop-profile';
         if (!stopProfile && (!removed.ok || removed.value.application === 'failed' || removed.value.application === 'cancelled')) {
-          return fail(removed);
+          return fail(removed, await this.restoreEnabled(current));
         }
         recoverable = !stopProfile;
       } else {

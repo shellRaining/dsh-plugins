@@ -15,6 +15,7 @@ export { default as Streamdown, type StreamdownProps, useStreamdownBlockState } 
 export { STREAM_FADE_DURATION, STREAMDOWN_ANIMATED_CLASS, STREAMDOWN_CSS } from './styles.ts';
 export type { StreamAnimationGranularity, StreamSmoothingPreset } from './types.ts';
 export { countChars, useSmoothStreamContent } from './useSmoothStreamContent.ts';
+export { useReducedMotion } from './useReducedMotion.ts';
 export {
   type BlockInfo,
   type BlockState,
