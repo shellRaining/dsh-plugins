@@ -1,4 +1,4 @@
-# 插件页的「更新」标签与插件详情页的版本区块，只有浏览器半侧。
+# 宿主半侧提供自更新接口；插件页的更新按钮与详情页的版本区块在浏览器半侧。
 - insert:
     - id: plugin-updates
       name: '@shellraining/dsh-plugin-updates'

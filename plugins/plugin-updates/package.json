@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-plugin-updates",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "type": "module",
   "description": "在插件页检查 npm 来源插件的新版本，一键更新或安装指定版本",
   "main": "./lib/index.js",
@@ -15,7 +15,7 @@
     "cordis.patch.yml"
   ],
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.host.json && tsc -p tsconfig.client.json",
     "build": "pnpm run typecheck && node build.mjs"
   },
   "engines": {
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.3",
+    "@types/node": "24.19.2",
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
     "@types/semver": "7.8.0",

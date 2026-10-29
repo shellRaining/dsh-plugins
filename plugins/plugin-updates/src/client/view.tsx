@@ -1,7 +1,7 @@
 // React views: update controls on the Plugins page's installed list, the
 // three plugin-detail slots and the outcome toast. All controls are host
 // primitives; the plugin owns no popups.
-import { Button, Tag, Toast, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Modal, Tag, Toast, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives';
 import { IconDownloadOutlineRegular, IconWarningOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -12,6 +12,7 @@ import { isBusy, SELF, updateTarget, type Candidate, type Lookup, type Operation
 export interface Actions {
   readonly ensure: () => void;
   readonly install: (name: string, version: string) => Promise<boolean>;
+  readonly updateSelf: (version: string) => Promise<boolean>;
   readonly updateAll: () => Promise<void>;
   readonly restore: () => Promise<void>;
   readonly dismiss: () => void;
@@ -36,19 +37,42 @@ function dateText(stamp: number | undefined): string {
   return stamp === undefined ? '' : new Date(stamp).toLocaleDateString();
 }
 
-function SelfNotice({ t, version }: { readonly t: Translate; readonly version: string }): ReactNode {
+function SelfNotice({ t, version, busy, onUpdate }: {
+  readonly t: Translate;
+  readonly version: string;
+  readonly busy: boolean;
+  readonly onUpdate: () => void;
+}): ReactNode {
+  const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const command = selfCommand(version);
+  const close = (): void => { setOpen(false); };
   return (
     <div className="dpu-banner">
-      <strong>{t('self.title')}</strong>
-      <span>{t('self.body')}</span>
       <div className="dpu-banner-row">
-        <pre className="dpu-pre dpu-command">{command}</pre>
-        <Button size="sm" variant="outline" onClick={() => { void writeClipboard(command).then(setCopied); }}>
-          {copied ? t('self.copied') : t('self.copy')}
-        </Button>
+        <span>{t('self.body', { version })}</span>
+        <Button size="sm" variant="primary" disabled={busy} onClick={() => { setOpen(true); }}>{t('updateTo', { version })}</Button>
       </div>
+      <Modal
+        open={open}
+        onClose={close}
+        title={t('self.confirmTitle', { version })}
+        description={t('self.confirmBody')}
+        closeLabel={t('op.dismiss')}
+        footer={(
+          <>
+            <Button size="sm" variant="ghost" onClick={close}>{t('self.cancel')}</Button>
+            <Button size="sm" variant="primary" data-modal-autofocus="" onClick={() => { close(); onUpdate(); }}>{t('updateTo', { version })}</Button>
+          </>
+        )}
+      >
+        <div className="dpu-banner-row">
+          <pre className="dpu-pre dpu-command">{command}</pre>
+          <Button size="sm" variant="outline" onClick={() => { void writeClipboard(command).then(setCopied); }}>
+            {copied ? t('self.copied') : t('self.copy')}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -57,7 +81,10 @@ function operationText(t: Translate, operation: Operation): string {
   const raw = operation.reason ?? '';
   const reason = raw.includes('ERR_PNPM_RESOLUTION_POLICY_VIOLATIONS_UNHANDLED') ? t('error.policy')
     : raw === 'installation-inconsistent' ? t('error.inconsistent')
-    : raw === 'plugin-state-changed' ? t('error.stateChanged') : raw;
+    : raw === 'plugin-state-changed' ? t('error.stateChanged')
+    : raw === 'interrupted' ? t('error.interrupted')
+    : raw === 'self-busy' ? t('error.selfBusy')
+    : raw === 'self-not-npm' ? t('error.stateChanged') : raw;
   const params = { name: operation.name, from: operation.from, to: operation.to, reason };
   switch (operation.phase) {
     case 'checking': return t('op.checking', params);
@@ -67,9 +94,14 @@ function operationText(t: Translate, operation: Operation): string {
     case 'installing': return t(operation.restoring ? 'op.restoring' : 'op.installing', params);
     case 'done': return t('op.done', params);
     case 'restart': return t('op.restart', params);
-    case 'failed': return t('op.failed', params);
+    case 'restored': return t('op.restored', params);
+    case 'failed': return t(operation.name === SELF ? 'op.selfFailed' : 'op.failed', params);
     case 'remove-failed': return t('op.removeFailed', params);
   }
+}
+
+function isFailure(operation: Operation): boolean {
+  return operation.phase === 'failed' || operation.phase === 'remove-failed' || operation.phase === 'check-failed' || operation.phase === 'restored';
 }
 
 /**
@@ -80,7 +112,7 @@ function operationText(t: Translate, operation: Operation): string {
 export function OperationToast({ t, useUpdates, actions }: Shared): ReactNode {
   const operation = useUpdates(state => state.operation);
   if (operation?.toast === undefined) return null;
-  const failed = operation.phase === 'failed' || operation.phase === 'remove-failed' || operation.phase === 'check-failed';
+  const failed = isFailure(operation);
   const restorable = operation.phase === 'failed' && operation.recoverable;
   return (
     <Toast
@@ -98,7 +130,7 @@ export function OperationToast({ t, useUpdates, actions }: Shared): ReactNode {
 function OperationBanner({ t, operation, actions }: { readonly t: Translate; readonly operation: Operation; readonly actions: Actions }): ReactNode {
   const params = { from: operation.from };
   const busy = isBusy(operation);
-  const failed = operation.phase === 'failed' || operation.phase === 'remove-failed' || operation.phase === 'check-failed';
+  const failed = isFailure(operation);
   const text = operationText(t, operation);
   return (
     <div className="dpu-banner" role={failed ? 'alert' : 'status'} {...failed ? { 'data-tone': 'error' } : {}}>
@@ -216,7 +248,9 @@ export function DetailSection(props: DetailProps): ReactNode {
         </span>
       </div>
       {operation?.name === candidate.name ? <OperationBanner t={t} operation={operation} actions={actions} /> : null}
-      {self && target !== undefined ? <SelfNotice t={t} version={target} /> : null}
+      {self && target !== undefined
+        ? <SelfNotice t={t} version={target} busy={isBusy(operation)} onUpdate={() => { void actions.updateSelf(target); }} />
+        : null}
       {body}
     </section>
   );

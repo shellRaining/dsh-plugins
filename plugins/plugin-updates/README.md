@@ -27,9 +27,19 @@ dsh plugin --profile web add @shellraining/dsh-plugin-updates
 
 发布不足 24 小时的版本会标为「新发布」，pnpm 开启 `minimumReleaseAge` 时，这类版本可能装不上。如果出现 `ERR_PNPM_RESOLUTION_POLICY_VIOLATIONS_UNHANDLED`，说明 pnpm 的策略处理发生内部错误，不代表供应链校验通过就能继续安装；插件会停止操作并保留日志，不会关闭安全策略。
 
-本插件不能在页面里更新自己，因为卸载自己时界面也会一起卸载。有新版本时，它的详情页会给出对应的 `dsh plugin` 命令，退出 DSH 后在终端运行即可。
-
 官方列表没有给卡片开放扩展点，列表上的按钮靠 `data-plugin-group="bundles"`、`data-plugin-package` 和开关的 `role="switch"` 这几个语义属性定位，见 `src/client/anchors.ts`。DSH 改了这部分结构时，列表上的按钮会消失，详情页不受影响。
+
+## 更新本插件自己
+
+在页面里卸载本插件时，负责后续安装的浏览器代码也会被卸掉，所以本插件的更新交给它的宿主半侧执行。详情页有新版本时会出现「更新到 x.y.z」，确认后浏览器只发一个请求，宿主在后台依次完成：
+
+1. 卸载当前版本，再按精确版本安装新版本，保持启用。
+2. 新版本装不上时，装回原来的版本，并保留新版本的错误和日志路径。
+3. 卸载这一步失败时，把被取消选中的插件重新启用。
+
+宿主保存的是插件管理器服务本身，本插件的上下文在卸载时释放，不影响后续步骤。进度写在 profile 的 `.dsh-plugin-updates/self-update.json`，新版本加载后读取这个文件，提示一次结果。更新期间插件页上本插件的按钮会暂时消失，装好后自动回来。
+
+接口挂在宿主 Connection 的 `/api/dsh-plugin-updates.self-update` 上，沿用宿主的登录 cookie 和同源检查，只接受精确版本号，包名在代码里固定为本插件。确认对话框里也列出了 `dsh plugin` 命令，原版本也装不回时，可以退出 DSH 后在终端手动安装。
 
 ## 开发
 
@@ -37,7 +47,7 @@ dsh plugin --profile web add @shellraining/dsh-plugin-updates
 pnpm --filter @shellraining/dsh-plugin-updates build
 ```
 
-只有浏览器半侧，源码在 `src/client/`。semver 打包进 `lib/client.js`，React、React DOM 和 `@deepseek-ai/dsh-client-ui-primitives` 由宿主提供。
+宿主半侧在 `src/host/`，只负责自更新；浏览器半侧在 `src/client/`，两边共用的接口约定在 `src/shared/`。semver 打包进 `lib/client.js`，React、React DOM 和 `@deepseek-ai/dsh-client-ui-primitives` 由宿主提供。
 
 ## 许可
 

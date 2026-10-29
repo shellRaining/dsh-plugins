@@ -7,12 +7,15 @@ import rcompare from 'semver/functions/rcompare';
 import satisfies from 'semver/functions/satisfies';
 import valid from 'semver/functions/valid';
 import validRange from 'semver/ranges/valid';
+import { errorLine, isRunning, SELF, SELF_UPDATE_PATH, type SelfUpdateResponse, type SelfUpdateStatus } from '../shared/protocol.ts';
 import type { Bundle, ChangeResult, ClientContext, RemoteResult, Source } from './host.ts';
 
-export const SELF = '@shellraining/dsh-plugin-updates';
+export { SELF };
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org/';
 const CACHE_MS = 10 * 60_000;
 const FRESH_MS = 24 * 60 * 60_000;
+const POLL_MS = 1000;
+const SEEN_KEY = `${SELF}:self-update-seen`;
 
 export interface VersionInfo {
   readonly version: string;
@@ -37,7 +40,7 @@ export interface Candidate {
   readonly enabled: boolean;
 }
 
-export type OperationPhase = 'checking' | 'removing' | 'installing' | 'current' | 'done' | 'restart' | 'failed' | 'remove-failed' | 'check-failed';
+export type OperationPhase = 'checking' | 'removing' | 'installing' | 'current' | 'done' | 'restart' | 'failed' | 'remove-failed' | 'check-failed' | 'restored';
 
 export interface Operation {
   readonly name: string;
@@ -86,9 +89,47 @@ function failureReason(result: RemoteResult<ChangeResult>): string {
   if (!result.ok) return result.error.message;
   const { error, packageResult, application } = result.value;
   const diagnostic = error?.diagnostic?.trim();
-  const lines = (diagnostic || packageResult?.output || '').split('\n').map(line => line.trim()).filter(Boolean);
-  const failure = lines.find(line => /\bERR[_!\s]|\berror\b|\bfatal\b/i.test(line));
-  return failure ?? error?.code ?? diagnostic ?? application;
+  const lines = (diagnostic || packageResult?.output || '');
+  return errorLine(lines) ?? error?.code ?? diagnostic ?? application;
+}
+
+/** The host half's self-update route, document-relative like the host's own `/api/*` routes. */
+async function selfRequest(init?: RequestInit): Promise<SelfUpdateResponse> {
+  const response = await fetch(SELF_UPDATE_PATH.slice(1), { credentials: 'same-origin', cache: 'no-store', ...init });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = record(await response.json());
+  if (body['ok'] === true) {
+    const status = record(body['status']);
+    const valid = typeof status['id'] === 'string' && typeof status['from'] === 'string' && typeof status['to'] === 'string' && typeof status['phase'] === 'string';
+    return { ok: true, status: valid ? status as unknown as SelfUpdateStatus : null };
+  }
+  const code = body['code'];
+  return { ok: false, code: code === 'invalid-version' || code === 'busy' || code === 'not-npm' || code === 'current' ? code : 'internal', ...typeof body['message'] === 'string' ? { message: body['message'] } : {} };
+}
+
+/** A self-update as the operation banner and toast show it. */
+function selfOperation(status: SelfUpdateStatus, toast: boolean): Operation {
+  const phase: OperationPhase = status.phase === 'restoring' ? 'installing' : status.phase;
+  return {
+    name: SELF,
+    from: status.from,
+    to: status.phase === 'restoring' ? status.from : status.to,
+    enabled: true,
+    phase,
+    restoring: status.phase === 'restoring',
+    ...status.reason === undefined ? {} : { reason: status.reason },
+    ...status.output === undefined ? {} : { output: status.output },
+    ...status.logPath === undefined ? {} : { logPath: status.logPath },
+    ...toast ? { toast: Date.now() } : {},
+  };
+}
+
+function seen(id: string): boolean {
+  try { return localStorage.getItem(SEEN_KEY) === id; } catch { return false; }
+}
+
+function markSeen(id: string): void {
+  try { localStorage.setItem(SEEN_KEY, id); } catch { /* storage unavailable: the result may show again */ }
 }
 
 /** `name@range` as pnpm records a registry dependency; git, link, file and tarball sources do not parse. */
@@ -129,6 +170,7 @@ export class UpdatesStore implements Source<UpdatesState> {
   private disposed = false;
   private registries: readonly string[] | undefined;
   private exemptions: Readonly<Record<string, readonly string[]>> = {};
+  private pollTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly ctx: ClientContext) {}
 
@@ -141,8 +183,56 @@ export class UpdatesStore implements Source<UpdatesState> {
 
   dispose(): void {
     this.disposed = true;
+    if (this.pollTimer !== undefined) clearTimeout(this.pollTimer);
     this.listeners.clear();
   }
+
+  /** Read the last self-update once per load: report a result this page has not shown, follow one still running. */
+  readonly watchSelf = async (): Promise<void> => {
+    let response: SelfUpdateResponse;
+    try {
+      response = await selfRequest();
+    } catch {
+      // The route is briefly gone while the host swaps this plugin; keep following a run this page started.
+      if (!this.disposed && this.state.operation?.name === SELF && isBusy(this.state.operation)) {
+        this.pollTimer = setTimeout(() => { void this.watchSelf(); }, POLL_MS);
+      }
+      return;
+    }
+    if (this.disposed || !response.ok || response.status === null) return;
+    const status = response.status;
+    if (isRunning(status)) {
+      this.patch({ operation: selfOperation(status, false) });
+      this.pollTimer = setTimeout(() => { void this.watchSelf(); }, POLL_MS);
+      return;
+    }
+    if (seen(status.id)) return;
+    markSeen(status.id);
+    this.patch({ operation: selfOperation(status, true) });
+  };
+
+  /** Ask the host half to update this plugin; the page loses this plugin while it runs. */
+  readonly updateSelf = async (version: string): Promise<boolean> => {
+    if (this.disposed || isBusy(this.state.operation) || valid(version) === null) return false;
+    const from = this.state.candidates.find(item => item.name === SELF)?.version ?? '';
+    const base = { name: SELF, from, to: version, enabled: true, restoring: false };
+    this.patch({ operation: { ...base, phase: 'checking' } });
+    let response: SelfUpdateResponse;
+    try {
+      response = await selfRequest({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ version }) });
+    } catch (error) {
+      response = { ok: false, code: 'internal', message: errorText(error) };
+    }
+    if (this.disposed) return false;
+    if (!response.ok) {
+      const phase = response.code === 'current' ? 'current' : 'check-failed';
+      this.patch({ operation: { ...base, phase, reason: response.message ?? `self-${response.code}`, toast: Date.now() } });
+      return false;
+    }
+    if (response.status !== null) this.patch({ operation: selfOperation(response.status, false) });
+    this.pollTimer = setTimeout(() => { void this.watchSelf(); }, POLL_MS);
+    return true;
+  };
 
   private patch(next: Partial<UpdatesState>): void {
     if (this.disposed) return;

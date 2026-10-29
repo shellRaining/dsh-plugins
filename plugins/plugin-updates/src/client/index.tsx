@@ -1,6 +1,7 @@
 // Client entry: update buttons on the Plugins page's installed list, plus a
 // badge, an update action and a version list on each npm-installed plugin's
-// detail page. All package operations go through the host's plugin manager.
+// detail page. Package operations go through the host's plugin manager; this
+// plugin's own update runs in its host half.
 import type { ComponentType } from 'react';
 import type { ClientContext, DetailSubject, UseSource } from './host.ts';
 import { EN, LOCALE_NS, ZH } from './locale.ts';
@@ -29,12 +30,16 @@ export function apply(ctx: ClientContext): void {
     return () => { for (const off of offs) off(); };
   }, `${name}: host invalidations`);
 
+  // A self-update replaces this plugin: the copy loaded afterwards reports how it ended.
+  void store.watchSelf();
+
   const t = ctx.locale.bind(LOCALE_NS);
   const face: Face = {
     hooks: { updates: store },
     actions: {
       ensure: store.ensure,
       install: store.install,
+      updateSelf: store.updateSelf,
       updateAll: store.updateAll,
       restore: store.restore,
       dismiss: store.dismiss,
