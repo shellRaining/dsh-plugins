@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-streamdown",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Streamdown 风格的助手输出渲染：平滑出字、逐字淡入，生成中与生成后共用同一渲染管线",
   "main": "./lib/index.js",
