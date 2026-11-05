@@ -393,6 +393,9 @@ export class SideChatService {
   private async createSession(sourceId: string, parent: Agent, identity: string): Promise<Result<CreateResult>> {
     const ctx = this.ctx;
     const parentSession = parent.session;
+    const sessionId = `${SESSION_ID_PREFIX}${randomUUID()}`;
+    /** Set once `agents.create` runs: the header its persisted data is filed under. */
+    let attempted: SessionHeader | undefined;
     try {
       const events = typeof parentSession?.snapshotEvents === 'function' ? parentSession.snapshotEvents() : [];
       const seed = completedTurnPrefix(events);
@@ -403,7 +406,6 @@ export class SideChatService {
       const sandboxMode = ctx.get('sandboxPolicy')?.overrideOf?.(parentSession);
       const approvalPolicy = ctx.get('approval')?.overrideOf?.(parentSession);
       const selection = parentSelection(parent);
-      const sessionId = `${SESSION_ID_PREFIX}${randomUUID()}`;
       const boundaryText = sideConversationBoundaryPrompt(String(header.id ?? sourceId), recentContext);
       const meta: SideSessionMeta = {
         ...(typeof header.cwd === 'string' ? { cwd: header.cwd } : {}),
@@ -437,6 +439,7 @@ export class SideChatService {
           text: sideDeveloperInstructions(),
         });
       };
+      attempted = { id: sessionId, ...(meta.cwd === undefined ? {} : { cwd: meta.cwd }) };
       const handle = await ctx.agents.create({
         sessionId,
         meta,
@@ -452,8 +455,26 @@ export class SideChatService {
       this.byIdentity.set(identity, sessionId);
       return success({ sessionId, inheritedEventCount });
     } catch (error) {
+      if (attempted !== undefined) await this.discardFailedCreate(sessionId, attempted, error);
       return failure('create-failed', errorMessage(error));
     }
+  }
+
+  /**
+   * Remove what a rejected `agents.create` left on disk. The host has already
+   * unwound the Agent scope, closed the write handle and taken the Session out
+   * of its live store, but it keeps the seed and setup events it committed.
+   * Only this call's freshly minted id is touched, and never when the backend
+   * refused the id as already existing (that data is not ours).
+   */
+  private async discardFailedCreate(sessionId: string, header: SessionHeader, error: unknown): Promise<void> {
+    if (error instanceof Error && error.name === 'SessionAlreadyExistsError') return;
+    const dir = this.locateHeader(header);
+    if (dir === undefined) {
+      this.warn(`create failed (${errorMessage(error)}); files for ${sessionId} not located, left on disk`);
+      return;
+    }
+    await this.removeArtifact(sessionId, dir);
   }
 
   async prompt(args: UnknownRecord): Promise<Result> {
@@ -629,10 +650,15 @@ export class SideChatService {
 
   /** Resolve the persisted artifact directory before disposal, while the header is still live. */
   private locateArtifact(agent: Agent): string | undefined {
+    const header = agent.session?.header;
+    return header === undefined ? undefined : this.locateHeader(header);
+  }
+
+  /** The artifact directory `sessionPersistence.locate()` derives from one header. */
+  private locateHeader(header: SessionHeader): string | undefined {
     try {
       const persistence = this.ctx.get('sessionPersistence');
-      const header = agent.session?.header;
-      if (typeof persistence?.locate !== 'function' || header === undefined) return undefined;
+      if (typeof persistence?.locate !== 'function') return undefined;
       return artifactDirectory(header, persistence.locate(header));
     } catch {
       return undefined;
