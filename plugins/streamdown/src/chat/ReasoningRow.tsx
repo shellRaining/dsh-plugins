@@ -44,14 +44,17 @@ const ReasoningBody = memo(function ReasoningBody({ text, running, env, interrup
     : renderFactorySlot('conversation.chat.reasoning.content', { text, running });
 });
 
-type ReasoningRowProps = ReasoningBodyProps & Pick<AssistantNodeProps, 'usePresentation' | 'useDisclosure' | 't'>;
+type ReasoningRowProps = ReasoningBodyProps & Pick<AssistantNodeProps, 'usePresentation' | 'useDisclosure' | 't'> & {
+  /** Expanded settled reasoning is a host text-selection source, as in ui-chat. */
+  textInteractionSource: boolean;
+};
 
 /**
  * Port of ui-chat's ReasoningRow (0.2.1-rc.3, MIT, DeepSeek). Reasoning opened
  * while running keeps StreamMarkdown until collapsed. Already settled content
  * uses the root Factory; this entry still cannot own the official body slot.
  */
-export const ReasoningRow = memo(function ReasoningRow({ text, running, env, interrupted, usePresentation, useDisclosure, renderFactorySlot, t }: ReasoningRowProps) {
+export const ReasoningRow = memo(function ReasoningRow({ text, running, env, interrupted, textInteractionSource, usePresentation, useDisclosure, renderFactorySlot, t }: ReasoningRowProps) {
   const { expanded, toggle } = useDisclosure();
   const summary = useMemo(() => (
     running ? latestCompletedParagraphFirstLine(text) : firstLine(text)
@@ -68,7 +71,7 @@ export const ReasoningRow = memo(function ReasoningRow({ text, running, env, int
     </>
   ), [running, summary]);
   const content = expanded ? (
-    <div className="dsh-sd-think-body">
+    <div className="dsh-sd-think-body" data-text-interaction-source={textInteractionSource && !running ? '' : undefined}>
       <ReasoningBody text={text} running={running} env={env} interrupted={interrupted} renderFactorySlot={renderFactorySlot} />
     </div>
   ) : undefined;

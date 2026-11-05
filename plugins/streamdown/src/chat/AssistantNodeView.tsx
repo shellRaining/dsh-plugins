@@ -68,6 +68,8 @@ export const AssistantNodeView = memo(function AssistantNodeView({
   }, [turnProcess]);
 
   const streaming = data.status === 'running';
+  // Same gate as ui-chat: only a settled reply with a durable message id.
+  const textInteractionSource = data.status === 'settled' && data.finalNode?.messageId !== undefined;
   const interrupted = data.status === 'interrupted';
   const blocks = data.blocks;
   const labels = useMemo(() => markdownLabels(t), [t]);
@@ -90,8 +92,8 @@ export const AssistantNodeView = memo(function AssistantNodeView({
     switch (block.kind) {
       case 'text':
         rendered.push(live
-          ? <StreamMarkdown key={i} text={block.text} env={env} interrupted={interrupted} />
-          : <MarkdownText key={i} text={block.text} streaming={blockStreaming} labels={labels} fileMentions={mentions} pathImages={localPathImages} />);
+          ? <StreamMarkdown key={i} text={block.text} env={env} interrupted={interrupted} textInteractionSource={textInteractionSource} />
+          : <MarkdownText key={i} text={block.text} streaming={blockStreaming} labels={labels} fileMentions={mentions} pathImages={localPathImages} textInteractionSource={textInteractionSource} />);
         break;
       case 'reasoning':
         if (block.text.trim() === '') break;
@@ -102,6 +104,7 @@ export const AssistantNodeView = memo(function AssistantNodeView({
               running={blockStreaming}
               env={env}
               interrupted={interrupted}
+              textInteractionSource={textInteractionSource}
               usePresentation={usePresentation}
               useDisclosure={useDisclosure}
               renderFactorySlot={renderFactorySlot}

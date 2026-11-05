@@ -220,6 +220,7 @@ const updateBlockAnimation = ({
 
 interface StreamdownBlocksProps {
   className: string | undefined;
+  textInteractionSource: boolean;
   content: string;
   granularity: StreamAnimationGranularity;
   markdownOptions: Omit<Options, 'children'>;
@@ -232,7 +233,7 @@ interface StreamdownBlocksProps {
 }
 
 const StreamdownBlocks = memo<StreamdownBlocksProps>(
-  ({ className, content: smoothedContent, granularity, markdownOptions, remendOptions, tailUnitsRef, streaming, finishing, animate, revision }) => {
+  ({ className, textInteractionSource, content: smoothedContent, granularity, markdownOptions, remendOptions, tailUnitsRef, streaming, finishing, animate, revision }) => {
     const { components: baseComponents, ...rest } = markdownOptions;
     const baseRehypePlugins = useStablePlugins(markdownOptions.rehypePlugins ?? EMPTY_PLUGINS);
     const remarkPlugins = useStablePlugins(markdownOptions.remarkPlugins ?? EMPTY_PLUGINS);
@@ -304,7 +305,10 @@ const StreamdownBlocks = memo<StreamdownBlocksProps>(
     // Fork: upstream wraps the blocks in React Profiler elements and mounts a
     // React 19 hoisted <style> as the first child; both are dropped here.
     return (
-      <div className={className ? `${STREAMDOWN_ANIMATED_CLASS} ${className}` : STREAMDOWN_ANIMATED_CLASS}>
+      <div
+        className={className ? `${STREAMDOWN_ANIMATED_CLASS} ${className}` : STREAMDOWN_ANIMATED_CLASS}
+        data-text-interaction-source={textInteractionSource ? '' : undefined}
+      >
         {blocks.map((block: BlockInfo, index) => {
           const animationMeta = blockAnimationMeta?.get(block.startOffset);
           const plugins = resolveBlockPlugins(block.startOffset, animationMeta?.settled ?? true);
@@ -335,6 +339,8 @@ StreamdownBlocks.displayName = 'StreamdownBlocks';
 export interface StreamdownProps extends Omit<Options, 'children'> {
   /** Fork: extra class for the root element, next to the animation scope class. */
   className?: string | undefined;
+  /** Fork: mark the root as a DSH text-selection source (`data-text-interaction-source`). */
+  textInteractionSource?: boolean | undefined;
   content: string;
   /** Upstream production; the display may briefly drain after this becomes false. */
   streaming?: boolean | undefined;
@@ -355,7 +361,7 @@ export interface StreamdownProps extends Omit<Options, 'children'> {
 // a memoized child keyed on the smoother's output — so the expensive block
 // pipeline runs per reveal commit, not per chunk AND per commit.
 export const Streamdown = memo<StreamdownProps>(
-  ({ className, content, streaming = true, interrupted = false, granularity = 'char', preprocess, remend, smoothing, ...rest }) => {
+  ({ className, textInteractionSource = false, content, streaming = true, interrupted = false, granularity = 'char', preprocess, remend, smoothing, ...rest }) => {
     const preprocessed = useMemo(
       () => (preprocess ? preprocess(content) : content),
       [content, preprocess],
@@ -407,6 +413,7 @@ export const Streamdown = memo<StreamdownProps>(
     return (
       <StreamdownBlocks
         className={className}
+        textInteractionSource={textInteractionSource}
         content={smoothedContent}
         granularity={granularity}
         markdownOptions={markdownOptions}

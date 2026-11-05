@@ -27,7 +27,8 @@ export interface AssistantStepNode {
     blocks: readonly AssistantBlock[];
     status: 'running' | 'settled' | 'interrupted' | (string & {});
     step: number;
-    finalNode?: { seq: number } | undefined;
+    /** `messageId` is absent only on synthetic interruption fallbacks. */
+    finalNode?: { seq: number; messageId?: string | undefined } | undefined;
   };
   location: { kind: string; turn?: TurnRef | undefined };
 }

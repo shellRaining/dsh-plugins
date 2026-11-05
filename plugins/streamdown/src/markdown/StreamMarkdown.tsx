@@ -26,14 +26,17 @@ interface StreamMarkdownProps {
   env: MarkdownEnv;
   variant?: 'body' | 'compact';
   interrupted?: boolean;
+  /** Settled durable reply text the host may offer for selection actions such as quoting. */
+  textInteractionSource?: boolean;
 }
 
-export const StreamMarkdown = memo(function StreamMarkdown({ text, env, variant = 'body', interrupted = false }: StreamMarkdownProps) {
+export const StreamMarkdown = memo(function StreamMarkdown({ text, env, variant = 'body', interrupted = false, textInteractionSource = false }: StreamMarkdownProps) {
   const remarkRehypeOptions = useMemo(() => ({ footnoteLabel: env.labels.footnotes }), [env.labels.footnotes]);
   return (
     <MarkdownEnvProvider value={env}>
       <Streamdown
         className={variant === 'compact' ? `${md.root} dsh-sd-md-compact` : md.root}
+        textInteractionSource={textInteractionSource}
         content={text}
         streaming={env.streaming}
         interrupted={interrupted}
