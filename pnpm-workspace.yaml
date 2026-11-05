@@ -55,3 +55,9 @@ catalogs:
 allowBuilds:
   # 平台二进制通过 optionalDependencies 安装，不运行安装脚本。
   esbuild: false
+
+# 与宿主 dsh-v0.2.2-rc.1 的同名补丁一致：GFM 裸 URL 在非 ASCII 标点处结束。
+# 两份补丁绑定精确版本，升级对应依赖时要重新应用或移除。
+patchedDependencies:
+  "mdast-util-gfm-autolink-literal@2.0.1": patches/mdast-util-gfm-autolink-literal@2.0.1.patch
+  "micromark-extension-gfm-autolink-literal@2.1.0": patches/micromark-extension-gfm-autolink-literal@2.1.0.patch

@@ -1,0 +1,2 @@
+# 补丁文件必须与上游 diff 逐字节一致，其上下文行本身带行尾空格，不做空白检查。
+patches/*.patch -whitespace
