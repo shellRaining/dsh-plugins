@@ -61,6 +61,7 @@
     "@deepseek-ai/dsh-session": "catalog:",
     "@deepseek-ai/dsh-session-projection": "catalog:",
     "@deepseek-ai/dsh-session-title": "catalog:",
+    "@deepseek-ai/dsh-session-title-llm": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:"
   },

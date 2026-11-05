@@ -13,6 +13,9 @@ import type {
   SessionTitleProviderRequest,
   SessionTitleProviderResult,
 } from "@deepseek-ai/dsh-session-title";
+// Declares the "session-title" request purpose in LlmRequestPurposeMap; the
+// import is type-only and leaves no runtime import in the built output.
+import type {} from "@deepseek-ai/dsh-session-title-llm";
 import {
   buildModelInput,
   buildSystemPrompt,
