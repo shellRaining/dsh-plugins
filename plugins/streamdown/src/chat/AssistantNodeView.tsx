@@ -57,8 +57,12 @@ export const AssistantNodeView = memo(function AssistantNodeView({
     () => owner === undefined || typeof fileMentions !== 'function' ? undefined : fileMentions(owner),
     [fileMentions, owner],
   );
+  // ui-chat 0.2.2: when folded Turns keep every reply, reasoning outside the
+  // seat's 'reasoning' part hides behind the Turn disclosure.
+  const keepReplies = usePresentation((policy) => policy.foldedReplies === 'all');
   const reasoningHidden = turnProcess !== undefined && turnProcess.foldable &&
-    turnProcess.spec.answerStep === data.step && turnProcess.spec.inlineReasoning && !turnProcess.open;
+    (keepReplies ? groupPart !== 'reasoning' : turnProcess.spec.answerStep === data.step && turnProcess.spec.inlineReasoning) &&
+    !turnProcess.open;
   const revealProcess = useCallback(() => {
     turnProcess?.setOpen(true);
   }, [turnProcess]);

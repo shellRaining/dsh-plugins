@@ -2,8 +2,13 @@ import type { ComponentType } from 'react';
 
 import type { ClientContext, FileMentionsSource, Observable, PresentationPolicy } from '../host.ts';
 
-const FALLBACK_POLICY: PresentationPolicy = { settledReasoningPreview: false };
-const PREVIEW_POLICY: PresentationPolicy = { settledReasoningPreview: true };
+// One shared object per combination keeps getSnapshot referentially stable.
+const POLICIES = {
+  all: { true: { settledReasoningPreview: true, foldedReplies: 'all' }, false: { settledReasoningPreview: false, foldedReplies: 'all' } },
+  final: { true: { settledReasoningPreview: true, foldedReplies: 'final' }, false: { settledReasoningPreview: false, foldedReplies: 'final' } },
+} as const satisfies Record<PresentationPolicy['foldedReplies'], Record<'true' | 'false', PresentationPolicy>>;
+// ui-chat defaults foldedReplies to 'all'.
+const FALLBACK_POLICY: PresentationPolicy = POLICIES.all.false;
 const FALLBACK_SOURCE: Observable<PresentationPolicy> = {
   getSnapshot: () => FALLBACK_POLICY,
   subscribe: () => () => {},
@@ -40,7 +45,7 @@ export function officialAssistantFace(slots: ClientContext['slots'], self: Compo
   }
 }
 
-/** Presentation policy from the official face, or the no-settled-preview default. */
+/** Presentation policy from the official face, or the host defaults without a settled preview. */
 export function presentationSource(face: unknown): Observable<PresentationPolicy> {
   const source = field(field(face, 'hooks'), 'presentation');
   if (!isObservable(source)) return FALLBACK_SOURCE;
@@ -54,11 +59,13 @@ export function presentationSource(face: unknown): Observable<PresentationPolicy
     getSnapshot: () => {
       try {
         const policy: unknown = source.getSnapshot();
-        if (typeof field(policy, 'settledReasoningPreview') !== 'boolean') {
+        const preview = field(policy, 'settledReasoningPreview');
+        const replies = field(policy, 'foldedReplies');
+        if (typeof preview !== 'boolean' || (replies !== 'all' && replies !== 'final')) {
           warn('unexpected presentation snapshot');
           return FALLBACK_POLICY;
         }
-        return field(policy, 'settledReasoningPreview') === true ? PREVIEW_POLICY : FALLBACK_POLICY;
+        return POLICIES[replies][preview ? 'true' : 'false'];
       } catch (error) {
         warn(error);
         return FALLBACK_POLICY;

@@ -43,8 +43,11 @@ export interface TurnTail {
   closing?: { finalNode: { seq: number } } | undefined;
 }
 
+/** Slice of ui-chat's ChatPresentationPolicy this renderer reads. */
 export interface PresentationPolicy {
   settledReasoningPreview: boolean;
+  /** Replies kept visible while a completed Turn folds: every reply, or only the final answer. */
+  foldedReplies: 'all' | 'final';
 }
 
 /** DOM handlers the context-menu plugin binds to one element. */
