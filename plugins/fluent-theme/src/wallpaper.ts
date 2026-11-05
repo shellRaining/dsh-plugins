@@ -137,21 +137,24 @@ body[data-acrylic-wallpaper] ${COMPOSER_CARD}::before {
     background: color-mix(in srgb, var(--dsw-specific-input-major) 85%, transparent);
   }
 }
-/* The sticky composer seat hides scrolled transcript with a canvas gradient
-   (transparent to bg-base over 36px), which the cleared canvas turns into
-   nothing. Restore it as one in-app acrylic band that reaches the column's
-   bottom and side edges, as Fluent does for surfaces content scrolls under;
-   the host's own 36px fade becomes a mask, so the band has no hard top edge.
-   A pseudo-element carries the blur: the seat itself must not become the
-   containing block of its viewport-fixed menus. */
-${FRAME} [data-content-phase="active"] [data-composer-seat]::before {
+/* The sticky composer seat hides scrolled transcript with a canvas gradient,
+   which the cleared canvas turns into nothing. Restore it as an in-app acrylic
+   band behind the input bar only: from the card's top edge down to the
+   column's bottom edge, as wide as the card. Anchoring to the seat instead
+   started the band above the todo dock, which is narrower than the card and
+   left the band showing at its sides. The card covers the band's top edge,
+   so no fade is needed. The input bar root (the card's parent) carries it as
+   a pseudo-element: position: relative keeps viewport-fixed menus intact. */
+${FRAME} [data-content-phase="active"] [data-composer-seat] div:has(> [data-composer-card]) { position: relative; }
+${FRAME} [data-content-phase="active"] [data-composer-seat] div:has(> [data-composer-card])::before {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  width: min(calc(100% - 2 * var(--dsh-composer-side-clearance, 16px)), var(--dsh-composer-card-max-width, 100%));
+  margin-inline: auto;
+  border-radius: var(--dsw-radius-panel) var(--dsw-radius-panel) 0 0;
   background: ${CANVAS_RULES.solid};
-  -webkit-mask-image: linear-gradient(transparent, #000 36px);
-  mask-image: linear-gradient(transparent, #000 36px);
 }
 @supports (backdrop-filter: blur(1px)) {
-  ${FRAME} [data-content-phase="active"] [data-composer-seat]::before {
+  ${FRAME} [data-content-phase="active"] [data-composer-seat] div:has(> [data-composer-card])::before {
     background: ${CANVAS_RULES.acrylic};
     backdrop-filter: blur(30px) saturate(1.2);
   }
