@@ -8,9 +8,9 @@ import { rehypeDshTables, remarkDshSyntax } from './plugins.ts';
 
 const REMARK_PLUGINS: PluggableList = [remarkDshSyntax];
 const REHYPE_PLUGINS: PluggableList = [rehypeDshTables];
-// Single tildes stay literal only while remend runs on the open tail; the
-// settled grammar may pair them into strikethrough, so leave them alone and
-// let the tail render exactly what the finished block will.
+// The shared grammar keeps a single `~` literal (`singleTilde: false`), so
+// remend need not escape it on the open tail; the tail already renders what
+// the finished block will.
 const REMEND_OPTIONS = { singleTilde: false } as const;
 // Components own every URL decision (see links.ts), so attributes pass through untouched here.
 const keepUrl = (url: string): string => url;

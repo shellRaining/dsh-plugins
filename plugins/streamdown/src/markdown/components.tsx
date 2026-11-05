@@ -8,7 +8,8 @@ import type { Components } from 'hast-util-to-jsx-runtime';
 import { useStreamdownBlockState } from '../streamdown/index.ts';
 import { InLinkProvider, useInLink, useMarkdownEnv } from './env.ts';
 import {
-  imageSource, inlineCodeHttpUrl, normalizeUri, parseFileLink, resolveWorkspacePath, fileMediaUrl, sanitizeUrl,
+  freshImageUrl, imageSource, inlineCodeHttpUrl, nextImageLoad, normalizeUri, parseFileLink, resolveWorkspacePath, fileMediaUrl,
+  sanitizeUrl,
   type FileLink,
 } from './links.ts';
 import { MathView } from './math.tsx';
@@ -169,10 +170,11 @@ function Anchor({ node, href, children }: HastProps & { href?: string | undefine
 function Image({ src, alt }: HastProps & { src?: string | undefined; alt?: string | undefined }) {
   const { cwd } = useMarkdownEnv();
   const inLink = useInLink();
+  const [load] = useState(nextImageLoad);
   const destination = src ?? '';
   const file = parseFileLink(destination);
-  const source = (file === undefined ? undefined : fileMediaUrl(document.baseURI, resolveWorkspacePath(cwd, file.path))) ??
-    imageSource(destination);
+  const resolved = file === undefined ? undefined : fileMediaUrl(document.baseURI, resolveWorkspacePath(cwd, file.path));
+  const source = resolved === undefined ? imageSource(destination, load) : freshImageUrl(resolved, load);
   if (source === undefined) return <span className={md.imageAlt}>{alt ?? ''}</span>;
   return <LoadedImage key={source} src={source} alt={alt ?? ''} destination={destination} preview={!inLink} />;
 }
