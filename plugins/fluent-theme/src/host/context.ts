@@ -1,5 +1,5 @@
 // Structural types for the slice of the DSH client runtime this plugin uses
-// (checked against DSH 0.2.1-rc.3). Kept local, like side-chat's host.ts,
+// (checked against DSH 0.2.2-rc.1). Kept local, like side-chat's host.ts,
 // instead of importing the shell's internal packages.
 import type { ComponentType } from 'react';
 import type { HostToken } from './tokens.ts';

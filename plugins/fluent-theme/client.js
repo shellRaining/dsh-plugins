@@ -581,7 +581,6 @@ var CONTROL_TOKENS = {
 	"--dsw-alias-interactive-bg-active": pair("rgb(0 0 0 / .10)", "rgb(255 255 255 / .12)"),
 	"--dsw-alias-interactive-bg-hover-accent": pair("rgb(0 0 0 / .14)", "rgb(255 255 255 / .22)"),
 	"--dsw-alias-interactive-bg-hover-solid": pair("#ededed", "#333333"),
-	"--dsw-specific-sidebar-nav-item-hover": pair("rgb(0 0 0 / .05)", "rgb(255 255 255 / .06)"),
 	"--dsw-specific-sidebar-nav-item-active": pair("rgb(0 0 0 / .09)", "rgb(255 255 255 / .11)"),
 	"--dsw-alias-turn-trigger-bg": pair("#f7f7f7", "rgb(255 255 255 / .08)"),
 	"--dsw-alias-turn-trigger-bg-hover": pair("rgb(0 0 0 / .06)", "rgb(255 255 255 / .14)"),
