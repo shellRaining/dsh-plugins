@@ -1,5 +1,5 @@
 import type { MarkdownFileMentions } from '@deepseek-ai/dsh-client-ui-primitives';
-import type { ComponentType, ReactNode, Ref } from 'react';
+import type { ComponentType, HTMLAttributes, ReactNode, Ref } from 'react';
 
 // Minimal structural slice of the DSH 0.2.1-rc.3 client contracts this
 // plugin consumes: the keyed `conversation.chat.node` seat of ui-chat, its
@@ -47,19 +47,47 @@ export interface PresentationPolicy {
   settledReasoningPreview: boolean;
 }
 
+/** DOM handlers the context-menu plugin binds to one element. */
+export type ContextMenuTriggerProps = Pick<HTMLAttributes<HTMLElement>, 'onContextMenu' | 'onKeyDown' | 'tabIndex'>;
+
+/** Owner of one closing Turn's prose file links (ui-chat `TurnTailOwnerProps`). */
+export interface TurnTailOwner {
+  turn: TurnRef;
+  seq: number;
+  openFile: (path: string) => void;
+}
+
+/** File-mention resolver from the official assistant-step entry's private inject. */
+export type FileMentionsSource = (
+  owner: TurnTailOwner,
+  getFileTriggerProps?: (path: string) => ContextMenuTriggerProps,
+) => MarkdownFileMentions | undefined;
+
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
 export type RenderFactorySlot = (name: string, props: object) => ReactNode;
 export type OpenFile = (path: string, options?: { line: number }) => void;
 
-/** Props the chat node seat hands an assistant-step renderer. */
+/** What this plugin's entry inject returns; the renderer binds `hooks` to `use*` props. */
+export interface AssistantInjected {
+  hooks: { presentation: Observable<PresentationPolicy> };
+  fileMentions: FileMentionsSource | undefined;
+  resolveFilePath: ((path: string) => string) | undefined;
+}
+
+/**
+ * Props the chat node seat hands an assistant-step renderer: owner props, the
+ * session-scope `sessionId`, and this entry's own inject.
+ */
 export interface AssistantNodeProps {
   node: AssistantStepNode;
   groupPart?: 'reasoning' | 'response' | undefined;
   cwd?: string | undefined;
   openFile: OpenFile;
   loadImage: unknown;
-  fileMentions: (owner: { turn: TurnRef; seq: number; openFile: OpenFile }) => MarkdownFileMentions | undefined;
   turnProcess?: TurnProcess | undefined;
+  sessionId?: string | undefined;
+  fileMentions?: FileMentionsSource | undefined;
+  resolveFilePath?: ((path: string) => string) | undefined;
   useDisclosure: () => { expanded: boolean; toggle: () => void };
   useGroupAction: (hidden: boolean, reveal: () => void) => Ref<HTMLDivElement>;
   useTurnData: (key: 'turn-tail') => TurnTail | undefined;
@@ -77,6 +105,8 @@ export interface SlotEntry {
 
 export interface ClientContext {
   effect(factory: () => (() => void) | void, label?: string): unknown;
+  /** Optional service lookup; undeclared services resolve without parking the plugin. */
+  get?(name: string): unknown;
   slots: {
     inject(name: 'conversation.chat.node', factory: () => () => void): () => void;
     register(
@@ -85,7 +115,7 @@ export interface ClientContext {
         key: 'assistant-step';
         priority: number;
         locale: string;
-        inject: () => { hooks: { presentation: Observable<PresentationPolicy> } };
+        inject: (sessionId: string) => AssistantInjected;
       },
       component: ComponentType<AssistantNodeProps>,
     ): () => void;

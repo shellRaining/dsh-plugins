@@ -51,7 +51,12 @@ export const AssistantNodeView = memo(function AssistantNodeView({
     if (tail?.closing?.finalNode.seq !== data.finalNode.seq) return undefined;
     return { turn, seq: data.finalNode.seq, openFile };
   }, [data.finalNode, openFile, tail, turn]);
-  const mentions = useMemo(() => owner === undefined ? undefined : fileMentions(owner), [fileMentions, owner]);
+  // ui-chat 0.2.2 moved this resolver from owner props into the entry inject;
+  // guard it so a missing or reshaped source leaves inline code inert.
+  const mentions = useMemo(
+    () => owner === undefined || typeof fileMentions !== 'function' ? undefined : fileMentions(owner),
+    [fileMentions, owner],
+  );
   const reasoningHidden = turnProcess !== undefined && turnProcess.foldable &&
     turnProcess.spec.answerStep === data.step && turnProcess.spec.inlineReasoning && !turnProcess.open;
   const revealProcess = useCallback(() => {

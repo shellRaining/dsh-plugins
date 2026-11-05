@@ -1,5 +1,5 @@
 import { AssistantNodeView } from './chat/AssistantNodeView.tsx';
-import { presentationSource } from './chat/presentation.ts';
+import { fileMentionsSource, filePathResolver, officialAssistantFace, presentationSource } from './chat/presentation.ts';
 import { CHAT_CSS } from './chat/styles.ts';
 import { installToolMotion } from './chat/toolMotion.ts';
 import type { ClientContext } from './host.ts';
@@ -37,6 +37,14 @@ export function apply(ctx: ClientContext): void {
     key: 'assistant-step',
     priority: SHADOW_PRIORITY,
     locale: 'chat',
-    inject: () => ({ hooks: { presentation: presentationSource(ctx.slots, AssistantNodeView) } }),
+    // The renderer calls this once per session scope and caches the face.
+    inject: (sessionId) => {
+      const face = officialAssistantFace(ctx.slots, AssistantNodeView, sessionId);
+      return {
+        hooks: { presentation: presentationSource(face) },
+        fileMentions: fileMentionsSource(face, ctx, sessionId),
+        resolveFilePath: filePathResolver(face),
+      };
+    },
   }, AssistantNodeView)), `${name}: assistant-step renderer`);
 }
