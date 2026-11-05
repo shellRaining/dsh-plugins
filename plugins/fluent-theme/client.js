@@ -2514,6 +2514,11 @@ ${FRAME}[data-sidebar-drawer] > ${SIDEBAR_COL}::before {
     backdrop-filter: blur(30px) saturate(1.2);
   }
 }
+/* The file tree's floating card (beside or over a file) is painted with the
+   canvas in dark mode; keep it opaque like its light layer fill. */
+@media (width >= 768px) {
+  ${FRAME} [data-files-navigator]:is([data-files-navigator-mode="push"], [data-files-navigator-mode="overlay"]) { ${CANVAS_RULES.restore} }
+}
 
 /* Sticky rows that used the canvas to hide scrolled content become acrylic
    bars, matched by the host's own semantic anchors (host/modules.ts): an open
