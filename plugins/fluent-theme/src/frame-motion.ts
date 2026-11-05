@@ -1,16 +1,13 @@
 import type { Feature } from './feature.ts';
 
-// The shell frame animates its columns with a CSS transition that it turns on
-// (data-animating) one React commit after the commit that changes
-// grid-template-columns. In 0.2.1-rc.3 the right panel's DockLayout measures
-// its panes in a layout effect that runs on every render, between those two
-// commits; the forced style pass applies the new columns before the transition
-// exists. The left sidebar then always snaps, right-panel toggles often do, and
-// the conversation jumps. When a toggle lands without the host transition,
-// replay it with the frame's own computed timing; a host transition that did
-// start is replaced by the same replay, so every toggle runs one way. Drags,
-// viewport solves and the host's instant and fullscreen presentations stay
-// unanimated, as in the host.
+// The shell frame animates its columns with a CSS transition while it carries
+// data-animating. Through 0.2.1 that attribute arrived one commit after the new
+// grid-template-columns, so toggles often snapped; since 0.2.2 both land in the
+// same commit and the host transition starts. A toggle marked data-animating is
+// still replayed here with the frame's own computed timing, replacing the host
+// transition, because the replay is what lets the transcript keep its final
+// width (below). Drags, viewport solves and the host's instant and fullscreen
+// presentations stay unanimated, as in the host.
 //
 // Each conversation body also publishes its width to its parent from a
 // ResizeObserver, and the whole transcript inherits that custom property: on
@@ -104,8 +101,11 @@ export function createFrameMotion(document: Document, window: View): Feature<boo
     if (!from || !to || from === to) return;
     stop();
     if (!target.hasAttribute('data-animating')) return;
-    // Reading computed style starts a host transition that survived the
-    // commit; cancel it so that the replay below runs in its place.
+    // Reading computed style starts the host transition; cancel it so that
+    // the replay below runs in its place. A cancelled transition fires no
+    // transitionend, so the host drops data-animating only at its 600ms
+    // fallback timer: a known and acceptable side effect, as the attribute
+    // changes no layout once the columns have settled.
     const options = timing(target);
     if (!options) return;
     for (const animation of target.getAnimations()) {
