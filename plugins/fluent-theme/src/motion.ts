@@ -28,6 +28,14 @@ const MOTION = Object.freeze({
   exit: 'cubic-bezier(.4, 0, 1, 1)', // Fluent accelerate
   slide: 250, fade: 167, leave: 120, tooltipIn: 120, tooltipOut: 83, dialogOut: 167,
 });
+// Menus with a host phase (the context menu) play the host's own enter and
+// dismiss fades, keeping the surface mounted while it fades out; they get no
+// hold, replay or ghost. Their submenus carry no phase but render inside the
+// phased surface. A submenu's macOS backing is a separate body child, which
+// CSS cannot tie to its surface: backings skip the entrance fade while a
+// phased menu is a body child.
+const HOST_PHASED = '[data-menu-phase]';
+const IN_PHASED = `:is(${HOST_PHASED}, ${HOST_PHASED} *)`;
 // Clones skip media and large trees: iframes and webviews would reload.
 const GHOST_SKIP = 'iframe, webview, video, audio, object, embed, canvas';
 const GHOST_MAX_NODES = 1500;
@@ -63,8 +71,8 @@ const PIN_MAX_NODES = 120;
 
 export const MOTION_CSS = `
 @media (prefers-reduced-motion: no-preference) {
-  body[data-acrylic-fluent] :is(${POPUP_SELECTOR}):not([data-acrylic-ghost]) { animation: ${HOLD} 300ms linear; }
-  body[data-acrylic-fluent] > [data-menu-backing] { animation: acrylic-backing-in ${MOTION.fade}ms linear; }
+  body[data-acrylic-fluent] :is(${POPUP_SELECTOR}):not([data-acrylic-ghost], ${IN_PHASED}) { animation: ${HOLD} 300ms linear; }
+  body[data-acrylic-fluent]:not(:has(> [data-menu-material]${HOST_PHASED})) > [data-menu-backing] { animation: acrylic-backing-in ${MOTION.fade}ms linear; }
   /* Preview HoverCards own a closing phase that unmounts after 100ms. */
   body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { transition: opacity 90ms ${MOTION.exit}; }
 }
@@ -374,7 +382,7 @@ export function createMotion(document: Document, window: View, { onSettle }: Mot
     const popup = event.target;
     if (event.animationName !== HOLD || !(popup instanceof window.Element)) return;
     for (const animation of popup.getAnimations()) if ((animation as Partial<CSSAnimation>).animationName === HOLD) animation.cancel();
-    if (!enabled || reduce.matches || !popup.isConnected || popup.hasAttribute('data-acrylic-ghost')) return;
+    if (!enabled || reduce.matches || !popup.isConnected || popup.matches(`[data-acrylic-ghost],${IN_PHASED}`)) return;
     whenPlaced(popup);
   }
 
@@ -383,7 +391,7 @@ export function createMotion(document: Document, window: View, { onSettle }: Mot
     const parent = record.target;
     if (!enabled || reduce.matches || document.hidden || !parent.isConnected) return;
     // Preview HoverCards already faded in their host-owned closing phase.
-    if (node.hasAttribute('hidden') || popup.hasAttribute('hidden') || popup.hasAttribute('data-closing')) return;
+    if (node.hasAttribute('hidden') || popup.matches(`[hidden],[data-closing],${IN_PHASED}`)) return;
     if (node.querySelector(GHOST_SKIP) || node.getElementsByTagName('*').length > GHOST_MAX_NODES) return;
     const clone = node.cloneNode(true) as HTMLElement;
     const target = popup === node ? clone : nodeAt(clone, pathTo(node, popup));

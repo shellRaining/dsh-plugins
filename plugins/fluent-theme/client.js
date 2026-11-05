@@ -808,6 +808,8 @@ var MOTION = Object.freeze({
 	tooltipOut: 83,
 	dialogOut: 167
 });
+var HOST_PHASED = "[data-menu-phase]";
+var IN_PHASED = `:is(${HOST_PHASED}, ${HOST_PHASED} *)`;
 var GHOST_SKIP = "iframe, webview, video, audio, object, embed, canvas";
 var GHOST_MAX_NODES = 1500;
 var GHOST_DETACH = /^(?:id|autofocus|popover|name|for|form|aria-(?:activedescendant|controls|owns)|data-(?:modal-autofocus|shortcut-modal|window-drag(?:-recall)?|element-id|plugin-package|team-panel))$/;
@@ -889,8 +891,8 @@ var PIN_PROPS = [
 var PIN_MAX_NODES = 120;
 var MOTION_CSS = `
 @media (prefers-reduced-motion: no-preference) {
-  body[data-acrylic-fluent] :is(${POPUP_SELECTOR}):not([data-acrylic-ghost]) { animation: ${HOLD} 300ms linear; }
-  body[data-acrylic-fluent] > [data-menu-backing] { animation: acrylic-backing-in ${MOTION.fade}ms linear; }
+  body[data-acrylic-fluent] :is(${POPUP_SELECTOR}):not([data-acrylic-ghost], ${IN_PHASED}) { animation: ${HOLD} 300ms linear; }
+  body[data-acrylic-fluent]:not(:has(> [data-menu-material]${HOST_PHASED})) > [data-menu-backing] { animation: acrylic-backing-in ${MOTION.fade}ms linear; }
   /* Preview HoverCards own a closing phase that unmounts after 100ms. */
   body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { transition: opacity 90ms ${MOTION.exit}; }
 }
@@ -1155,13 +1157,13 @@ function createMotion(document, window, { onSettle } = {}) {
 		const popup = event.target;
 		if (event.animationName !== HOLD || !(popup instanceof window.Element)) return;
 		for (const animation of popup.getAnimations()) if (animation.animationName === HOLD) animation.cancel();
-		if (!enabled || reduce.matches || !popup.isConnected || popup.hasAttribute("data-acrylic-ghost")) return;
+		if (!enabled || reduce.matches || !popup.isConnected || popup.matches(`[data-acrylic-ghost],${IN_PHASED}`)) return;
 		whenPlaced(popup);
 	}
 	function ghost(popup, node, info, record) {
 		const parent = record.target;
 		if (!enabled || reduce.matches || document.hidden || !parent.isConnected) return;
-		if (node.hasAttribute("hidden") || popup.hasAttribute("hidden") || popup.hasAttribute("data-closing")) return;
+		if (node.hasAttribute("hidden") || popup.matches(`[hidden],[data-closing],${IN_PHASED}`)) return;
 		if (node.querySelector(GHOST_SKIP) || node.getElementsByTagName("*").length > GHOST_MAX_NODES) return;
 		const clone = node.cloneNode(true);
 		const target = popup === node ? clone : nodeAt(clone, pathTo(node, popup));
