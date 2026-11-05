@@ -1,5 +1,5 @@
 import {
-  classifyLinkPath, CodeBlock, ImageLightbox, LinkIconMedium,
+  classifyLinkPath, CodeBlock, ImageLightbox, LinkIconMedium, useMarkdownDelegate,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { Element, ElementContent } from 'hast';
 import { type ReactNode, useCallback, useState } from 'react';
@@ -88,7 +88,14 @@ function Code({ node }: HastProps) {
   if (mention === undefined) return <code>{value}</code>;
   return (
     <code>
-      <button type="button" className={md.fileMention} title={mention.title} aria-label={mention.label} onClick={mention.open}>
+      <button
+        type="button"
+        className={md.fileMention}
+        title={mention.title}
+        aria-label={mention.label}
+        onClick={mention.open}
+        {...mention.contextMenuProps}
+      >
         <LinkIconMedium kind={classifyLinkPath(value)} className={md.linkIcon} />
         {value}
       </button>
@@ -96,12 +103,26 @@ function Code({ node }: HastProps) {
   );
 }
 
+// Context menus, external-link destination, and file-image previews come from
+// the MarkdownDelegateProvider ui-chat mounts around the chat flow.
 function SafeLink({ href, glyph, children }: { href: string; glyph: boolean; children: ReactNode }) {
+  const { openExternalLink, getTriggerProps } = useMarkdownDelegate();
   const safe = sanitizeUrl(href);
   if (safe === '') return <>{children}</>;
   const external = ['http:', 'https:'].includes(new URL(safe).protocol);
+  const open = external ? openExternalLink : undefined;
   return (
-    <a href={safe} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+    <a
+      href={safe}
+      {...(external ? getTriggerProps?.({ kind: 'url', url: safe }) : {})}
+      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      onClick={open === undefined ? undefined : (event) => {
+        // Modified clicks keep the browser's own behavior.
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        open(safe);
+      }}
+    >
       {glyph && <LinkIconMedium kind="url" href={safe} className={md.linkIcon} />}
       {children}
     </a>
@@ -110,12 +131,14 @@ function SafeLink({ href, glyph, children }: { href: string; glyph: boolean; chi
 
 function FileLinkButton({ file, glyph, children }: { file: FileLink; glyph: boolean; children: ReactNode }) {
   const { openFile } = useMarkdownEnv();
+  const { getTriggerProps } = useMarkdownDelegate();
   if (openFile === undefined) return <>{children}</>;
   return (
     <button
       type="button"
       className={`${md.fileMention} ${md.fileLink}`}
       title={file.path}
+      {...getTriggerProps?.({ kind: 'file', ...file })}
       onClick={() => {
         if (file.line === undefined) openFile(file.path);
         else openFile(file.path, { line: file.line });
@@ -156,6 +179,7 @@ function Image({ src, alt }: HastProps & { src?: string | undefined; alt?: strin
 
 function LoadedImage({ src, alt, destination, preview }: { src: string; alt: string; destination: string; preview: boolean }) {
   const { imageLabels } = useMarkdownEnv();
+  const { getTriggerProps } = useMarkdownDelegate();
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   const close = useCallback(() => {
@@ -164,6 +188,8 @@ function LoadedImage({ src, alt, destination, preview }: { src: string; alt: str
   if (failed) {
     return <span className={md.imageAlt}>{preview ? `${imageLabels.failed} · ` : ''}{alt || destination}</span>;
   }
+  const file = parseFileLink(destination);
+  const contextMenuProps = getTriggerProps?.({ kind: 'image', url: src, ...(file === undefined ? {} : { path: file.path }) });
   const img = (
     <img
       className={md.image}
@@ -175,6 +201,7 @@ function LoadedImage({ src, alt, destination, preview }: { src: string; alt: str
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
+      {...(preview ? {} : contextMenuProps)}
     />
   );
   if (!preview) return img;
@@ -184,6 +211,7 @@ function LoadedImage({ src, alt, destination, preview }: { src: string; alt: str
         type="button"
         className={md.imageButton}
         title={imageLabels.open}
+        {...contextMenuProps}
         aria-label={alt ? `${imageLabels.open}: ${alt}` : imageLabels.open}
         onClick={() => {
           setOpen(true);
@@ -191,7 +219,7 @@ function LoadedImage({ src, alt, destination, preview }: { src: string; alt: str
       >
         {img}
       </button>
-      {open && <ImageLightbox src={src} alt={alt} labels={imageLabels} onClose={close} />}
+      {open && <ImageLightbox src={src} alt={alt} labels={imageLabels} onClose={close} contextMenuProps={contextMenuProps} />}
     </>
   );
 }

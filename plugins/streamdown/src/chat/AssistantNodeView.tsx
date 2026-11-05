@@ -3,7 +3,7 @@ import { Fragment, memo, type ReactNode, useCallback, useMemo, useState } from '
 
 import type { AssistantBlock, AssistantNodeProps, Translate } from '../host.ts';
 import type { ImageLabels, MarkdownEnv } from '../markdown/env.ts';
-import { localPathImages } from '../markdown/links.ts';
+import { localPathImages, resolveWorkspacePath } from '../markdown/links.ts';
 import { StreamMarkdown } from '../markdown/StreamMarkdown.tsx';
 import { ReasoningRow } from './ReasoningRow.tsx';
 
@@ -22,6 +22,8 @@ function imageLabels(t: Translate): ImageLabels {
   return { open: t('image.open'), failed: t('image.failed'), dialog: t('image.dialog'), close: t('image.close') };
 }
 
+const NO_CONTEXT_MENU = (): undefined => undefined;
+
 function ProcessReasoning({ hidden, reveal, useGroupAction, children }: {
   hidden: boolean;
   reveal: () => void;
@@ -39,9 +41,22 @@ function ProcessReasoning({ hidden, reveal, useGroupAction, children }: {
  * mount (history, remounts) keep the official MarkdownText.
  */
 export const AssistantNodeView = memo(function AssistantNodeView({
-  node, groupPart, cwd, openFile, loadImage, fileMentions, turnProcess,
+  node, groupPart, cwd, openFile, loadImage, fileMentions, turnProcess, sessionId, useContextMenu, resolveFilePath,
   useDisclosure, useGroupAction, useTurnData, usePresentation, renderFactorySlot, t,
 }: AssistantNodeProps) {
+  // ui-context-menu provides this prop at the root through provideRoot. It is
+  // a plain getter with no React hooks inside, so calling a fallback when the
+  // plugin is absent is safe.
+  const menu = (useContextMenu ?? NO_CONTEXT_MENU)();
+  const getTriggerProps = menu?.getTriggerProps;
+  const getFileTriggerProps = useMemo(() => {
+    if (getTriggerProps === undefined || sessionId === undefined) return undefined;
+    // Degraded path only: without the official resolveFilePath this joins the
+    // owner cwd, whereas ui-chat's sessionFilePath prefers the session's live
+    // workingDirectory projection.
+    const resolve = resolveFilePath ?? ((path: string) => resolveWorkspacePath(cwd, path));
+    return (path: string) => getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: resolve(path) } }));
+  }, [cwd, getTriggerProps, resolveFilePath, sessionId]);
   const data = node.data;
   const [live] = useState(() => data.status === 'running');
   const turn = node.location.kind === 'turn' || node.location.kind === 'step' ? node.location.turn : undefined;
@@ -54,8 +69,8 @@ export const AssistantNodeView = memo(function AssistantNodeView({
   // ui-chat 0.2.2 moved this resolver from owner props into the entry inject;
   // guard it so a missing or reshaped source leaves inline code inert.
   const mentions = useMemo(
-    () => owner === undefined || typeof fileMentions !== 'function' ? undefined : fileMentions(owner),
-    [fileMentions, owner],
+    () => owner === undefined || typeof fileMentions !== 'function' ? undefined : fileMentions(owner, getFileTriggerProps),
+    [fileMentions, getFileTriggerProps, owner],
   );
   // ui-chat 0.2.2: when folded Turns keep every reply, reasoning outside the
   // seat's 'reasoning' part hides behind the Turn disclosure.

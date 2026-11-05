@@ -67,6 +67,17 @@ export type FileMentionsSource = (
   getFileTriggerProps?: (path: string) => ContextMenuTriggerProps,
 ) => MarkdownFileMentions | undefined;
 
+/** Session-scoped targets of the root `useContextMenu` prop (subset of ui-context-menu's map). */
+export type ContextMenuTarget = {
+  kind: 'file';
+  value: { sessionId: string; path: string; line?: number };
+};
+
+/** Root standard prop of ui-context-menu; absent when that plugin is not loaded. */
+export type UseContextMenu = () => {
+  getTriggerProps(target: ContextMenuTarget | (() => ContextMenuTarget) | undefined): ContextMenuTriggerProps;
+};
+
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
 export type RenderFactorySlot = (name: string, props: object) => ReactNode;
 export type OpenFile = (path: string, options?: { line: number }) => void;
@@ -80,7 +91,7 @@ export interface AssistantInjected {
 
 /**
  * Props the chat node seat hands an assistant-step renderer: owner props, the
- * session-scope `sessionId`, and this entry's own inject.
+ * session-scope `sessionId`, the root `useContextMenu`, and this entry's own inject.
  */
 export interface AssistantNodeProps {
   node: AssistantStepNode;
@@ -90,6 +101,7 @@ export interface AssistantNodeProps {
   loadImage: unknown;
   turnProcess?: TurnProcess | undefined;
   sessionId?: string | undefined;
+  useContextMenu?: UseContextMenu | undefined;
   fileMentions?: FileMentionsSource | undefined;
   resolveFilePath?: ((path: string) => string) | undefined;
   useDisclosure: () => { expanded: boolean; toggle: () => void };
