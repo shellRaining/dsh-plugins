@@ -486,7 +486,6 @@ var HOST_CLASSES = {
 	buttonOutline: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "outline"],
 	buttonToolbar: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "toolbar"],
 	buttonPrimary: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "primary"],
-	userBubble: ["@deepseek-ai/dsh-client-ui-chat/MessageItem.module.css", "bubble"],
 	turnRail: ["@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css", "frame"],
 	searchResultRow: ["@deepseek-ai/dsh-client-ui-workspace/Rows.module.css", "searchResultRow"]
 };
@@ -1624,11 +1623,9 @@ function createReveal(document, window, modules) {
 		press = null;
 	}
 	let controls = REVEAL_TARGETS, quiet = null;
-	let surfaces = COMPOSER_CARD;
+	const surfaces = `${COMPOSER_CARD},[data-testid="todo-panel"],[data-side-chat] .dsc-bubble:not([data-pending]),:is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) [data-message-bubble]`;
 	function resolve() {
 		controls = `${actionSelector(modules)},${REVEAL_FIELDS}`;
-		const bubble = modules.select("userBubble");
-		surfaces = `${COMPOSER_CARD},[data-testid="todo-panel"],[data-side-chat] .dsc-bubble:not([data-pending])${bubble ? `,:is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) ${bubble}` : ""}`;
 		quiet = modules.select("turnRail");
 	}
 	const borderOnly = (target) => target.matches(`${REVEAL_FIELDS},${surfaces}`);

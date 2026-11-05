@@ -52,11 +52,11 @@ export function createReveal(document: Document, window: Window & typeof globalT
   // next to a pointer-transparent preview: an outline, not a Win10 control
   // surface, so it never lights and hovering it lights nothing nearby.
   let controls = REVEAL_TARGETS, quiet: string | null = null;
-  let surfaces = COMPOSER_CARD;
+  // Sent user text (the bubble alone, not attachments, timestamps or row
+  // actions) in the main chat and in side chat, which skips pending messages.
+  const surfaces = `${COMPOSER_CARD},[data-testid="todo-panel"],[data-side-chat] .dsc-bubble:not([data-pending]),:is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) [data-message-bubble]`;
   function resolve() {
     controls = `${actionSelector(modules)},${REVEAL_FIELDS}`;
-    const bubble = modules.select('userBubble');
-    surfaces = `${COMPOSER_CARD},[data-testid="todo-panel"],[data-side-chat] .dsc-bubble:not([data-pending])${bubble ? `,:is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"]) ${bubble}` : ''}`;
     quiet = modules.select('turnRail');
   }
   const borderOnly = (target: Element) => target.matches(`${REVEAL_FIELDS},${surfaces}`);
