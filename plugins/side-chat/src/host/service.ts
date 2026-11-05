@@ -29,9 +29,10 @@ import type {
   Agent,
   AgentContext,
   AgentHandle,
-  AgentRouteOptions,
+  AgentOptions,
   Disposer,
   HostContext,
+  ModelSelection,
   SessionHeader,
   SideSessionMeta,
   SystemPromptService,
@@ -134,23 +135,22 @@ function developerSectionOrder(systemPrompt: SystemPromptService): number {
 }
 
 /**
- * The parent's model route: the request header's resolved config when it names
- * a provider and model, otherwise the parent's constructor options.
+ * The parent's model choice for its next step: a pending `model/selection`
+ * made after the last request, else the last request's selection, else the
+ * parent's options. An effort the adapter defaulted stays absent, so it is
+ * never pinned as an explicit choice.
  */
-function routeOptions(parent: Agent): AgentRouteOptions {
-  const session = parent.session;
-  const requestHeader = typeof session?.requestHeader === 'function' ? session.requestHeader() : undefined;
-  const config = isRecord(requestHeader) ? requestHeader.config : undefined;
-  const route: UnknownRecord = isRecord(config) && nonEmptyString(config.provider) && nonEmptyString(config.model)
-    ? config
-    : isRecord(parent.options) ? parent.options : {};
-  const { provider, model, reasoningEffort, maxTokens } = route;
-  return {
-    ...(typeof provider === 'string' ? { provider } : {}),
-    ...(typeof model === 'string' ? { model } : {}),
-    ...(typeof reasoningEffort === 'string' ? { reasoningEffort } : {}),
-    ...(typeof maxTokens === 'number' ? { maxTokens } : {}),
-  };
+function parentSelection(parent: Agent): ModelSelection | undefined {
+  const current: unknown = parent.model.current();
+  if (!isRecord(current) || !nonEmptyString(current.provider) || !nonEmptyString(current.model)) return undefined;
+  const { provider, model, reasoningEffort } = current;
+  return { provider, model, ...(nonEmptyString(reasoningEffort) ? { reasoningEffort } : {}) };
+}
+
+/** Output controls inherited from the parent; the route goes through `agent.model`. */
+function outputOptions(parent: Agent): AgentOptions {
+  const maxTokens = isRecord(parent.options) ? parent.options.maxTokens : undefined;
+  return typeof maxTokens === 'number' ? { maxTokens } : {};
 }
 
 export class SideChatService {
@@ -402,6 +402,7 @@ export class SideChatService {
       const agentPreset = ctx.get('agentPresets')?.composedPreset?.(parent.ctx);
       const sandboxMode = ctx.get('sandboxPolicy')?.overrideOf?.(parentSession);
       const approvalPolicy = ctx.get('approval')?.overrideOf?.(parentSession);
+      const selection = parentSelection(parent);
       const sessionId = `${SESSION_ID_PREFIX}${randomUUID()}`;
       const boundaryText = sideConversationBoundaryPrompt(String(header.id ?? sourceId), recentContext);
       const meta: SideSessionMeta = {
@@ -420,6 +421,9 @@ export class SideChatService {
         childCtx.get('agentPresets')?.composeFrom?.(childCtx, parent.ctx);
         const session = agent.session;
         if (session === undefined) throw new Error('side agent has no session');
+        // The seed may predate the parent's latest choice, so record it durably:
+        // routes are fixed per step from `agent.model`, not from agent options.
+        if (selection !== undefined) agent.model.select(selection);
         if (sandboxMode !== undefined) {
           session.append('sandbox/mode', { mode: sandboxMode, source: SANDBOX_OVERRIDE_SOURCE });
         }
@@ -437,7 +441,7 @@ export class SideChatService {
         sessionId,
         meta,
         ...(inheritedEventCount > 0 ? { seed, inheritedEventCount } : {}),
-        agentOptions: routeOptions(parent),
+        agentOptions: outputOptions(parent),
         setup,
       });
       if (this.closing) {

@@ -52,18 +52,32 @@ export interface AgentSession {
   readonly inheritedEventCount?: unknown;
   /** Committed events in log order, optionally from one sequence onward. */
   snapshotEvents?(fromSeq?: number): unknown;
-  /** Current request header; its `config` carries the resolved model route. */
-  requestHeader?(): unknown;
   /** Current request context; its `contextWindow` is the route's window. */
   requestContext?(): unknown;
   append(type: string, data: unknown, options?: AppendOptions): unknown;
 }
 
+/** Complete model choice; an absent effort means the adapter default. */
+export interface ModelSelection {
+  readonly provider: string;
+  readonly model: string;
+  readonly reasoningEffort?: string;
+}
+
+/** `agent.model` (DSH 0.2.2+): the durable `model/selection` projection. */
+export interface AgentModel {
+  /** Pending selection, else the last request's, else the agent options. */
+  current(): ModelSelection | undefined;
+  /** Record the selection for the next step; an equal recorded choice is a no-op. */
+  select(selection: ModelSelection): void;
+}
+
 export interface Agent {
   readonly id: string;
   readonly status: string;
-  /** Constructor agent options; the route fallback when the request header has none. */
+  /** Constructor agent options; only output controls such as `maxTokens` are read. */
   readonly options?: unknown;
+  readonly model: AgentModel;
   /** The agent's own Cordis context, passed through opaquely to preset composition. */
   readonly ctx?: unknown;
   readonly session?: AgentSession;
@@ -83,10 +97,8 @@ export interface SideSessionMeta {
   readonly origin: 'subagent';
 }
 
-export interface AgentRouteOptions {
-  readonly provider?: string;
-  readonly model?: string;
-  readonly reasoningEffort?: string;
+/** Output controls only: the model route is recorded through `agent.model`. */
+export interface AgentOptions {
   readonly maxTokens?: number;
 }
 
@@ -95,7 +107,7 @@ export interface AgentCreateOptions {
   readonly meta: SideSessionMeta;
   readonly seed?: readonly unknown[];
   readonly inheritedEventCount?: number;
-  readonly agentOptions: AgentRouteOptions;
+  readonly agentOptions: AgentOptions;
   /** Runs before the agent is published; a throw rejects `create`. */
   readonly setup: (childCtx: AgentContext, agent: Agent) => void;
 }
