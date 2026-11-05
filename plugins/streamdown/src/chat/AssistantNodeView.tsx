@@ -34,7 +34,7 @@ function ProcessReasoning({ hidden, reveal, useGroupAction, children }: {
 }
 
 /**
- * Port of ui-chat's AssistantNodeView + AssistantMarkdown (0.2.1-rc.3, MIT,
+ * Port of ui-chat's AssistantNodeView + AssistantMarkdown (0.2.2-rc.1, MIT,
  * DeepSeek). Text of a step that was producing output when this instance
  * mounted renders through StreamMarkdown for its whole lifetime, so the reply
  * never swaps renderers when it settles. Steps that were already settled at

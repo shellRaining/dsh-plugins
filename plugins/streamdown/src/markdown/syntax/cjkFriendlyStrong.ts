@@ -1,5 +1,5 @@
 /**
- * Ported from @deepseek-ai/dsh-client-ui-primitives 0.2.1-rc.3
+ * Ported from @deepseek-ai/dsh-client-ui-primitives 0.2.2-rc.1
  * (`markdown/cjkFriendlyStrong`, MIT, Copyright (c) 2026 DeepSeek) so the
  * streaming renderer parses `**` exactly like the host MarkdownText.
  *

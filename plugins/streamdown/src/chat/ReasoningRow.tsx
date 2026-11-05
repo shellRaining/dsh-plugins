@@ -50,7 +50,7 @@ type ReasoningRowProps = ReasoningBodyProps & Pick<AssistantNodeProps, 'usePrese
 };
 
 /**
- * Port of ui-chat's ReasoningRow (0.2.1-rc.3, MIT, DeepSeek). Reasoning opened
+ * Port of ui-chat's ReasoningRow (0.2.2-rc.1, MIT, DeepSeek). Reasoning opened
  * while running keeps StreamMarkdown until collapsed. Already settled content
  * uses the root Factory; this entry still cannot own the official body slot.
  */

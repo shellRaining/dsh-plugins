@@ -1,6 +1,6 @@
 /**
  * Layout of the official assistant message and reasoning row, ported from
- * ui-chat 0.2.1-rc.3 `AssistantMarkdown.module.css` and
+ * ui-chat 0.2.2-rc.1 `AssistantMarkdown.module.css` and
  * `ReasoningRow.module.css` (MIT, Copyright (c) 2026 DeepSeek) with the
  * CSS-module classes renamed to `dsh-sd-*`. Re-diff on every DSH upgrade.
  */
