@@ -780,8 +780,19 @@ var COMPOSER_INPUT = ":is([data-composer-input], [data-side-chat-input])";
 // src/adapters.ts
 var FRAME$1 = "div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var adapterCss = (searchRows) => `
-/* HoverCard declares its own fill (#2C2C2E in both schemes) instead of a token. */
+/* HoverCard (sidebar session and workspace cards among others) declares its
+   own fill (#2C2C2E in both schemes) instead of a token, under static white
+   text whose three steps (#fff, #cfd3d6, #adb2b8) already follow Win10's
+   high / medium-high / medium ramp. Keep it dark, as acrylic where supported.
+   Preview and media cards set their own background over this variable; the
+   card is fixed and holds no fixed descendants, so the filter is safe. */
 body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { --dsw-hovercard-bg: #2b2b2b; }
+@supports (backdrop-filter: blur(1px)) {
+  body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] {
+    --dsw-hovercard-bg: rgb(43 43 43 / .88);
+    backdrop-filter: var(--dsw-menu-backdrop-filter);
+  }
+}
 /* The macOS sidebar column layers a hard-coded blue vibrancy gradient over its
    fill, except as a narrow-window drawer (whose mask is the first child then).
    Keep the neutral fill (frame anchors, not module hashes). */
