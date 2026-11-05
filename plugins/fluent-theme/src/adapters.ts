@@ -98,8 +98,15 @@ ${primary ? `${active(primary)} { background:color-mix(in srgb,var(--dsw-alias-b
 `;
 }
 
+// Win10 labels are square like its buttons: the primitive Tag (e.g. the plugin
+// manager's update-available and version tags) gets the small control radius.
+function tagCss(modules: HostModules): string {
+  const tag = modules.select('tag');
+  return tag ? `body[data-acrylic-fluent] ${tag} { border-radius: var(--dsw-radius-xs); }\n` : '';
+}
+
 export function createAdapters(document: Document, modules: HostModules): Feature<boolean> {
-  const render = () => adapterCss(modules.select('searchResultRow')) + buttonStateCss(modules);
+  const render = () => adapterCss(modules.select('searchResultRow')) + buttonStateCss(modules) + tagCss(modules);
   const sheet = createStyleSheet(document, 'dsh-acrylic-wallpaper-adapters', render());
   const unsubscribe = modules.subscribe(() => sheet.set(render()));
   return { update: sheet.toggle, dispose() { unsubscribe(); sheet.dispose(); } };

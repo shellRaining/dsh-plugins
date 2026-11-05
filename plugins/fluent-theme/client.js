@@ -486,6 +486,7 @@ var HOST_CLASSES = {
 	buttonOutline: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "outline"],
 	buttonToolbar: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "toolbar"],
 	buttonPrimary: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "primary"],
+	tag: ["@deepseek-ai/dsh-client-ui-primitives/Tag.module.css", "tag"],
 	turnRail: ["@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css", "frame"],
 	searchResultRow: ["@deepseek-ai/dsh-client-ui-workspace/Rows.module.css", "searchResultRow"]
 };
@@ -494,17 +495,29 @@ var HOST_CLASSES = {
 * module's rules must all have under one shared hash (attribute values
 * unquoted). Exactly one hash may match.
 */
-var SHELL_SIGNATURES = { "@deepseek-ai/dsh-client-ui-primitives/Button.module.css": [
-	["button", ""],
-	["button", ":disabled"],
-	["ghost", ":active:not(:disabled)"],
-	["outline", ""],
-	["toolbar", ""],
-	["primary", ""],
-	["sm", ""],
-	["md", ""],
-	["icon", ""]
-] };
+var SHELL_SIGNATURES = {
+	"@deepseek-ai/dsh-client-ui-primitives/Button.module.css": [
+		["button", ""],
+		["button", ":disabled"],
+		["ghost", ":active:not(:disabled)"],
+		["outline", ""],
+		["toolbar", ""],
+		["primary", ""],
+		["sm", ""],
+		["md", ""],
+		["icon", ""]
+	],
+	"@deepseek-ai/dsh-client-ui-primitives/Tag.module.css": [["tag", ""], ...[
+		"outline",
+		"solid",
+		"neutral",
+		"quiet",
+		"success",
+		"info",
+		"warning",
+		"danger"
+	].map((tone) => ["tag", `[data-tone=${tone}]`])]
+};
 var MODULE_TAG = "style[data-plugin-css]";
 var SHELL_SHEET = "link[rel~=\"stylesheet\"]";
 var NAMES = Object.keys(HOST_CLASSES);
@@ -846,8 +859,12 @@ ${primary ? `${active(primary)} { background:color-mix(in srgb,var(--dsw-alias-b
 }
 `;
 }
+function tagCss(modules) {
+	const tag = modules.select("tag");
+	return tag ? `body[data-acrylic-fluent] ${tag} { border-radius: var(--dsw-radius-xs); }\n` : "";
+}
 function createAdapters(document, modules) {
-	const render = () => adapterCss(modules.select("searchResultRow")) + buttonStateCss(modules);
+	const render = () => adapterCss(modules.select("searchResultRow")) + buttonStateCss(modules) + tagCss(modules);
 	const sheet = createStyleSheet(document, "dsh-acrylic-wallpaper-adapters", render());
 	const unsubscribe = modules.subscribe(() => sheet.set(render()));
 	return {

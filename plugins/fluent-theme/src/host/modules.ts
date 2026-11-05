@@ -20,6 +20,9 @@ export const HOST_CLASSES = {
   buttonOutline: ['@deepseek-ai/dsh-client-ui-primitives/Button.module.css', 'outline'],
   buttonToolbar: ['@deepseek-ai/dsh-client-ui-primitives/Button.module.css', 'toolbar'],
   buttonPrimary: ['@deepseek-ai/dsh-client-ui-primitives/Button.module.css', 'primary'],
+  // Status tags (plugin cards and versions, model and preset badges): a pill
+  // whose radius is a literal, not a token.
+  tag: ['@deepseek-ai/dsh-client-ui-primitives/Tag.module.css', 'tag'],
   // Right-hand turn rail (an outline next to the conversation).
   turnRail: ['@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css', 'frame'],
   // Sidebar search results: tree rows without data-row-key.
@@ -38,6 +41,9 @@ const SHELL_SIGNATURES: Partial<Record<ModuleId, readonly (readonly [string, str
   '@deepseek-ai/dsh-client-ui-primitives/Button.module.css': [
     ['button', ''], ['button', ':disabled'], ['ghost', ':active:not(:disabled)'],
     ['outline', ''], ['toolbar', ''], ['primary', ''], ['sm', ''], ['md', ''], ['icon', ''],
+  ],
+  '@deepseek-ai/dsh-client-ui-primitives/Tag.module.css': [
+    ['tag', ''], ...['outline', 'solid', 'neutral', 'quiet', 'success', 'info', 'warning', 'danger'].map(tone => ['tag', `[data-tone=${tone}]`] as const),
   ],
 };
 
