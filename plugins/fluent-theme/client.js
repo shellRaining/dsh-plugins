@@ -489,34 +489,106 @@ var HOST_CLASSES = {
 	turnRail: ["@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css", "frame"],
 	searchResultRow: ["@deepseek-ai/dsh-client-ui-workspace/Rows.module.css", "searchResultRow"]
 };
+/**
+* Shell-bundled modules, as [local class, selector suffix] pairs that the
+* module's rules must all have under one shared hash (attribute values
+* unquoted). Exactly one hash may match.
+*/
+var SHELL_SIGNATURES = { "@deepseek-ai/dsh-client-ui-primitives/Button.module.css": [
+	["button", ""],
+	["button", ":disabled"],
+	["ghost", ":active:not(:disabled)"],
+	["outline", ""],
+	["toolbar", ""],
+	["primary", ""],
+	["sm", ""],
+	["md", ""],
+	["icon", ""]
+] };
 var MODULE_TAG = "style[data-plugin-css]";
+var SHELL_SHEET = "link[rel~=\"stylesheet\"]";
 var NAMES = Object.keys(HOST_CLASSES);
-function resolve(document, name) {
+var literal = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+var select = (found) => found ? `[class~="${found}"]` : null;
+function fromModuleTag(document, name) {
 	const [module, local] = HOST_CLASSES[name];
-	const found = document.head.querySelector(`style[data-plugin-css=${JSON.stringify(module)}]`)?.textContent?.match(new RegExp(String.raw`\.([\w-]+_${local})(?![\w-])`))?.[1];
-	return found ? `[class~="${found}"]` : null;
+	return select(document.head.querySelector(`style[data-plugin-css=${JSON.stringify(module)}]`)?.textContent?.match(new RegExp(String.raw`\.([\w-]+_${local})(?![\w-])`))?.[1]);
+}
+/** Single selectors of the shell's linked stylesheets; unreadable (cross-origin) sheets are skipped. */
+function shellSelectors(document, window) {
+	const selectors = [];
+	const visit = (rules) => {
+		for (const rule of rules) {
+			if (rule instanceof window.CSSStyleRule) for (const part of rule.selectorText.split(",")) selectors.push(part.trim().replaceAll("\"", ""));
+			if (rule instanceof window.CSSGroupingRule) visit(rule.cssRules);
+		}
+	};
+	for (const sheet of document.styleSheets) {
+		if (!(sheet.ownerNode instanceof window.Element) || !sheet.ownerNode.matches(SHELL_SHEET)) continue;
+		try {
+			visit(sheet.cssRules);
+		} catch {}
+	}
+	return selectors;
+}
+var viteSelector = (local, hash, suffix) => new RegExp(String.raw`^\.(_${literal(local)}_(${hash})_\d+)${literal(suffix)}$`);
+/** The shell names of every signed module's classes; a module matching no or several hashes is left out. */
+function fromShell(selectors) {
+	const names = /* @__PURE__ */ new Map();
+	for (const [module, signature] of Object.entries(SHELL_SIGNATURES)) {
+		const [first, ...rest] = signature ?? [];
+		if (!first) continue;
+		const pattern = viteSelector(first[0], "[\\w-]{5}", first[1]);
+		const hashes = [...new Set(selectors.map((selector) => selector.match(pattern)?.[2]).filter((hash) => hash !== void 0))].filter((hash) => rest.every(([local, suffix]) => {
+			const exact = viteSelector(local, literal(hash), suffix);
+			return selectors.some((selector) => exact.test(selector));
+		}));
+		const hash = hashes.length === 1 ? hashes[0] : void 0;
+		if (hash === void 0) continue;
+		for (const name of NAMES) {
+			const [owner, local] = HOST_CLASSES[name];
+			if (owner !== module) continue;
+			const exact = viteSelector(local, literal(hash), "");
+			const found = new Set(selectors.map((selector) => selector.match(exact)?.[1]).filter((value) => value !== void 0));
+			const [only] = found;
+			if (found.size === 1 && only) names.set(name, only);
+		}
+	}
+	return names;
 }
 function createHostModules(document, window) {
-	const resolved = new Map(NAMES.map((name) => [name, resolve(document, name)]));
+	let shell = fromShell(shellSelectors(document, window));
+	const current = (name) => fromModuleTag(document, name) ?? select(shell.get(name));
+	const resolved = new Map(NAMES.map((name) => [name, current(name)]));
 	const listeners = /* @__PURE__ */ new Set();
-	const isModuleTag = (node) => node instanceof window.Element && node.matches(MODULE_TAG);
-	const observer = new window.MutationObserver((records) => {
-		if (!records.some((record) => isModuleTag(record.target) || isModuleTag(record.target.parentElement) || [...record.addedNodes, ...record.removedNodes].some(isModuleTag))) return;
+	const matches = (selector) => (node) => node instanceof window.Element && node.matches(selector);
+	const isModuleTag = matches(MODULE_TAG), isShellSheet = matches(SHELL_SHEET);
+	function refresh(rescan) {
+		if (rescan) shell = fromShell(shellSelectors(document, window));
 		let changed = false;
 		for (const name of NAMES) {
-			const next = resolve(document, name);
+			const next = current(name);
 			if (next !== resolved.get(name)) {
 				resolved.set(name, next);
 				changed = true;
 			}
 		}
 		if (changed) for (const listener of listeners) listener();
+	}
+	const observer = new window.MutationObserver((records) => {
+		const touched = (test) => records.some((record) => test(record.target) || test(record.target.parentElement) || [...record.addedNodes, ...record.removedNodes].some(test));
+		const sheets = touched(isShellSheet);
+		if (sheets || touched(isModuleTag)) refresh(sheets);
 	});
 	observer.observe(document.head, {
 		childList: true,
 		subtree: true,
 		characterData: true
 	});
+	const onLoad = (event) => {
+		if (isShellSheet(event.target instanceof window.Node ? event.target : null)) refresh(true);
+	};
+	document.addEventListener("load", onLoad, true);
 	return {
 		select: (name) => resolved.get(name) ?? null,
 		subscribe(listener) {
@@ -527,6 +599,7 @@ function createHostModules(document, window) {
 		},
 		dispose() {
 			observer.disconnect();
+			document.removeEventListener("load", onLoad, true);
 			listeners.clear();
 		}
 	};
