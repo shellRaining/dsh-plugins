@@ -36,6 +36,10 @@ export const DEFAULT_TYPES: readonly string[] = [
 
 export type DateSource = "session-created" | "now";
 export type AutomaticMode = "first-prompt" | "all-prompts";
+/** `detailed`: a descriptive phrase. `concise`: a verb plus its object. */
+export type SummaryStyle = "detailed" | "concise";
+
+const DEFAULT_SUMMARY_MAX_LENGTH: Record<SummaryStyle, number> = { detailed: 40, concise: 24 };
 
 /** User-facing plugin configuration; every field is optional. */
 export interface Config {
@@ -51,7 +55,9 @@ export interface Config {
   dateFormat?: string;
   /** Which instant `date` shows. `session-created` keeps it stable across regenerations. */
   dateSource?: DateSource;
-  /** Soft cap, in characters, requested for the summary and enforced on the result. */
+  /** How the summary is phrased. Default `detailed`. */
+  summaryStyle?: SummaryStyle;
+  /** Soft cap, in characters, requested for the summary and enforced on the result. Default 40, or 24 for `concise`. */
   summaryMaxLength?: number;
   /** Language the summary is written in, e.g. `中文` or `English`. Default: the language the user wrote in. */
   summaryLanguage?: string;
@@ -72,6 +78,7 @@ export interface ResolvedConfig {
   readonly types: readonly string[];
   readonly dateFormat: string;
   readonly dateSource: DateSource;
+  readonly summaryStyle: SummaryStyle;
   readonly summaryMaxLength: number;
   readonly summaryLanguage: string | undefined;
   readonly automatic: AutomaticMode;
@@ -127,6 +134,10 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
   if (dateSource !== "session-created" && dateSource !== "now") {
     throw new Error('session-title-layout: dateSource must be "session-created" or "now"');
   }
+  const summaryStyle = config.summaryStyle ?? "detailed";
+  if (summaryStyle !== "detailed" && summaryStyle !== "concise") {
+    throw new Error('session-title-layout: summaryStyle must be "detailed" or "concise"');
+  }
   if ((config.provider === undefined) !== (config.model === undefined)) {
     throw new Error("session-title-layout: provider and model must be set together");
   }
@@ -137,7 +148,12 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
     types,
     dateFormat: config.dateFormat ?? "YYMMDD",
     dateSource,
-    summaryMaxLength: positiveInt(config.summaryMaxLength, 40, "summaryMaxLength"),
+    summaryStyle,
+    summaryMaxLength: positiveInt(
+      config.summaryMaxLength,
+      DEFAULT_SUMMARY_MAX_LENGTH[summaryStyle],
+      "summaryMaxLength",
+    ),
     summaryLanguage,
     automatic,
     route:
@@ -156,19 +172,35 @@ export function buildSystemPrompt(config: ResolvedConfig): string {
   const shape = wantsType ? '{"type": "...", "summary": "..."}' : '{"summary": "..."}';
   const lines = [
     "Generate a title for an AI coding-assistant session from the user's messages.",
+    'The input is a JSON object. "messages" holds the user\'s messages in order; the first one is the request that opened the session. "previousTitle", when present, is the title the session has now.',
+    "The title names the session's main task, which is usually set by the first message. Later messages are follow-ups to that task unless the user clearly moved on to a different one; do not retitle the session after a follow-up detail.",
+    'If "previousTitle" still fits the main task, reuse its wording. It is the full displayed title and may start with a type or date prefix; never copy those prefixes into "summary".',
     `Reply with ONLY one JSON object of exactly this shape, with no code fence and no commentary: ${shape}`,
   ];
   if (wantsType) {
     lines.push(`- "type" is exactly one of: ${config.types.join(", ")}.`);
   }
   lines.push(
-    `- "summary" is a short plain phrase, at most ${config.summaryMaxLength} characters, that lets a reader tell what the session is about.`,
+    config.summaryStyle === "concise"
+      ? `- "summary" is one verb followed by its object, at most ${config.summaryMaxLength} characters, e.g. "移除 Authorization 请求头" or "fix login redirect". No clauses, no reasons, no lists.`
+      : `- "summary" is a short plain phrase, at most ${config.summaryMaxLength} characters, that lets a reader tell what the session is about.`,
     config.summaryLanguage === undefined
       ? '- Write "summary" in the language the user wrote in. No Markdown, no surrounding quotes, no trailing punctuation.'
       : `- Write "summary" in ${config.summaryLanguage}, whatever language the user wrote in. No Markdown, no surrounding quotes, no trailing punctuation.`,
     "Do not reason or explain. Output the JSON object immediately.",
   );
   return lines.join("\n");
+}
+
+/** User-turn payload for the title model. */
+export function buildModelInput(
+  messages: readonly { readonly text: string }[],
+  previousTitle: string | undefined,
+): string {
+  return JSON.stringify({
+    ...(previousTitle === undefined ? {} : { previousTitle }),
+    messages: messages.map((entry) => ({ text: entry.text })),
+  });
 }
 
 function truncateChars(input: string, max: number): string {

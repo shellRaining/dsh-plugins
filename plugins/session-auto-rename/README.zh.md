@@ -65,7 +65,8 @@ dsh plugin --profile web add @shellraining/dsh-session-auto-rename
 | `types` | `feat, fix, refactor, docs, chore, style, test, perf, build, ci, revert` | `type` 的允许值，比较时不区分大小写。 |
 | `dateFormat` | `YYMMDD` | 支持 `YYYY`、`YY`、`MM`、`DD`，使用本地时间。 |
 | `dateSource` | `session-created` | `session-created` 使重新生成标题时日期保持不变；`now` 用生成时刻。 |
-| `summaryMaxLength` | `40` | 摘要最多字符数，既写进 prompt 也对结果强制截断。 |
+| `summaryStyle` | `detailed` | `detailed` 写一句描述性短语；`concise` 只写一个动词加宾语，如 `移除 Authorization 请求头`。 |
+| `summaryMaxLength` | `40`，`concise` 时为 `24` | 摘要最多字符数，既写进 prompt 也对结果强制截断。 |
 | `summaryLanguage` | 跟随用户语言 | 摘要语言，如 `中文`、`English`。 |
 | `automatic` | `first-prompt` | `first-prompt` 只生成一次；`all-prompts` 随新消息重新生成。 |
 | `provider`、`model` | 会话主路由 | 生成标题用的辅助模型，要么都设要么都不设。 |
@@ -78,6 +79,7 @@ dsh plugin --profile web add @shellraining/dsh-session-auto-rename
 ## 行为
 
 - 模型回复不可用（没有 JSON、没有 summary，或 `type` 不在允许列表）时本次调用失败，会话保留当前标题，不会猜一个。
+- 标题以第一条消息开启的任务为主旨，后续追问不会把标题带偏。重新生成时，本插件上次写的标题会一并发给模型，主旨没变就沿用原来的说法。
 - 版式变更只影响之后生成的标题。已有标题以纯文本存于会话日志，不会被改写。
 - 标题仍会经过 dsh 自身的规范化和字节上限。
 

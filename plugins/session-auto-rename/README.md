@@ -1,6 +1,6 @@
 # 会话自动命名
 
-根据对话内容自动命名会话，支持自定义标题格式和摘要语言。例如：`<type>：<摘要>`（如 `feat：重命名侧边栏会话标题`），分隔符、摘要语言、触发方式均可配。
+根据对话内容自动命名会话，支持自定义标题格式和摘要语言。例如：`<type>：<摘要>`（如 `feat：重命名侧边栏会话标题`），分隔符、摘要语言、触发方式均可配。摘要默认是一句描述性短语；设 `summaryStyle: concise` 后只写一个动词加宾语，如 `refactor：移除 Authorization 请求头`。
 
 在 profile 或 home 的 cordis.patch.yml 覆盖配置：
 
@@ -9,6 +9,7 @@
   config:
     preset: type-summary
     separator: "："
+    summaryStyle: concise
     summaryLanguage: 中文
     automatic: all-prompts
 ```

@@ -14,6 +14,7 @@ import type {
   SessionTitleProviderResult,
 } from "@deepseek-ai/dsh-session-title";
 import {
+  buildModelInput,
   buildSystemPrompt,
   formatDate,
   parseModelOutput,
@@ -74,14 +75,17 @@ async function generate(
     throw new Error(`${name}: no eligible messages`);
   }
 
+  // Only titles this plugin wrote are worth keeping; the built-in fallback is
+  // just a truncated first message.
+  const current = request.currentTitle;
+  const previousTitle =
+    current?.source.kind === "provider" && current.source.provider === PROVIDER_ID
+      ? current.title
+      : undefined;
+
   const input: RequestUserInput = {
     role: "user",
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(selected.map((entry) => ({ text: entry.text }))),
-      },
-    ],
+    content: [{ type: "text", text: buildModelInput(selected, previousTitle) }],
   };
 
   const stream = ctx.llm.stream({
