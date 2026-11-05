@@ -12,12 +12,21 @@
 | <img src="plugins/mermaid/icon.png" width="36" height="36" alt="" /> | [Mermaid 图表](plugins/mermaid) | 切换 Mermaid 代码与图表视图，复制源码 | `dsh plugin --profile web add @shellraining/dsh-mermaid` |
 |  | [Streamdown](plugins/streamdown) | 助手回复流式渲染，引擎 fork 自 lobehub/streamdown | `dsh plugin --profile web add @shellraining/dsh-streamdown` |
 | <img src="plugins/session-auto-rename/icon.png" width="36" height="36" alt="" /> | [会话自动命名](plugins/session-auto-rename) | 根据对话自动命名，支持自定义标题格式和摘要语言 | `dsh plugin --profile web add @shellraining/dsh-session-auto-rename` |
-| <img src="plugins/sidebar-session-preview/icon.png" width="36" height="36" alt="" /> | [会话悬浮预览](plugins/sidebar-session-preview) | 悬停侧栏会话，预览最近消息 | `dsh plugin --profile web add @shellraining/dsh-sidebar-session-preview` |
 | <img src="plugins/inline-code-copy/icon.png" width="36" height="36" alt="" /> | [行内代码复制](plugins/inline-code-copy) | 点击助手回复中的行内代码即可复制 | `dsh plugin --profile web add @shellraining/dsh-inline-code-copy` |
-| <img src="plugins/plugin-updates/icon.png" width="36" height="36" alt="" /> | [插件更新](plugins/plugin-updates) | 检查 npm 插件新版本，更新或安装指定版本 | `dsh plugin --profile web add @shellraining/dsh-plugin-updates` |
 | <img src="plugins/shellraining-brand/icon.png" width="36" height="36" alt="" /> | [shellRaining 品牌](plugins/shellraining-brand) | 替换侧栏和首页的品牌标识；fork 后可替换为自己的资源 | `dsh plugin --profile web add @shellraining/dsh-brand` |
 
 新增插件：[布局预设](plugins/layout-presets/README.md)，支持对话区与右栏比例保持、宽度比例预设和双击等分。安装：`dsh plugin --profile web add @shellraining/dsh-layout-presets`，兼容性限制见子包文档。
+
+## 已下线的插件
+
+DSH 0.2.2 起宿主内置了同类功能，以下插件停止维护，npm 上已发布的版本保留：
+
+| 插件 | 替代 |
+| --- | --- |
+| `@shellraining/dsh-plugin-updates` | 插件管理页内置的第三方插件更新 |
+| `@shellraining/dsh-sidebar-session-preview` | 侧栏会话与工作区的内置悬浮卡 |
+
+升级到 DSH 0.2.2 后，如已安装，请在插件管理页移除。
 
 ## 包名迁移
 
