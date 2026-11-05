@@ -33,6 +33,21 @@ pnpm build
 
 没有页面控制能力、加载权限或合适环境时，明确写出未完成运行时验证，不把类型检查、构建或结构测试当成页面验证的替代。
 
+## 本地链接与即时预览
+
+DSH 的 `client-hmr` 每 500ms 检查已加载插件的 `client.js`，文件变化后在已打开的页面中替换该插件，无需刷新。要让它读到本仓库的构建产物，需把 profile 中的插件链接到本地目录。
+
+链接写在 profile 的 `pnpm-workspace.yaml` 的 `overrides` 中，不使用 `dsh plugin add link:` 或 `pnpm link`，后两者会改写 `package.json`。profile 的 `package.json` 若被 dotfiles 等同步，本机绝对路径会随之扩散；`pnpm-workspace.yaml` 通常不同步，`package.json` 也保留 npm 版本号。
+
+```yaml
+overrides:
+  '<包名>': link:<本仓库>/plugins/<目录>
+```
+
+修改后在 profile 中执行 `dsh plugin --profile <名称> install`，首次切换需重启 DSH。之后在包目录运行 `pnpm run dev`（已提供该脚本的包），它用 Node 原生监听在 `src/` 变化时重新构建，不做类型检查。该热更新只覆盖浏览器端；宿主端代码要等 profile 重新组合或重启。替换会重置插件的界面状态，会话与连接保留。
+
+调试结束后删除对应 `overrides` 行并再次 `install`，恢复为 npm 版本。提交前仍按“验证顺序”运行完整检查，本地链接不影响流水线发布。
+
 ## 发布
 
 npm 包由 GitHub Actions 的 [release 流水线](../.github/workflows/release.yml)发布，除新包的首个版本外，不在本机执行发布。含 `catalog:` 的源码目录必须用 `pnpm publish`，或用 `pnpm pack` 后发布生成的 tarball，不能直接用 `npm publish` 跳过 catalog 转换。推送到 main 后，流水线依次安装依赖、类型检查、构建，确认提交进仓库的构建产物与重新构建的结果一致，再运行 `pnpm -r publish`。版本号已在 npm 上的包会跳过，其余包作为 latest 发布。

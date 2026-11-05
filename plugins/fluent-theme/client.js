@@ -2421,7 +2421,8 @@ var CANVAS_RULES = (() => {
 		clear: join(() => "transparent"),
 		restore: join((name) => `var(${kept(name)})`),
 		bar: join((name) => `color-mix(in srgb, var(${kept(name)}) 82%, transparent)`),
-		acrylic: `color-mix(in srgb, var(${kept("--dsw-alias-bg-base")}) 82%, transparent)`
+		acrylic: `color-mix(in srgb, var(${kept("--dsw-alias-bg-base")}) 82%, transparent)`,
+		solid: `color-mix(in srgb, var(${kept("--dsw-alias-bg-base")}) 94%, transparent)`
 	};
 })();
 var WALLPAPER_CSS = `
@@ -2517,6 +2518,25 @@ body[data-acrylic-wallpaper] ${COMPOSER_CARD}::before {
   }
   body[data-acrylic-wallpaper][data-ds-dark-theme] ${COMPOSER_CARD}::before {
     background: color-mix(in srgb, var(--dsw-specific-input-major) 85%, transparent);
+  }
+}
+/* The sticky composer seat hides scrolled transcript with a canvas gradient
+   (transparent to bg-base over 36px), which the cleared canvas turns into
+   nothing. Restore it as one in-app acrylic band that reaches the column's
+   bottom and side edges, as Fluent does for surfaces content scrolls under;
+   the host's own 36px fade becomes a mask, so the band has no hard top edge.
+   A pseudo-element carries the blur: the seat itself must not become the
+   containing block of its viewport-fixed menus. */
+${FRAME} [data-content-phase="active"] [data-composer-seat]::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: ${CANVAS_RULES.solid};
+  -webkit-mask-image: linear-gradient(transparent, #000 36px);
+  mask-image: linear-gradient(transparent, #000 36px);
+}
+@supports (backdrop-filter: blur(1px)) {
+  ${FRAME} [data-content-phase="active"] [data-composer-seat]::before {
+    background: ${CANVAS_RULES.acrylic};
+    backdrop-filter: blur(30px) saturate(1.2);
   }
 }
 /* The opaque layer already backs every menu; the macOS menu backing would

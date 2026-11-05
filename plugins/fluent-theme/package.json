@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-fluent-theme",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "description": "Windows 10 风格主题，提供亚克力背景、Reveal 光效和交互动效。",
   "main": "./index.js",
@@ -20,6 +20,7 @@
   "scripts": {
     "host-tokens": "node scripts/host-tokens.mjs",
     "typecheck": "tsc -p tsconfig.json",
+    "dev": "node --watch-path=src --watch-preserve-output build.ts",
     "build": "pnpm run typecheck && node build.ts"
   },
   "engines": {
