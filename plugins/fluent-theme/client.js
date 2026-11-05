@@ -698,8 +698,9 @@ var adapterCss = (searchRows) => `
 /* HoverCard declares its own fill (#2C2C2E in both schemes) instead of a token. */
 body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { --dsw-hovercard-bg: #2b2b2b; }
 /* The macOS sidebar column layers a hard-coded blue vibrancy gradient over its
-   fill. Keep the neutral fill (frame anchors, not module hashes). */
-html[data-platform="darwin"] body[data-acrylic-fluent] ${FRAME$1} > div:first-child { background-image: none; }
+   fill, except as a narrow-window drawer (whose mask is the first child then).
+   Keep the neutral fill (frame anchors, not module hashes). */
+html[data-platform="darwin"] body[data-acrylic-fluent] ${FRAME$1}:not([data-sidebar-drawer]) > div:first-child { background-image: none; }
 body[data-acrylic-fluent] [data-changed-files],
 body[data-acrylic-fluent][data-ds-dark-theme] [data-changed-files] {
   --changes-fill: var(--dsw-alias-bg-layer-1);
@@ -2413,6 +2414,8 @@ function createPressMotion(document, window, modules, refresh) {
 var FRAME = "body[data-acrylic-wallpaper] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var FLUENT_FRAME = "body[data-acrylic-wallpaper][data-acrylic-fluent] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var DOCK_TINT = "rgb(var(--acrylic-tint-rgb) / .08)";
+var SIDEBAR_COL = ":is(div:first-child:not([data-sidebar-mask]), [data-sidebar-mask] + div)";
+var CENTER_COL = "div:has(+ [data-rightbar-col])";
 var TERMINAL_HOST = `${FRAME} :has(> .xterm)`;
 var TERMINAL_SURFACE = `${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)`;
 var COMPACTION_HEADER = "button[aria-expanded=\"true\"]:has(> span > [data-compaction-disclosure])";
@@ -2431,7 +2434,9 @@ var CANVAS_RULES = (() => {
 		restore: join((name) => `var(${kept(name)})`),
 		bar: join((name) => `color-mix(in srgb, var(${kept(name)}) 82%, transparent)`),
 		acrylic: `color-mix(in srgb, var(${kept("--dsw-alias-bg-base")}) 82%, transparent)`,
-		solid: `color-mix(in srgb, var(${kept("--dsw-alias-bg-base")}) 94%, transparent)`
+		solid: `color-mix(in srgb, var(${kept("--dsw-alias-bg-base")}) 94%, transparent)`,
+		sidebarAcrylic: `color-mix(in srgb, var(${kept("--dsw-specific-sidebar-fill")}) 82%, transparent)`,
+		sidebarSolid: `color-mix(in srgb, var(${kept("--dsw-specific-sidebar-fill")}) 94%, transparent)`
 	};
 })();
 var WALLPAPER_CSS = `
@@ -2477,7 +2482,7 @@ ${TERMINAL_HOST} > .xterm,
 ${FRAME} .xterm:has(.xterm-rows) .xterm-screen { position: relative; z-index: 1; }
 
 /* Reading surfaces (center column, docked panes) gain the same subtle tint. */
-${FRAME} > div:nth-child(2),
+${FRAME} > ${CENTER_COL},
 ${FRAME} [data-dockkit-host="dock"] > [data-dockkit-content],
 ${FRAME} [data-dockkit-empty] { background: ${DOCK_TINT}; }
 /* A right panel without its own track (narrow window, fullscreen) lies over
@@ -2494,6 +2499,20 @@ ${FRAME}:is([data-rightbar-collapsed], [data-rightbar-fullscreen]) [data-rightba
 ${FLUENT_FRAME}[data-animating]:not([data-rightbar-instant], [data-rightbar-fullscreen]) [data-sidebar-right-panel]:not([data-sidebar-right-open]) :is([data-dockkit-host="dock"] > [data-dockkit-content], [data-dockkit-empty]) {
   background: ${DOCK_TINT};
   backdrop-filter: none;
+}
+/* The narrow-window drawer slides the sidebar over the mask and conversation:
+   in-app acrylic on a pseudo-element, as on composer cards, so the column
+   gains no containing block for fixed descendants. */
+${FRAME}[data-sidebar-drawer] > ${SIDEBAR_COL} { isolation: isolate; }
+${FRAME}[data-sidebar-drawer] > ${SIDEBAR_COL}::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: ${CANVAS_RULES.sidebarSolid};
+}
+@supports (backdrop-filter: blur(1px)) {
+  ${FRAME}[data-sidebar-drawer] > ${SIDEBAR_COL}::before {
+    background: ${CANVAS_RULES.sidebarAcrylic};
+    backdrop-filter: blur(30px) saturate(1.2);
+  }
 }
 
 /* Sticky rows that used the canvas to hide scrolled content become acrylic

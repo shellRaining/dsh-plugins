@@ -14,8 +14,9 @@ export const adapterCss = (searchRows: string | null) => `
 /* HoverCard declares its own fill (#2C2C2E in both schemes) instead of a token. */
 body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { --dsw-hovercard-bg: #2b2b2b; }
 /* The macOS sidebar column layers a hard-coded blue vibrancy gradient over its
-   fill. Keep the neutral fill (frame anchors, not module hashes). */
-html[data-platform="darwin"] body[data-acrylic-fluent] ${FRAME} > div:first-child { background-image: none; }
+   fill, except as a narrow-window drawer (whose mask is the first child then).
+   Keep the neutral fill (frame anchors, not module hashes). */
+html[data-platform="darwin"] body[data-acrylic-fluent] ${FRAME}:not([data-sidebar-drawer]) > div:first-child { background-image: none; }
 body[data-acrylic-fluent] [data-changed-files],
 body[data-acrylic-fluent][data-ds-dark-theme] [data-changed-files] {
   --changes-fill: var(--dsw-alias-bg-layer-1);

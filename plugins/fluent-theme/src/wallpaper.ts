@@ -15,6 +15,10 @@ const FRAME = 'body[data-acrylic-wallpaper] div:has(> [data-shell-bottom]):has(>
 // Win10 mode replays the frame's column transition (frame-motion.ts).
 const FLUENT_FRAME = 'body[data-acrylic-wallpaper][data-acrylic-fluent] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])';
 const DOCK_TINT = 'rgb(var(--acrylic-tint-rgb) / .08)';
+// Frame columns by their semantic neighbours. The narrow-window drawer inserts
+// [data-sidebar-mask] before the sidebar column, so child positions shift.
+const SIDEBAR_COL = ':is(div:first-child:not([data-sidebar-mask]), [data-sidebar-mask] + div)';
+const CENTER_COL = 'div:has(+ [data-rightbar-col])';
 // xterm's parent (the host padding). Rules whose subject is a bare :has() are
 // tested on every element in every style recalc; keep the argument child-only.
 // A descendant argument (> .xterm .xterm-rows) walked each element's subtree
@@ -39,6 +43,8 @@ const CANVAS_RULES = (() => {
     acrylic: `color-mix(in srgb, var(${kept('--dsw-alias-bg-base')}) 82%, transparent)`,
     // Fallback for acrylic surfaces where backdrop-filter is unsupported.
     solid: `color-mix(in srgb, var(${kept('--dsw-alias-bg-base')}) 94%, transparent)`,
+    sidebarAcrylic: `color-mix(in srgb, var(${kept('--dsw-specific-sidebar-fill')}) 82%, transparent)`,
+    sidebarSolid: `color-mix(in srgb, var(${kept('--dsw-specific-sidebar-fill')}) 94%, transparent)`,
   };
 })();
 
@@ -85,7 +91,7 @@ ${TERMINAL_HOST} > .xterm,
 ${FRAME} .xterm:has(.xterm-rows) .xterm-screen { position: relative; z-index: 1; }
 
 /* Reading surfaces (center column, docked panes) gain the same subtle tint. */
-${FRAME} > div:nth-child(2),
+${FRAME} > ${CENTER_COL},
 ${FRAME} [data-dockkit-host="dock"] > [data-dockkit-content],
 ${FRAME} [data-dockkit-empty] { background: ${DOCK_TINT}; }
 /* A right panel without its own track (narrow window, fullscreen) lies over
@@ -102,6 +108,20 @@ ${FRAME}:is([data-rightbar-collapsed], [data-rightbar-fullscreen]) [data-rightba
 ${FLUENT_FRAME}[data-animating]:not([data-rightbar-instant], [data-rightbar-fullscreen]) [data-sidebar-right-panel]:not([data-sidebar-right-open]) :is([data-dockkit-host="dock"] > [data-dockkit-content], [data-dockkit-empty]) {
   background: ${DOCK_TINT};
   backdrop-filter: none;
+}
+/* The narrow-window drawer slides the sidebar over the mask and conversation:
+   in-app acrylic on a pseudo-element, as on composer cards, so the column
+   gains no containing block for fixed descendants. */
+${FRAME}[data-sidebar-drawer] > ${SIDEBAR_COL} { isolation: isolate; }
+${FRAME}[data-sidebar-drawer] > ${SIDEBAR_COL}::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: ${CANVAS_RULES.sidebarSolid};
+}
+@supports (backdrop-filter: blur(1px)) {
+  ${FRAME}[data-sidebar-drawer] > ${SIDEBAR_COL}::before {
+    background: ${CANVAS_RULES.sidebarAcrylic};
+    backdrop-filter: blur(30px) saturate(1.2);
+  }
 }
 
 /* Sticky rows that used the canvas to hide scrolled content become acrylic
