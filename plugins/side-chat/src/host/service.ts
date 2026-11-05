@@ -411,6 +411,10 @@ export class SideChatService {
         ...(typeof header.cwd === 'string' ? { cwd: header.cwd } : {}),
         ...(nonEmptyString(agentPreset) ? { agentPreset } : {}),
         ...(inheritedEventCount > 0 ? { isSeeded: true as const } : {}),
+        // Only hides the side session from the session list. DSH 0.2.2 also
+        // treats `origin: 'subagent'` as subagent ownership (direct prompting
+        // refused, durable parent address required, no first-prompt titles);
+        // re-check those rules on every host upgrade.
         origin: 'subagent',
       };
       const boundary: UserMessage = {
