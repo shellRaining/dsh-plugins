@@ -116,8 +116,44 @@ function tagCss(modules: HostModules): string {
   return tag ? `body[data-acrylic-fluent] ${tag} { border-radius: var(--dsw-radius-xs); }\n` : '';
 }
 
+// Official text quotes. The selection's floating action is a pill button on
+// the opaque floating fill: give it the Win10 flyout look (acrylic, square,
+// the panel depth it already uses); Reveal and press reach it as a button.
+// Quote previews (the composer chip and the excerpt in sent messages) are
+// accent text with a round remove button: a square accent-tinted label like
+// the Win10 Tag, and a square remove button.
+function quoteCss(modules: HostModules): string {
+  const action = modules.select('quoteAction');
+  const fluent = 'body[data-acrylic-fluent]';
+  const tint = (amount: number) => `color-mix(in srgb, var(--dsw-alias-state-business-primary) ${amount}%, transparent)`;
+  return `${action ? `
+${fluent} button${action} { border-radius: var(--dsw-radius-sm); }
+@supports (backdrop-filter: blur(1px)) {
+  ${fluent} button${action} {
+    background: color-mix(in srgb, var(--dsw-alias-button-floating-fill) 85%, transparent);
+    backdrop-filter: var(--dsw-menu-backdrop-filter);
+  }
+  @media (hover: hover) {
+    ${fluent} button${action}:hover { background: color-mix(in srgb, var(--dsw-alias-button-floating-hover) 90%, transparent); }
+  }
+  ${fluent} button${action}:focus-visible { background: color-mix(in srgb, var(--dsw-alias-button-floating-hover) 90%, transparent); }
+}` : ''}
+/* The light tint stays at 7%: 10% drops the accent text to about 3.7:1. */
+${fluent} [data-quote-preview] { padding-inline: 4px; border-radius: var(--dsw-radius-xs); background: ${tint(7)}; }
+${fluent}[data-ds-dark-theme] [data-quote-preview] { background: ${tint(10)}; }
+${fluent} [data-quote-preview] > button { border-radius: var(--dsw-radius-xs); }
+@media (hover: hover) {
+  ${fluent} [data-quote-preview] > button:hover { background: ${tint(16)}; }
+}
+${fluent} [data-quote-preview] > button:active { background: ${tint(22)}; }
+@media (forced-colors: active) {
+  ${fluent} [data-quote-preview] { background: none; }
+}
+`;
+}
+
 export function createAdapters(document: Document, modules: HostModules): Feature<boolean> {
-  const render = () => adapterCss(modules.select('searchResultRow')) + buttonStateCss(modules) + tagCss(modules);
+  const render = () => adapterCss(modules.select('searchResultRow')) + buttonStateCss(modules) + tagCss(modules) + quoteCss(modules);
   const sheet = createStyleSheet(document, 'dsh-acrylic-wallpaper-adapters', render());
   const unsubscribe = modules.subscribe(() => sheet.set(render()));
   return { update: sheet.toggle, dispose() { unsubscribe(); sheet.dispose(); } };

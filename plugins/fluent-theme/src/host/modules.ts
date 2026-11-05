@@ -23,6 +23,8 @@ export const HOST_CLASSES = {
   // Status tags (plugin cards and versions, model and preset badges): a pill
   // whose radius is a literal, not a token.
   tag: ['@deepseek-ai/dsh-client-ui-primitives/Tag.module.css', 'tag'],
+  // The official quote plugin's floating "Quote text" button over a selection.
+  quoteAction: ['@deepseek-ai/dsh-message-quotes/QuoteSelection.module.css', 'action'],
   // Right-hand turn rail (an outline next to the conversation).
   turnRail: ['@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css', 'frame'],
   // Sidebar search results: tree rows without data-row-key.

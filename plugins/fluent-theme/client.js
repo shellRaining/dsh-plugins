@@ -487,6 +487,7 @@ var HOST_CLASSES = {
 	buttonToolbar: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "toolbar"],
 	buttonPrimary: ["@deepseek-ai/dsh-client-ui-primitives/Button.module.css", "primary"],
 	tag: ["@deepseek-ai/dsh-client-ui-primitives/Tag.module.css", "tag"],
+	quoteAction: ["@deepseek-ai/dsh-message-quotes/QuoteSelection.module.css", "action"],
 	turnRail: ["@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css", "frame"],
 	searchResultRow: ["@deepseek-ai/dsh-client-ui-workspace/Rows.module.css", "searchResultRow"]
 };
@@ -874,8 +875,37 @@ function tagCss(modules) {
 	const tag = modules.select("tag");
 	return tag ? `body[data-acrylic-fluent] ${tag} { border-radius: var(--dsw-radius-xs); }\n` : "";
 }
+function quoteCss(modules) {
+	const action = modules.select("quoteAction");
+	const fluent = "body[data-acrylic-fluent]";
+	const tint = (amount) => `color-mix(in srgb, var(--dsw-alias-state-business-primary) ${amount}%, transparent)`;
+	return `${action ? `
+${fluent} button${action} { border-radius: var(--dsw-radius-sm); }
+@supports (backdrop-filter: blur(1px)) {
+  ${fluent} button${action} {
+    background: color-mix(in srgb, var(--dsw-alias-button-floating-fill) 85%, transparent);
+    backdrop-filter: var(--dsw-menu-backdrop-filter);
+  }
+  @media (hover: hover) {
+    ${fluent} button${action}:hover { background: color-mix(in srgb, var(--dsw-alias-button-floating-hover) 90%, transparent); }
+  }
+  ${fluent} button${action}:focus-visible { background: color-mix(in srgb, var(--dsw-alias-button-floating-hover) 90%, transparent); }
+}` : ""}
+/* The light tint stays at 7%: 10% drops the accent text to about 3.7:1. */
+${fluent} [data-quote-preview] { padding-inline: 4px; border-radius: var(--dsw-radius-xs); background: ${tint(7)}; }
+${fluent}[data-ds-dark-theme] [data-quote-preview] { background: ${tint(10)}; }
+${fluent} [data-quote-preview] > button { border-radius: var(--dsw-radius-xs); }
+@media (hover: hover) {
+  ${fluent} [data-quote-preview] > button:hover { background: ${tint(16)}; }
+}
+${fluent} [data-quote-preview] > button:active { background: ${tint(22)}; }
+@media (forced-colors: active) {
+  ${fluent} [data-quote-preview] { background: none; }
+}
+`;
+}
 function createAdapters(document, modules) {
-	const render = () => adapterCss(modules.select("searchResultRow")) + buttonStateCss(modules) + tagCss(modules);
+	const render = () => adapterCss(modules.select("searchResultRow")) + buttonStateCss(modules) + tagCss(modules) + quoteCss(modules);
 	const sheet = createStyleSheet(document, "dsh-acrylic-wallpaper-adapters", render());
 	const unsubscribe = modules.subscribe(() => sheet.set(render()));
 	return {
