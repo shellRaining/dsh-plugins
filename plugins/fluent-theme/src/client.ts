@@ -24,10 +24,11 @@ export function apply(ctx: ClientContext) {
     return sheet.dispose;
   });
   ctx.effect(() => {
-    // Hide the portal container too, avoiding an empty floating border/shadow.
+    // Hide the HoverCard's whole portal (a display:contents span around the
+    // card and its pointer bridge), avoiding an empty floating border/shadow.
     // This is visual only: the host may still load the comparison on hover.
     const sheet = createStyleSheet(document, `${PLUGIN_ID}-hide-diff-hover`, `
-      body > div:has(> [data-changes-hover-preview]) {
+      body > span:has(> div > [data-changes-hover-preview]) {
         display: none !important;
       }
     `);

@@ -2872,7 +2872,7 @@ function apply(ctx) {
 	});
 	ctx.effect(() => {
 		const sheet = createStyleSheet(document, `${PLUGIN_ID}-hide-diff-hover`, `
-      body > div:has(> [data-changes-hover-preview]) {
+      body > span:has(> div > [data-changes-hover-preview]) {
         display: none !important;
       }
     `);
