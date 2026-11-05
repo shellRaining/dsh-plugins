@@ -6,9 +6,10 @@ import { createStyleSheet } from './style.ts';
 // - Enter: a CSS hold keeps each new popup transparent for its first frame;
 //   its animationstart event hands over to Web Animations that slide it away
 //   from the trigger (flyouts), zoom it in (modal dialogs) or fade (tooltips).
-// - Exit: a removed popup is replaced in its old parent by an inert clone that
-//   host code cannot find and that keeps the popup's last computed look,
-//   which plays the exit and removes itself.
+// - Exit: a removed popup (or the portal wrapper holding it) is replaced in
+//   its old parent by an inert clone that host code cannot find and that
+//   keeps the popup's last computed look, which plays the exit and removes
+//   itself.
 // Popups with an acrylic layer fade that layer and their content separately:
 // opacity < 1 on an ancestor is a backdrop root and would drop the blur.
 const HOLD = 'acrylic-popup-hold';
@@ -16,7 +17,7 @@ export const POPUP_SELECTOR = [
   '[data-menu-material]', // MenuSurface: menus, pickers, command lists, dock tab menus
   'body > [role="presentation"]:has(> [role="dialog"][aria-modal="true"])', // modals
   'body > :is([role="dialog"], [role="menu"], [role="listbox"]):not([aria-modal="true"])', // portaled panels
-  'body > div[style*="--dsh-hover-preview-fade"]', // HoverCard
+  'body > span > div[style*="--dsh-hover-preview-fade"]', // HoverCard, in its portal span
   'body > ul', 'body > div:has(> [role="tree"])', // portaled catalogs without a popup role
   '[role="tooltip"]',
   '[data-session-preview-card]',
@@ -65,7 +66,7 @@ export const MOTION_CSS = `
   body[data-acrylic-fluent] :is(${POPUP_SELECTOR}):not([data-acrylic-ghost]) { animation: ${HOLD} 300ms linear; }
   body[data-acrylic-fluent] > [data-menu-backing] { animation: acrylic-backing-in ${MOTION.fade}ms linear; }
   /* Preview HoverCards own a closing phase that unmounts after 100ms. */
-  body[data-acrylic-fluent] > div[style*="--dsh-hover-preview-fade"] { transition: opacity 90ms ${MOTION.exit}; }
+  body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { transition: opacity 90ms ${MOTION.exit}; }
 }
 @keyframes ${HOLD} { from, to { opacity: 0; } }
 @keyframes acrylic-backing-in { from { opacity: 0; } }
@@ -236,6 +237,8 @@ type Shape =
   | { readonly kind: 'modal'; readonly dialog: number }
   | { readonly kind: 'flyout'; readonly direction: Direction; readonly distance: number };
 type Tracked = Shape & {
+  /** What the host unmounts: the popup or its display:contents portal wrapper. */
+  readonly root: Element;
   readonly scroll: Scroll;
   readonly backing: Element | null;
   state: { readonly time: number; readonly nodes: StateNode[] } | null;
@@ -333,13 +336,22 @@ export function createMotion(document: Document, window: View, { onSettle }: Mot
     Promise.all(animations.map(animation => animation.finished)).then(() => { window.clearTimeout(timer); finish(); }, () => {});
   }
 
+  // HoverCard portals a display:contents span holding the card and its
+  // pointer bridge to body, and unmounts the span, not the card. Wrappers
+  // inside the app tree stay mounted when their popup closes: not roots.
+  function rootOf(popup: Element): Element {
+    const parent = popup.parentElement;
+    return parent && parent.parentElement === document.body && window.getComputedStyle(parent).display === 'contents' ? parent : popup;
+  }
+
   function start(popup: Element) {
     if (!enabled || !popup.isConnected) return;
-    const info: Tracked = { ...describe(popup), scroll: scrollState(popup), backing: backingOf(window, popup), state: null };
+    const root = rootOf(popup);
+    const info: Tracked = { ...describe(popup), root, scroll: scrollState(popup), backing: backingOf(window, popup), state: null };
     const animations = enter(popup, info);
     for (const [element] of tracked) if (!element.isConnected) tracked.delete(element);
     tracked.set(popup, info);
-    if (popup.parentNode) removals.observe(popup.parentNode, { childList: true });
+    if (root.parentNode) removals.observe(root.parentNode, { childList: true });
     if (onSettle) settle(animations, onSettle);
   }
 
@@ -366,41 +378,46 @@ export function createMotion(document: Document, window: View, { onSettle }: Mot
     whenPlaced(popup);
   }
 
-  function ghost(node: Element, info: Tracked, record: MutationRecord) {
+  // `node` is the removed root; the popup is either that node or inside it.
+  function ghost(popup: Element, node: Element, info: Tracked, record: MutationRecord) {
     const parent = record.target;
     if (!enabled || reduce.matches || document.hidden || !parent.isConnected) return;
     // Preview HoverCards already faded in their host-owned closing phase.
-    if (node.hasAttribute('hidden') || node.hasAttribute('data-closing')) return;
+    if (node.hasAttribute('hidden') || popup.hasAttribute('hidden') || popup.hasAttribute('data-closing')) return;
     if (node.querySelector(GHOST_SKIP) || node.getElementsByTagName('*').length > GHOST_MAX_NODES) return;
     const clone = node.cloneNode(true) as HTMLElement;
+    const target = popup === node ? clone : nodeAt(clone, pathTo(node, popup));
+    if (!target) return;
     detachGhost(clone);
     const next = record.nextSibling?.parentNode === parent ? record.nextSibling : null;
     parent.insertBefore(clone, next);
     const state = info.state && window.performance.now() - info.state.time < STATE_TTL ? info.state.nodes : null;
     try {
-      pinGhost(window, clone, state);
+      pinGhost(window, target, state);
     } catch (error) {
       clone.remove(); // a half-pinned clone may still carry host hooks
       throw error;
     }
-    restoreScroll(clone, info.scroll);
-    const backings = info.kind === 'flyout' && info.backing && !info.backing.isConnected ? ghostBackings(window, info.backing, clone) : [];
+    restoreScroll(target, info.scroll);
+    const backings = info.kind === 'flyout' && info.backing && !info.backing.isConnected ? ghostBackings(window, info.backing, target) : [];
     const parts = [clone, ...backings];
     for (const part of parts) ghosts.add(part);
-    settle(leave(clone, info, backings), () => { for (const part of parts) { part.remove(); ghosts.delete(part); } });
+    settle(leave(target, info, backings), () => { for (const part of parts) { part.remove(); ghosts.delete(part); } });
   }
 
   function onRemovals(records: MutationRecord[]) {
     for (const record of records) {
       for (const node of record.removedNodes) {
-        const info = node instanceof window.Element ? tracked.get(node) : undefined;
-        if (!info || !(node instanceof window.Element)) continue;
-        if (node.isConnected) { // moved, not dismissed
-          if (node.parentNode) removals.observe(node.parentNode, { childList: true });
-          continue;
+        if (!(node instanceof window.Element)) continue;
+        for (const [popup, info] of tracked) {
+          if (info.root !== node) continue;
+          if (node.isConnected) { // moved, not dismissed
+            if (node.parentNode) removals.observe(node.parentNode, { childList: true });
+            continue;
+          }
+          tracked.delete(popup);
+          ghost(popup, node, info, record);
         }
-        tracked.delete(node);
-        ghost(node, info, record);
       }
     }
     if (!tracked.size) removals.disconnect();

@@ -696,7 +696,7 @@ var COMPOSER_INPUT = ":is([data-composer-input], [data-side-chat-input])";
 var FRAME$1 = "div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var adapterCss = (searchRows) => `
 /* HoverCard declares its own fill (#2C2C2E in both schemes) instead of a token. */
-body[data-acrylic-fluent] > div[style*="--dsh-hover-preview-fade"] { --dsw-hovercard-bg: #2b2b2b; }
+body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { --dsw-hovercard-bg: #2b2b2b; }
 /* The macOS sidebar column layers a hard-coded blue vibrancy gradient over its
    fill. Keep the neutral fill (frame anchors, not module hashes). */
 html[data-platform="darwin"] body[data-acrylic-fluent] ${FRAME$1} > div:first-child { background-image: none; }
@@ -791,7 +791,7 @@ var POPUP_SELECTOR = [
 	"[data-menu-material]",
 	"body > [role=\"presentation\"]:has(> [role=\"dialog\"][aria-modal=\"true\"])",
 	"body > :is([role=\"dialog\"], [role=\"menu\"], [role=\"listbox\"]):not([aria-modal=\"true\"])",
-	"body > div[style*=\"--dsh-hover-preview-fade\"]",
+	"body > span > div[style*=\"--dsh-hover-preview-fade\"]",
 	"body > ul",
 	"body > div:has(> [role=\"tree\"])",
 	"[role=\"tooltip\"]",
@@ -892,7 +892,7 @@ var MOTION_CSS = `
   body[data-acrylic-fluent] :is(${POPUP_SELECTOR}):not([data-acrylic-ghost]) { animation: ${HOLD} 300ms linear; }
   body[data-acrylic-fluent] > [data-menu-backing] { animation: acrylic-backing-in ${MOTION.fade}ms linear; }
   /* Preview HoverCards own a closing phase that unmounts after 100ms. */
-  body[data-acrylic-fluent] > div[style*="--dsh-hover-preview-fade"] { transition: opacity 90ms ${MOTION.exit}; }
+  body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { transition: opacity 90ms ${MOTION.exit}; }
 }
 @keyframes ${HOLD} { from, to { opacity: 0; } }
 @keyframes acrylic-backing-in { from { opacity: 0; } }
@@ -1120,10 +1120,16 @@ function createMotion(document, window, { onSettle } = {}) {
 			finish();
 		}, () => {});
 	}
+	function rootOf(popup) {
+		const parent = popup.parentElement;
+		return parent && parent.parentElement === document.body && window.getComputedStyle(parent).display === "contents" ? parent : popup;
+	}
 	function start(popup) {
 		if (!enabled || !popup.isConnected) return;
+		const root = rootOf(popup);
 		const info = {
 			...describe(popup),
+			root,
 			scroll: scrollState(popup),
 			backing: backingOf(window, popup),
 			state: null
@@ -1131,7 +1137,7 @@ function createMotion(document, window, { onSettle } = {}) {
 		const animations = enter(popup, info);
 		for (const [element] of tracked) if (!element.isConnected) tracked.delete(element);
 		tracked.set(popup, info);
-		if (popup.parentNode) removals.observe(popup.parentNode, { childList: true });
+		if (root.parentNode) removals.observe(root.parentNode, { childList: true });
 		if (onSettle) settle(animations, onSettle);
 	}
 	function whenPlaced(popup) {
@@ -1152,27 +1158,29 @@ function createMotion(document, window, { onSettle } = {}) {
 		if (!enabled || reduce.matches || !popup.isConnected || popup.hasAttribute("data-acrylic-ghost")) return;
 		whenPlaced(popup);
 	}
-	function ghost(node, info, record) {
+	function ghost(popup, node, info, record) {
 		const parent = record.target;
 		if (!enabled || reduce.matches || document.hidden || !parent.isConnected) return;
-		if (node.hasAttribute("hidden") || node.hasAttribute("data-closing")) return;
+		if (node.hasAttribute("hidden") || popup.hasAttribute("hidden") || popup.hasAttribute("data-closing")) return;
 		if (node.querySelector(GHOST_SKIP) || node.getElementsByTagName("*").length > GHOST_MAX_NODES) return;
 		const clone = node.cloneNode(true);
+		const target = popup === node ? clone : nodeAt(clone, pathTo(node, popup));
+		if (!target) return;
 		detachGhost(clone);
 		const next = record.nextSibling?.parentNode === parent ? record.nextSibling : null;
 		parent.insertBefore(clone, next);
 		const state = info.state && window.performance.now() - info.state.time < STATE_TTL ? info.state.nodes : null;
 		try {
-			pinGhost(window, clone, state);
+			pinGhost(window, target, state);
 		} catch (error) {
 			clone.remove();
 			throw error;
 		}
-		restoreScroll(clone, info.scroll);
-		const backings = info.kind === "flyout" && info.backing && !info.backing.isConnected ? ghostBackings(window, info.backing, clone) : [];
+		restoreScroll(target, info.scroll);
+		const backings = info.kind === "flyout" && info.backing && !info.backing.isConnected ? ghostBackings(window, info.backing, target) : [];
 		const parts = [clone, ...backings];
 		for (const part of parts) ghosts.add(part);
-		settle(leave(clone, info, backings), () => {
+		settle(leave(target, info, backings), () => {
 			for (const part of parts) {
 				part.remove();
 				ghosts.delete(part);
@@ -1181,14 +1189,16 @@ function createMotion(document, window, { onSettle } = {}) {
 	}
 	function onRemovals(records) {
 		for (const record of records) for (const node of record.removedNodes) {
-			const info = node instanceof window.Element ? tracked.get(node) : void 0;
-			if (!info || !(node instanceof window.Element)) continue;
-			if (node.isConnected) {
-				if (node.parentNode) removals.observe(node.parentNode, { childList: true });
-				continue;
+			if (!(node instanceof window.Element)) continue;
+			for (const [popup, info] of tracked) {
+				if (info.root !== node) continue;
+				if (node.isConnected) {
+					if (node.parentNode) removals.observe(node.parentNode, { childList: true });
+					continue;
+				}
+				tracked.delete(popup);
+				ghost(popup, node, info, record);
 			}
-			tracked.delete(node);
-			ghost(node, info, record);
 		}
 		if (!tracked.size) removals.disconnect();
 	}
