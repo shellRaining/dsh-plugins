@@ -795,7 +795,6 @@ var POPUP_SELECTOR = [
 	"body > ul",
 	"body > div:has(> [role=\"tree\"])",
 	"[role=\"tooltip\"]",
-	"[data-session-preview-card]",
 	`[${POPUP_ATTRIBUTE}]`
 ].join(",");
 var MOTION = Object.freeze({

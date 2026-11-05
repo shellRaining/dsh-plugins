@@ -20,7 +20,6 @@ export const POPUP_SELECTOR = [
   'body > span > div[style*="--dsh-hover-preview-fade"]', // HoverCard, in its portal span
   'body > ul', 'body > div:has(> [role="tree"])', // portaled catalogs without a popup role
   '[role="tooltip"]',
-  '[data-session-preview-card]',
   `[${POPUP_ATTRIBUTE}]`, // self-drawn popups that opt in (contract.ts)
 ].join(',');
 const MOTION = Object.freeze({
