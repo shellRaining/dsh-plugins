@@ -12,6 +12,7 @@ export const css = `
 .dsh-mmd-button[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary)}
 .dsh-mmd-button:focus-visible{outline:1px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-1px}
 .dsh-mmd-button svg{width:14px;height:14px;pointer-events:none}
+.dsh-mmd-divider{flex:none;width:1px;height:14px;margin-inline:2px;background:var(--dsw-alias-border-l2)}
 .dsh-mmd-pane{padding:32px 20px 24px;overflow:auto;max-height:70vh}
 .dsh-mmd-pane>svg{display:block;margin:auto;max-width:100%;height:auto;background:transparent!important;font-family:inherit}
 .dsh-mmd-pane svg :is(.node rect,.node circle,.node ellipse,.node polygon,.node path,rect.actor,rect.labelBox){fill-opacity:var(--mmd-node-opacity);stroke-width:1px}
@@ -30,5 +31,5 @@ body[data-acrylic-fluent] .dsh-mmd-pane svg :is(.flowchart-link,.messageLine0,.m
 @media(hover:none){.dsh-mmd-controls{opacity:1;pointer-events:auto}}
 @media(prefers-reduced-motion:reduce){.dsh-mmd-controls{transition:none}}
 @media(prefers-reduced-transparency:reduce){body[data-acrylic-wallpaper] [data-dsh-mmd-host]{--mmd-node-opacity:1;--mmd-cluster-opacity:1}body[data-acrylic-wallpaper] [data-dsh-mmd-host]::before{background:var(--dsw-alias-bg-layer-1)}}
-@media(forced-colors:active){[data-dsh-mmd-host]::before{background:Canvas;border-color:CanvasText}[data-dsh-mmd-host]{--mmd-node-opacity:1;--mmd-cluster-opacity:1}.dsh-mmd-button{color:ButtonText}.dsh-mmd-button[aria-pressed=true]{outline:1px solid Highlight}.dsh-mmd-pane svg{forced-color-adjust:none}}
+@media(forced-colors:active){[data-dsh-mmd-host]::before{background:Canvas;border-color:CanvasText}[data-dsh-mmd-host]{--mmd-node-opacity:1;--mmd-cluster-opacity:1}.dsh-mmd-button{color:ButtonText}.dsh-mmd-divider{background:ButtonText}.dsh-mmd-button[aria-pressed=true]{outline:1px solid Highlight}.dsh-mmd-pane svg{forced-color-adjust:none}}
 `;

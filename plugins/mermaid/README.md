@@ -1,12 +1,18 @@
 # Mermaid 图表
 
-渲染 Mermaid 图表，支持切换代码和图表视图。图标与配色对接 DSH 主题 token。fork 自 [MrmoLabs/dsh-mermaid](https://github.com/MrmoLabs/dsh-mermaid)（MIT）。
+渲染 Mermaid 图表，支持切换代码和图表视图、复制源码。图标与配色对接 DSH 主题 token。fork 自 [MrmoLabs/dsh-mermaid](https://github.com/MrmoLabs/dsh-mermaid)（MIT）。
 
 ## 安装
 
 ```sh
 dsh plugin --profile web add @shellraining/dsh-mermaid
 ```
+
+## 渲染与交互
+
+图表只在进入视口附近（上下各 300 px）时绘制，打开长会话不会一次渲染所有图表，画好的图移出视口后保留。切换明暗主题时只重绘视口附近的图，其余图表滚动到附近时再重绘。每份源码在当前主题下的绘制结果会缓存（最多 32 份），切换会话后回来直接复用，不再调用 Mermaid。
+
+鼠标悬停在图表上时，右上角显示代码视图、图形视图和复制源代码按钮。复制成功后图标变为对勾，1 秒后恢复。
 
 ## 开发
 

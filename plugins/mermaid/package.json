@@ -1,7 +1,7 @@
 {
   "name": "@shellraining/dsh-mermaid",
-  "version": "0.5.7",
-  "description": "渲染 Mermaid 图表，支持切换代码和图表视图。",
+  "version": "0.5.8",
+  "description": "渲染 Mermaid 图表，支持切换代码和图表视图、复制源码。",
   "type": "module",
   "license": "MIT",
   "main": "lib/index.js",

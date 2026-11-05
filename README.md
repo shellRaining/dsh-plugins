@@ -9,7 +9,7 @@
 | <img src="plugins/fluent-theme/icon.png" width="36" height="36" alt="" /> | [Win10 Fluent 主题](plugins/fluent-theme) | Windows 10 风格的亚克力背景、Reveal 光效和交互动效 | `dsh plugin --profile web add @shellraining/dsh-fluent-theme` |
 | <img src="plugins/annotation/icon.png" width="36" height="36" alt="" /> | [批注](plugins/annotation) | 选中文字添加批注，随消息发送原文和批注 | `dsh plugin --profile web add @shellraining/dsh-annotation` |
 | <img src="plugins/side-chat/icon.png" width="36" height="36" alt="" /> | [侧边对话](plugins/side-chat) | 派生临时对话，不追加到主会话，但可修改工作区文件 | `dsh plugin --profile web add @shellraining/dsh-side-chat` |
-| <img src="plugins/mermaid/icon.png" width="36" height="36" alt="" /> | [Mermaid 图表](plugins/mermaid) | 切换 Mermaid 代码与图表视图 | `dsh plugin --profile web add @shellraining/dsh-mermaid` |
+| <img src="plugins/mermaid/icon.png" width="36" height="36" alt="" /> | [Mermaid 图表](plugins/mermaid) | 切换 Mermaid 代码与图表视图，复制源码 | `dsh plugin --profile web add @shellraining/dsh-mermaid` |
 |  | [Streamdown](plugins/streamdown) | 助手回复流式渲染，引擎 fork 自 lobehub/streamdown | `dsh plugin --profile web add @shellraining/dsh-streamdown` |
 | <img src="plugins/session-auto-rename/icon.png" width="36" height="36" alt="" /> | [会话自动命名](plugins/session-auto-rename) | 根据对话自动命名，支持自定义标题格式和摘要语言 | `dsh plugin --profile web add @shellraining/dsh-session-auto-rename` |
 | <img src="plugins/sidebar-session-preview/icon.png" width="36" height="36" alt="" /> | [会话悬浮预览](plugins/sidebar-session-preview) | 悬停侧栏会话，预览最近消息 | `dsh plugin --profile web add @shellraining/dsh-sidebar-session-preview` |
