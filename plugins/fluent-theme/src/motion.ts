@@ -219,10 +219,11 @@ function surfaceOf(backing: Element): Element | null {
   return null;
 }
 
-function ghostBackings(view: View, template: Element, root: Element): Element[] {
+// Each copy joins `parts` as soon as it is in the document.
+function ghostBackings(view: View, template: Element, root: Element, parts: Element[]) {
   const surfaces = [root, ...root.querySelectorAll('[data-menu-material]')];
   const boxes = surfaces.map(surface => [surface.getBoundingClientRect(), view.getComputedStyle(surface).borderRadius] as const);
-  return boxes.map(([rect, radius]) => {
+  for (const [rect, radius] of boxes) {
     const clone = template.cloneNode(false) as Element;
     clone.setAttribute('data-acrylic-ghost', '');
     const box = { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
@@ -230,8 +231,8 @@ function ghostBackings(view: View, template: Element, root: Element): Element[] 
     for (const [name, value] of Object.entries(box)) style?.setProperty(name, `${value}px`);
     style?.setProperty('border-radius', radius);
     root.ownerDocument.body.append(clone);
-    return clone;
-  });
+    parts.push(clone);
+  }
 }
 
 // Entry direction from the trigger point: below it slides down, above it up,
@@ -423,17 +424,18 @@ export function createMotion(document: Document, window: View, { onSettle }: Mot
     const next = record.nextSibling?.parentNode === parent ? record.nextSibling : null;
     parent.insertBefore(clone, next);
     const state = info.state && window.performance.now() - info.state.time < STATE_TTL ? info.state.nodes : null;
+    const parts: Element[] = [clone];
+    const drop = () => { for (const part of parts) { part.remove(); ghosts.delete(part); } };
     try {
       pinGhost(window, target, state);
+      restoreScroll(target, info.scroll);
+      if (info.kind === 'flyout' && info.backing && !info.backing.isConnected) ghostBackings(window, info.backing, target, parts);
+      for (const part of parts) ghosts.add(part);
+      settle(leave(target, info, parts.slice(1)), drop);
     } catch (error) {
-      clone.remove(); // a half-pinned clone may still carry host hooks
+      drop(); // a half-pinned clone may still carry host hooks
       throw error;
     }
-    restoreScroll(target, info.scroll);
-    const backings = info.kind === 'flyout' && info.backing && !info.backing.isConnected ? ghostBackings(window, info.backing, target) : [];
-    const parts = [clone, ...backings];
-    for (const part of parts) ghosts.add(part);
-    settle(leave(target, info, backings), () => { for (const part of parts) { part.remove(); ghosts.delete(part); } });
   }
 
   function onRemovals(records: MutationRecord[]) {
@@ -447,7 +449,8 @@ export function createMotion(document: Document, window: View, { onSettle }: Mot
             continue;
           }
           tracked.delete(popup);
-          ghost(popup, node, info, record);
+          // One failed clone must not stop the other exits in this batch.
+          try { ghost(popup, node, info, record); } catch (error) { window.reportError(error); }
         }
       }
     }

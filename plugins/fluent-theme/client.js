@@ -1124,8 +1124,9 @@ function surfaceOf(backing) {
 	for (const node of backing.ownerDocument.querySelectorAll("[data-menu-material]:not([data-acrylic-ghost], [data-acrylic-ghost] *)")) if (inlineStyle(node)?.getPropertyValue("--dsh-menu-anchor") === anchor) return node;
 	return null;
 }
-function ghostBackings(view, template, root) {
-	return [root, ...root.querySelectorAll("[data-menu-material]")].map((surface) => [surface.getBoundingClientRect(), view.getComputedStyle(surface).borderRadius]).map(([rect, radius]) => {
+function ghostBackings(view, template, root, parts) {
+	const boxes = [root, ...root.querySelectorAll("[data-menu-material]")].map((surface) => [surface.getBoundingClientRect(), view.getComputedStyle(surface).borderRadius]);
+	for (const [rect, radius] of boxes) {
 		const clone = template.cloneNode(false);
 		clone.setAttribute("data-acrylic-ghost", "");
 		const box = {
@@ -1138,8 +1139,8 @@ function ghostBackings(view, template, root) {
 		for (const [name, value] of Object.entries(box)) style?.setProperty(name, `${value}px`);
 		style?.setProperty("border-radius", radius);
 		root.ownerDocument.body.append(clone);
-		return clone;
-	});
+		parts.push(clone);
+	}
 }
 function slideFrom(rect, point) {
 	const slack = 4;
@@ -1318,22 +1319,23 @@ function createMotion(document, window, { onSettle } = {}) {
 		const next = record.nextSibling?.parentNode === parent ? record.nextSibling : null;
 		parent.insertBefore(clone, next);
 		const state = info.state && window.performance.now() - info.state.time < STATE_TTL ? info.state.nodes : null;
-		try {
-			pinGhost(window, target, state);
-		} catch (error) {
-			clone.remove();
-			throw error;
-		}
-		restoreScroll(target, info.scroll);
-		const backings = info.kind === "flyout" && info.backing && !info.backing.isConnected ? ghostBackings(window, info.backing, target) : [];
-		const parts = [clone, ...backings];
-		for (const part of parts) ghosts.add(part);
-		settle(leave(target, info, backings), () => {
+		const parts = [clone];
+		const drop = () => {
 			for (const part of parts) {
 				part.remove();
 				ghosts.delete(part);
 			}
-		});
+		};
+		try {
+			pinGhost(window, target, state);
+			restoreScroll(target, info.scroll);
+			if (info.kind === "flyout" && info.backing && !info.backing.isConnected) ghostBackings(window, info.backing, target, parts);
+			for (const part of parts) ghosts.add(part);
+			settle(leave(target, info, parts.slice(1)), drop);
+		} catch (error) {
+			drop();
+			throw error;
+		}
 	}
 	function onRemovals(records) {
 		for (const record of records) for (const node of record.removedNodes) {
@@ -1345,7 +1347,11 @@ function createMotion(document, window, { onSettle } = {}) {
 					continue;
 				}
 				tracked.delete(popup);
-				ghost(popup, node, info, record);
+				try {
+					ghost(popup, node, info, record);
+				} catch (error) {
+					window.reportError(error);
+				}
 			}
 		}
 		if (!tracked.size) removals.disconnect();
