@@ -29,6 +29,8 @@ export const HOST_CLASSES = {
   turnRail: ['@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css', 'frame'],
   // Sidebar search results: tree rows without data-row-key.
   searchResultRow: ['@deepseek-ai/dsh-client-ui-workspace/Rows.module.css', 'searchResultRow'],
+  // The shell frame (shellFrame below).
+  frame: ['@deepseek-ai/dsh-client-ui-layout/AppFrame.module.css', 'frame'],
 } as const satisfies Record<string, readonly [string, string]>;
 
 export type HostClassName = keyof typeof HOST_CLASSES;
@@ -56,6 +58,17 @@ export interface HostModules {
   subscribe(listener: () => void): Dispose;
   dispose(): void;
 }
+
+/**
+ * The shell frame, which has no attribute of its own. Matched by its children
+ * instead (`div:has(> [data-shell-bottom]) …`), the :has() sits before a
+ * combinator, and each DOM insertion anywhere then cost up to 15ms of style
+ * recalculation in a long conversation; Mermaid's text measurement inserts
+ * some 85 times per diagram. The module class costs nothing; the :has() form
+ * only covers the time before the module resolves.
+ */
+export const shellFrame = (modules: HostModules): string =>
+  modules.select('frame') ?? 'div:has(> [data-shell-bottom]):has(> [data-rightbar-col])';
 
 const MODULE_TAG = 'style[data-plugin-css]';
 const SHELL_SHEET = 'link[rel~="stylesheet"]';

@@ -489,7 +489,8 @@ var HOST_CLASSES = {
 	tag: ["@deepseek-ai/dsh-client-ui-primitives/Tag.module.css", "tag"],
 	quoteAction: ["@deepseek-ai/dsh-message-quotes/QuoteSelection.module.css", "action"],
 	turnRail: ["@deepseek-ai/dsh-client-ui-chat/TurnNavigator.module.css", "frame"],
-	searchResultRow: ["@deepseek-ai/dsh-client-ui-workspace/Rows.module.css", "searchResultRow"]
+	searchResultRow: ["@deepseek-ai/dsh-client-ui-workspace/Rows.module.css", "searchResultRow"],
+	frame: ["@deepseek-ai/dsh-client-ui-layout/AppFrame.module.css", "frame"]
 };
 /**
 * Shell-bundled modules, as [local class, selector suffix] pairs that the
@@ -519,6 +520,15 @@ var SHELL_SIGNATURES = {
 		"danger"
 	].map((tone) => ["tag", `[data-tone=${tone}]`])]
 };
+/**
+* The shell frame, which has no attribute of its own. Matched by its children
+* instead (`div:has(> [data-shell-bottom]) …`), the :has() sits before a
+* combinator, and each DOM insertion anywhere then cost up to 15ms of style
+* recalculation in a long conversation; Mermaid's text measurement inserts
+* some 85 times per diagram. The module class costs nothing; the :has() form
+* only covers the time before the module resolves.
+*/
+var shellFrame = (modules) => modules.select("frame") ?? "div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var MODULE_TAG = "style[data-plugin-css]";
 var SHELL_SHEET = "link[rel~=\"stylesheet\"]";
 var NAMES = Object.keys(HOST_CLASSES);
@@ -779,8 +789,7 @@ function createFluentTheme(theme) {
 var COMPOSER_CARD = ":is([data-composer-card], [data-side-chat-composer])";
 var COMPOSER_INPUT = ":is([data-composer-input], [data-side-chat-input])";
 // src/adapters.ts
-var FRAME$1 = "div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
-var adapterCss = (searchRows) => `
+var adapterCss = (searchRows, frame) => `
 /* HoverCard (sidebar session and workspace cards among others) declares its
    own fill (#2C2C2E in both schemes) instead of a token, under static white
    text whose three steps (#fff, #cfd3d6, #adb2b8) already follow Win10's
@@ -796,8 +805,8 @@ body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { --ds
 }
 /* The macOS sidebar column layers a hard-coded blue vibrancy gradient over its
    fill, except as a narrow-window drawer (whose mask is the first child then).
-   Keep the neutral fill (frame anchors, not module hashes). */
-html[data-platform="darwin"] body[data-acrylic-fluent] ${FRAME$1}:not([data-sidebar-drawer]) > div:first-child { background-image: none; }
+   Keep the neutral fill (the column by position, not by a module hash). */
+html[data-platform="darwin"] body[data-acrylic-fluent] ${frame}:not([data-sidebar-drawer]) > div:first-child { background-image: none; }
 body[data-acrylic-fluent] [data-changed-files],
 body[data-acrylic-fluent][data-ds-dark-theme] [data-changed-files] {
   --changes-fill: var(--dsw-alias-bg-layer-1);
@@ -835,13 +844,13 @@ body[data-acrylic-fluent] :is([role="treeitem"][data-row-key]${searchRows ? `, $
 /* rc.3 shell resize handles (frame children named by data-side) lack a visual
    rail. Decorate their existing hit box; never change drag geometry, pointer
    capture or keyboard semantics. */
-body[data-acrylic-fluent] ${FRAME$1} > :is([data-side="sidebar"],[data-side="rightbar"])::after {
+body[data-acrylic-fluent] ${frame} > :is([data-side="sidebar"],[data-side="rightbar"])::after {
   content: ''; position: absolute; inset-block: 0; left: 3px; width: 2px;
   pointer-events: none; opacity: 0;
   background: linear-gradient(transparent, var(--dsw-alias-state-business-primary), transparent);
 }
-body[data-acrylic-fluent] ${FRAME$1} > :is([data-side="sidebar"],[data-side="rightbar"]):hover::after { opacity: .45; }
-body[data-acrylic-fluent] ${FRAME$1} > :is([data-side="sidebar"],[data-side="rightbar"])[data-dragging]::after { opacity: .75; }
+body[data-acrylic-fluent] ${frame} > :is([data-side="sidebar"],[data-side="rightbar"]):hover::after { opacity: .45; }
+body[data-acrylic-fluent] ${frame} > :is([data-side="sidebar"],[data-side="rightbar"])[data-dragging]::after { opacity: .75; }
 body[data-acrylic-fluent] [data-dockkit-divider]:hover::before,
 body[data-acrylic-fluent] [data-dockkit-divider]:active::before {
   background: var(--dsw-alias-state-business-primary);
@@ -905,7 +914,7 @@ ${fluent} [data-quote-preview] > button:active { background: ${tint(22)}; }
 `;
 }
 function createAdapters(document, modules) {
-	const render = () => adapterCss(modules.select("searchResultRow")) + buttonStateCss(modules) + tagCss(modules) + quoteCss(modules);
+	const render = () => adapterCss(modules.select("searchResultRow"), shellFrame(modules)) + buttonStateCss(modules) + tagCss(modules) + quoteCss(modules);
 	const sheet = createStyleSheet(document, "dsh-acrylic-wallpaper-adapters", render());
 	const unsubscribe = modules.subscribe(() => sheet.set(render()));
 	return {
@@ -2567,13 +2576,9 @@ function createPressMotion(document, window, modules, refresh) {
 	};
 }
 // src/wallpaper.ts
-var FRAME = "body[data-acrylic-wallpaper] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
-var FLUENT_FRAME = "body[data-acrylic-wallpaper][data-acrylic-fluent] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])";
 var DOCK_TINT = "rgb(var(--acrylic-tint-rgb) / .08)";
 var SIDEBAR_COL = ":is(div:first-child:not([data-sidebar-mask]), [data-sidebar-mask] + div)";
 var CENTER_COL = "div:has(+ [data-rightbar-col])";
-var TERMINAL_HOST = `${FRAME} :has(> .xterm)`;
-var TERMINAL_SURFACE = `${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)`;
 var COMPACTION_HEADER = "button[aria-expanded=\"true\"]:has(> span > [data-compaction-disclosure])";
 var CODE_BANNER = ".md-code-block > :has(> [data-code-block-banner])";
 var TINT = {
@@ -2595,7 +2600,12 @@ var CANVAS_RULES = (() => {
 		sidebarSolid: `color-mix(in srgb, var(${kept("--dsw-specific-sidebar-fill")}) 94%, transparent)`
 	};
 })();
-var WALLPAPER_CSS = `
+function wallpaperCss(shell) {
+	const FRAME = `body[data-acrylic-wallpaper] ${shell}`;
+	const FLUENT_FRAME = `body[data-acrylic-wallpaper][data-acrylic-fluent] ${shell}`;
+	const TERMINAL_HOST = `${FRAME} :has(> .xterm)`;
+	const TERMINAL_SURFACE = `${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)`;
+	return `
 body[data-acrylic-wallpaper] { isolation: isolate; --acrylic-tint-rgb: ${TINT.light}; }
 body[data-acrylic-wallpaper][data-ds-dark-theme] { --acrylic-tint-rgb: ${TINT.dark}; }
 [data-acrylic-layer] { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: rgb(var(--acrylic-tint-rgb, ${TINT.light})); }
@@ -2739,6 +2749,7 @@ html[data-platform="darwin"] body[data-acrylic-wallpaper] > [data-menu-backing] 
   [data-acrylic-layer] { display: none; }
 }
 `;
+}
 function createNoise(document) {
 	const canvas = document.createElement("canvas");
 	canvas.width = canvas.height = 64;
@@ -2757,8 +2768,10 @@ function createNoise(document) {
 	context.putImageData(data, 0, 0);
 	return canvas.toDataURL("image/png");
 }
-function createWallpaper(document, window) {
-	const sheet = createStyleSheet(document, PLUGIN_ID, WALLPAPER_CSS);
+function createWallpaper(document, window, modules) {
+	const render = () => wallpaperCss(shellFrame(modules));
+	const sheet = createStyleSheet(document, PLUGIN_ID, render());
+	const unsubscribe = modules.subscribe(() => sheet.set(render()));
 	const layer = document.createElement("div");
 	layer.setAttribute("data-acrylic-layer", "");
 	layer.setAttribute("aria-hidden", "true");
@@ -2811,6 +2824,7 @@ function createWallpaper(document, window) {
 			document.body.setAttribute(WALLPAPER_MARKER, "");
 		},
 		dispose() {
+			unsubscribe();
 			hide();
 			image.style.backgroundImage = "";
 		}
@@ -2826,7 +2840,7 @@ function createAppearance(document, window, theme) {
 	const pressMotion = createPressMotion(document, window, modules, reveal.sync);
 	const motion = createMotion(document, window, { onSettle: reveal.refresh });
 	const frameMotion = createFrameMotion(document, window);
-	const wallpaper = createWallpaper(document, window);
+	const wallpaper = createWallpaper(document, window, modules);
 	const media = [window.matchMedia("(forced-colors: active)"), window.matchMedia("(prefers-reduced-transparency: reduce)")];
 	let snapshot = null;
 	let disposed = false;

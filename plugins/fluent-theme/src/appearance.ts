@@ -25,7 +25,7 @@ export function createAppearance(document: Document, window: Window & typeof glo
   const pressMotion = createPressMotion(document, window, modules, reveal.sync);
   const motion = createMotion(document, window, { onSettle: reveal.refresh });
   const frameMotion = createFrameMotion(document, window);
-  const wallpaper = createWallpaper(document, window);
+  const wallpaper = createWallpaper(document, window, modules);
   // Contrast and transparency preferences switch the whole material off.
   const media = [window.matchMedia('(forced-colors: active)'), window.matchMedia('(prefers-reduced-transparency: reduce)')];
   let snapshot: Snapshot | null = null;

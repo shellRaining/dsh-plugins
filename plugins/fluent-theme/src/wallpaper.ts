@@ -1,5 +1,6 @@
 import { WALLPAPER_MARKER } from './contract.ts';
 import type { Feature } from './feature.ts';
+import { shellFrame, type HostModules } from './host/modules.ts';
 import { PLUGIN_ID, type Settings } from './settings.ts';
 import { CANVAS_TOKENS } from './palette.ts';
 import { createStyleSheet } from './style.ts';
@@ -11,21 +12,11 @@ import { COMPOSER_CARD } from './composer.ts';
 // page and dock pane that paints the canvas follows (conversation, dock panes,
 // document/PDF previews, file tree, browser chrome, schedule and other pages).
 // Cards, code, inputs, menus and dialogs keep their own fills.
-const FRAME = 'body[data-acrylic-wallpaper] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])';
-// Win10 mode replays the frame's column transition (frame-motion.ts).
-const FLUENT_FRAME = 'body[data-acrylic-wallpaper][data-acrylic-fluent] div:has(> [data-shell-bottom]):has(> [data-rightbar-col])';
 const DOCK_TINT = 'rgb(var(--acrylic-tint-rgb) / .08)';
 // Frame columns by their semantic neighbours. The narrow-window drawer inserts
 // [data-sidebar-mask] before the sidebar column, so child positions shift.
 const SIDEBAR_COL = ':is(div:first-child:not([data-sidebar-mask]), [data-sidebar-mask] + div)';
 const CENTER_COL = 'div:has(+ [data-rightbar-col])';
-// xterm's parent (the host padding). Rules whose subject is a bare :has() are
-// tested on every element in every style recalc; keep the argument child-only.
-// A descendant argument (> .xterm .xterm-rows) walked each element's subtree
-// and was the costliest selector in a long conversation's style recalcs.
-const TERMINAL_HOST = `${FRAME} :has(> .xterm)`;
-// xterm's own scroll surface, painted only by the DOM renderer.
-const TERMINAL_SURFACE = `${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)`;
 const COMPACTION_HEADER = 'button[aria-expanded="true"]:has(> span > [data-compaction-disclosure])';
 const CODE_BANNER = '.md-code-block > :has(> [data-code-block-banner])';
 const TINT = { light: '247 247 247', dark: '24 24 24' };
@@ -48,7 +39,18 @@ const CANVAS_RULES = (() => {
   };
 })();
 
-export const WALLPAPER_CSS = `
+function wallpaperCss(shell: string): string {
+  const FRAME = `body[data-acrylic-wallpaper] ${shell}`;
+  // Win10 mode replays the frame's column transition (frame-motion.ts).
+  const FLUENT_FRAME = `body[data-acrylic-wallpaper][data-acrylic-fluent] ${shell}`;
+  // xterm's parent (the host padding). Rules whose subject is a bare :has() are
+  // tested on every element in every style recalc; keep the argument child-only.
+  // A descendant argument (> .xterm .xterm-rows) walked each element's subtree
+  // and was the costliest selector in a long conversation's style recalcs.
+  const TERMINAL_HOST = `${FRAME} :has(> .xterm)`;
+  // xterm's own scroll surface, painted only by the DOM renderer.
+  const TERMINAL_SURFACE = `${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)`;
+  return `
 body[data-acrylic-wallpaper] { isolation: isolate; --acrylic-tint-rgb: ${TINT.light}; }
 body[data-acrylic-wallpaper][data-ds-dark-theme] { --acrylic-tint-rgb: ${TINT.dark}; }
 [data-acrylic-layer] { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: rgb(var(--acrylic-tint-rgb, ${TINT.light})); }
@@ -192,6 +194,7 @@ html[data-platform="darwin"] body[data-acrylic-wallpaper] > [data-menu-backing] 
   [data-acrylic-layer] { display: none; }
 }
 `;
+}
 
 function createNoise(document: Document): string {
   const canvas = document.createElement('canvas');
@@ -216,8 +219,10 @@ export interface WallpaperState {
   readonly settings: Settings;
 }
 
-export function createWallpaper(document: Document, window: Window & typeof globalThis): Feature<WallpaperState | null> {
-  const sheet = createStyleSheet(document, PLUGIN_ID, WALLPAPER_CSS);
+export function createWallpaper(document: Document, window: Window & typeof globalThis, modules: HostModules): Feature<WallpaperState | null> {
+  const render = () => wallpaperCss(shellFrame(modules));
+  const sheet = createStyleSheet(document, PLUGIN_ID, render());
+  const unsubscribe = modules.subscribe(() => sheet.set(render()));
   const layer = document.createElement('div');
   layer.setAttribute('data-acrylic-layer', '');
   layer.setAttribute('aria-hidden', 'true');
@@ -258,6 +263,7 @@ export function createWallpaper(document: Document, window: Window & typeof glob
       document.body.setAttribute(WALLPAPER_MARKER, '');
     },
     dispose() {
+      unsubscribe();
       hide();
       image.style.backgroundImage = '';
     },

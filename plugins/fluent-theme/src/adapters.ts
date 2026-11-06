@@ -1,16 +1,13 @@
 import type { Feature } from './feature.ts';
-import type { HostModules } from './host/modules.ts';
+import { shellFrame, type HostModules } from './host/modules.ts';
 import { createStyleSheet } from './style.ts';
 import { COMPOSER_CARD, COMPOSER_INPUT } from './composer.ts';
-
-// The shell frame, by the semantic children the host gives it.
-const FRAME = 'div:has(> [data-shell-bottom]):has(> [data-rightbar-col])';
 
 // Fluent exceptions for host components that bypass semantic tokens (local
 // variables, hard-coded colors, missing rails). Scope every override to a known
 // component marker; never change static color swatches or arbitrary card classes.
 // `searchRows` is resolved at runtime (host/modules.ts); null until it loads.
-export const adapterCss = (searchRows: string | null) => `
+export const adapterCss = (searchRows: string | null, frame: string) => `
 /* HoverCard (sidebar session and workspace cards among others) declares its
    own fill (#2C2C2E in both schemes) instead of a token, under static white
    text whose three steps (#fff, #cfd3d6, #adb2b8) already follow Win10's
@@ -26,8 +23,8 @@ body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { --ds
 }
 /* The macOS sidebar column layers a hard-coded blue vibrancy gradient over its
    fill, except as a narrow-window drawer (whose mask is the first child then).
-   Keep the neutral fill (frame anchors, not module hashes). */
-html[data-platform="darwin"] body[data-acrylic-fluent] ${FRAME}:not([data-sidebar-drawer]) > div:first-child { background-image: none; }
+   Keep the neutral fill (the column by position, not by a module hash). */
+html[data-platform="darwin"] body[data-acrylic-fluent] ${frame}:not([data-sidebar-drawer]) > div:first-child { background-image: none; }
 body[data-acrylic-fluent] [data-changed-files],
 body[data-acrylic-fluent][data-ds-dark-theme] [data-changed-files] {
   --changes-fill: var(--dsw-alias-bg-layer-1);
@@ -65,13 +62,13 @@ body[data-acrylic-fluent] :is([role="treeitem"][data-row-key]${searchRows ? `, $
 /* rc.3 shell resize handles (frame children named by data-side) lack a visual
    rail. Decorate their existing hit box; never change drag geometry, pointer
    capture or keyboard semantics. */
-body[data-acrylic-fluent] ${FRAME} > :is([data-side="sidebar"],[data-side="rightbar"])::after {
+body[data-acrylic-fluent] ${frame} > :is([data-side="sidebar"],[data-side="rightbar"])::after {
   content: ''; position: absolute; inset-block: 0; left: 3px; width: 2px;
   pointer-events: none; opacity: 0;
   background: linear-gradient(transparent, var(--dsw-alias-state-business-primary), transparent);
 }
-body[data-acrylic-fluent] ${FRAME} > :is([data-side="sidebar"],[data-side="rightbar"]):hover::after { opacity: .45; }
-body[data-acrylic-fluent] ${FRAME} > :is([data-side="sidebar"],[data-side="rightbar"])[data-dragging]::after { opacity: .75; }
+body[data-acrylic-fluent] ${frame} > :is([data-side="sidebar"],[data-side="rightbar"]):hover::after { opacity: .45; }
+body[data-acrylic-fluent] ${frame} > :is([data-side="sidebar"],[data-side="rightbar"])[data-dragging]::after { opacity: .75; }
 body[data-acrylic-fluent] [data-dockkit-divider]:hover::before,
 body[data-acrylic-fluent] [data-dockkit-divider]:active::before {
   background: var(--dsw-alias-state-business-primary);
@@ -153,7 +150,7 @@ ${fluent} [data-quote-preview] > button:active { background: ${tint(22)}; }
 }
 
 export function createAdapters(document: Document, modules: HostModules): Feature<boolean> {
-  const render = () => adapterCss(modules.select('searchResultRow')) + buttonStateCss(modules) + tagCss(modules) + quoteCss(modules);
+  const render = () => adapterCss(modules.select('searchResultRow'), shellFrame(modules)) + buttonStateCss(modules) + tagCss(modules) + quoteCss(modules);
   const sheet = createStyleSheet(document, 'dsh-acrylic-wallpaper-adapters', render());
   const unsubscribe = modules.subscribe(() => sheet.set(render()));
   return { update: sheet.toggle, dispose() { unsubscribe(); sheet.dispose(); } };
