@@ -33,9 +33,11 @@ JavaScript 只用于生成产物和既有维护脚本。空宿主入口也放在
 
 ## 宿主样式与性能
 
-插件 CSS 不写以 `:has(` 开头的选择器，`:has()` 前面要有具体的元素、类或属性，比如 `.card:has(> img)`，或者限定在某个祖先之下。以 `:has(` 开头的规则作用于页面上每个元素，Chrome 之后在任何位置插入节点再读取布局，都要重算整页样式。
+插件 CSS 里的 `:has()` 最好放在选择器最右边的复合选择器上，也就是被选中的元素本身，并在它前面写上具体的元素、类或属性，比如 `.card:has(> img)`。`:has()` 后面还接子代或后代组合符时，最右边的复合选择器必须带类或属性，比如 `div:has(> [data-a]) > [data-b]`。如果最右边只有 `div`、`span` 这类常见标签，或者只有 `*`、`:not(...)`、`:has(...)`，比如 `div:has(> [data-a]) > div:first-child`、`div:has(> [data-a]) :has(> .x)`、`:has(> .x) > :not(.x)`，Chrome 在页面任何位置插入节点后都要做大范围的样式重算。实测后面只接兄弟组合符的 `span:has(> [data-a]) + span` 没有这个问题。要定位一个没有语义属性的容器，优先用宿主的稳定属性（比如 `data-slot`），或者像 fluent-theme 的 `src/host/modules.ts` 那样在运行时从 `style[data-plugin-css]` 读出 CSS module 的类名，不在源码里写带构建 hash 的类名。
 
-DSH 0.2.2-rc.1 的 `@deepseek-ai/dsh-client-ui-sidebar-files` 带有两条这样的规则，上游源码在 `packages/client/ui-sidebar-files/src/client/FilesBody.module.css`：`:has(> .navigator.fill) > :not(.navigator)`，以及它在 `@media (width < 768px)` 里的变体。有这两条规则时，一次“插入节点再读尺寸”从不到 1 ms 变成约 20 ms。偶尔一次影响不大，循环里反复插入再测量的代码会把页面卡住，Mermaid 测量文字尺寸就是这种情况。
+在一段长对话里，这样一条规则就能让一次“插入节点再读尺寸”从不到 1 ms 变成 2.5 到 15 ms，具体取决于规则形状和页面元素数量。偶尔一次影响不大，循环里反复插入再测量的代码会把页面卡住，Mermaid 测量文字尺寸就是这种情况，一张时序图大约要测 85 次。
+
+DSH 0.2.2-rc.1 的 `@deepseek-ai/dsh-client-ui-sidebar-files` 带有两条这样的规则，上游源码在 `packages/client/ui-sidebar-files/src/client/FilesBody.module.css`：`:has(> .navigator.fill) > :not(.navigator)`，以及它在 `@media (width < 768px)` 里的变体，合计约 20 ms。
 
 确实需要绕开时，参照 Mermaid 插件的 `src/host-css.ts`：
 
@@ -43,7 +45,7 @@ DSH 0.2.2-rc.1 的 `@deepseek-ai/dsh-client-ui-sidebar-files` 带有两条这样
 - 只在一次同步渲染期间替换选择器，任务结束前恢复，另用 `requestAnimationFrame` 兜底，保证页面不会在缺少宿主规则时绘制。
 - 找不到目标就什么都不做。上游修复后删除这段处理。
 
-排查这类卡顿时，用 `PerformanceObserver` 观察 `long-animation-frame`，看 `scripts[].forcedStyleAndLayoutDuration` 是否占了大部分时长。再逐个停用样式表，测量“插入节点后读 `offsetHeight`”的耗时，就能找到触发整页重算的规则。
+排查这类卡顿时，用 `PerformanceObserver` 观察 `long-animation-frame`，看 `scripts[].forcedStyleAndLayoutDuration` 是否占了大部分时长。再测量“插入节点后读 `offsetHeight` 或 `getBBox()`”的耗时，逐个停用样式表找出触发重算的规则。几条规则各自都能触发重算时，单独停用一个样式表看不出差别，这时先停用所有插件样式表，再把规则逐条放进一个临时 `<style>` 里测。
 
 ## 文档与依赖
 
