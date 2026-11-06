@@ -13,6 +13,7 @@ import { createStyleSheet } from './style.ts';
 // Popups with an acrylic layer fade that layer and their content separately:
 // opacity < 1 on an ancestor is a backdrop root and would drop the blur.
 const HOLD = 'acrylic-popup-hold';
+const BACKING_IN = 'acrylic-backing-in';
 export const POPUP_SELECTOR = [
   '[data-menu-material]', // MenuSurface: menus, pickers, command lists, dock tab menus
   'body > [role="presentation"]:has(> [role="dialog"][aria-modal="true"])', // modals
@@ -30,10 +31,12 @@ const MOTION = Object.freeze({
 // Menus with a host phase (the context menu) play the host's own enter and
 // dismiss fades, keeping the surface mounted while it fades out; they get no
 // hold, replay or ghost. Their submenus carry no phase but render inside the
-// phased surface. A submenu's macOS backing is a separate body child, which
-// CSS cannot tie to its surface: backings skip the entrance fade while a
-// phased menu is a body child.
+// phased surface, as do non-portaled popups in the menu's content slot, so the
+// host fade covers those too. macOS backings are separate body children: a
+// phased surface's backing carries the phase itself; a submenu's backing does
+// not, so it is marked STILL when it mounts, before its first frame.
 const HOST_PHASED = '[data-menu-phase]';
+const STILL = 'data-acrylic-still';
 const IN_PHASED = `:is(${HOST_PHASED}, ${HOST_PHASED} *)`;
 // Clones skip media and large trees: iframes and webviews would reload.
 const GHOST_SKIP = 'iframe, webview, video, audio, object, embed, canvas';
@@ -71,12 +74,12 @@ const PIN_MAX_NODES = 120;
 export const MOTION_CSS = `
 @media (prefers-reduced-motion: no-preference) {
   body[data-acrylic-fluent] :is(${POPUP_SELECTOR}):not([data-acrylic-ghost], ${IN_PHASED}) { animation: ${HOLD} 300ms linear; }
-  body[data-acrylic-fluent]:not(:has(> [data-menu-material]${HOST_PHASED})) > [data-menu-backing] { animation: acrylic-backing-in ${MOTION.fade}ms linear; }
+  body[data-acrylic-fluent] > [data-menu-backing]:not(${HOST_PHASED}, [${STILL}]) { animation: ${BACKING_IN} ${MOTION.fade}ms linear; }
   /* Preview HoverCards own a closing phase that unmounts after 100ms. */
   body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { transition: opacity 90ms ${MOTION.exit}; }
 }
 @keyframes ${HOLD} { from, to { opacity: 0; } }
-@keyframes acrylic-backing-in { from { opacity: 0; } }
+@keyframes ${BACKING_IN} { from { opacity: 0; } }
 /* Clones never anchor: a reopened menu reuses its anchor-name. */
 [data-acrylic-ghost] { pointer-events: none !important; }
 [data-acrylic-ghost], [data-acrylic-ghost] *, [data-acrylic-ghost] ::before, [data-acrylic-ghost] ::after {
@@ -205,6 +208,16 @@ function backingOf(view: View, popup: Element): Element | null {
   return null;
 }
 
+// The surface a macOS backing sits under, matched by their shared anchor.
+function surfaceOf(backing: Element): Element | null {
+  const anchor = inlineStyle(backing)?.getPropertyValue('--dsh-menu-anchor');
+  if (!anchor) return null;
+  for (const node of backing.ownerDocument.querySelectorAll('[data-menu-material]:not([data-acrylic-ghost], [data-acrylic-ghost] *)')) {
+    if (inlineStyle(node)?.getPropertyValue('--dsh-menu-anchor') === anchor) return node;
+  }
+  return null;
+}
+
 function ghostBackings(view: View, template: Element, root: Element): Element[] {
   const surfaces = [root, ...root.querySelectorAll('[data-menu-material]')];
   const boxes = surfaces.map(surface => [surface.getBoundingClientRect(), view.getComputedStyle(surface).borderRadius] as const);
@@ -266,6 +279,14 @@ export function createMotion(document: Document, window: View, { onSettle }: Mot
   let pointer: (Point & { readonly time: number }) | null = null;
   let keyboard: { readonly element: Element | null; readonly time: number } | null = null;
   const removals = new window.MutationObserver(onRemovals);
+  // Runs after the host's commit and before the frame is painted.
+  const markStill = (node: Node) => {
+    if (!(node instanceof window.Element) || !node.matches(`[data-menu-backing]:not(${HOST_PHASED}, [data-acrylic-ghost])`)) return;
+    if (surfaceOf(node)?.matches(IN_PHASED)) node.setAttribute(STILL, '');
+  };
+  const backings = new window.MutationObserver(records => {
+    for (const record of records) for (const node of record.addedNodes) markStill(node);
+  });
 
   // One-sided keyframes: the other end is the popup's own computed style.
   // Fades are two-sided so host entrance fades underneath cannot slow them.
@@ -465,7 +486,12 @@ export function createMotion(document: Document, window: View, { onSettle }: Mot
       if (enabled) document.addEventListener(type, listener, { capture: true, passive: true });
       else document.removeEventListener(type, listener, { capture: true });
     }
-    if (enabled) return;
+    if (enabled) {
+      for (const node of document.body.children) markStill(node);
+      return backings.observe(document.body, { childList: true });
+    }
+    backings.disconnect();
+    for (const node of document.querySelectorAll(`[${STILL}]`)) node.removeAttribute(STILL);
     removals.disconnect(); tracked.clear();
     for (const clone of ghosts) clone.remove();
     ghosts.clear();

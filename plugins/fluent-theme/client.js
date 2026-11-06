@@ -918,6 +918,7 @@ function createAdapters(document, modules) {
 }
 // src/motion.ts
 var HOLD = "acrylic-popup-hold";
+var BACKING_IN = "acrylic-backing-in";
 var POPUP_SELECTOR = [
 	"[data-menu-material]",
 	"body > [role=\"presentation\"]:has(> [role=\"dialog\"][aria-modal=\"true\"])",
@@ -939,6 +940,7 @@ var MOTION = Object.freeze({
 	dialogOut: 167
 });
 var HOST_PHASED = "[data-menu-phase]";
+var STILL$1 = "data-acrylic-still";
 var IN_PHASED = `:is(${HOST_PHASED}, ${HOST_PHASED} *)`;
 var GHOST_SKIP = "iframe, webview, video, audio, object, embed, canvas";
 var GHOST_MAX_NODES = 1500;
@@ -1022,12 +1024,12 @@ var PIN_MAX_NODES = 120;
 var MOTION_CSS = `
 @media (prefers-reduced-motion: no-preference) {
   body[data-acrylic-fluent] :is(${POPUP_SELECTOR}):not([data-acrylic-ghost], ${IN_PHASED}) { animation: ${HOLD} 300ms linear; }
-  body[data-acrylic-fluent]:not(:has(> [data-menu-material]${HOST_PHASED})) > [data-menu-backing] { animation: acrylic-backing-in ${MOTION.fade}ms linear; }
+  body[data-acrylic-fluent] > [data-menu-backing]:not(${HOST_PHASED}, [${STILL$1}]) { animation: ${BACKING_IN} ${MOTION.fade}ms linear; }
   /* Preview HoverCards own a closing phase that unmounts after 100ms. */
   body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { transition: opacity 90ms ${MOTION.exit}; }
 }
 @keyframes ${HOLD} { from, to { opacity: 0; } }
-@keyframes acrylic-backing-in { from { opacity: 0; } }
+@keyframes ${BACKING_IN} { from { opacity: 0; } }
 /* Clones never anchor: a reopened menu reuses its anchor-name. */
 [data-acrylic-ghost] { pointer-events: none !important; }
 [data-acrylic-ghost], [data-acrylic-ghost] *, [data-acrylic-ghost] ::before, [data-acrylic-ghost] ::after {
@@ -1115,6 +1117,12 @@ function backingOf(view, popup) {
 	for (const node of popup.ownerDocument.body.children) if (node.hasAttribute("data-menu-backing") && inlineStyle(node)?.getPropertyValue("--dsh-menu-anchor") === anchor) return view.getComputedStyle(node).display === "none" ? null : node;
 	return null;
 }
+function surfaceOf(backing) {
+	const anchor = inlineStyle(backing)?.getPropertyValue("--dsh-menu-anchor");
+	if (!anchor) return null;
+	for (const node of backing.ownerDocument.querySelectorAll("[data-menu-material]:not([data-acrylic-ghost], [data-acrylic-ghost] *)")) if (inlineStyle(node)?.getPropertyValue("--dsh-menu-anchor") === anchor) return node;
+	return null;
+}
 function ghostBackings(view, template, root) {
 	return [root, ...root.querySelectorAll("[data-menu-material]")].map((surface) => [surface.getBoundingClientRect(), view.getComputedStyle(surface).borderRadius]).map(([rect, radius]) => {
 		const clone = template.cloneNode(false);
@@ -1156,6 +1164,13 @@ function createMotion(document, window, { onSettle } = {}) {
 	let pointer = null;
 	let keyboard = null;
 	const removals = new window.MutationObserver(onRemovals);
+	const markStill = (node) => {
+		if (!(node instanceof window.Element) || !node.matches(`[data-menu-backing]:not(${HOST_PHASED}, [data-acrylic-ghost])`)) return;
+		if (surfaceOf(node)?.matches(IN_PHASED)) node.setAttribute(STILL$1, "");
+	};
+	const backings = new window.MutationObserver((records) => {
+		for (const record of records) for (const node of record.addedNodes) markStill(node);
+	});
 	const from = (target, keyframe, duration, easing) => target.animate([{
 		...keyframe,
 		offset: 0
@@ -1384,7 +1399,12 @@ function createMotion(document, window, { onSettle } = {}) {
 			passive: true
 		});
 		else document.removeEventListener(type, listener, { capture: true });
-		if (enabled) return;
+		if (enabled) {
+			for (const node of document.body.children) markStill(node);
+			return backings.observe(document.body, { childList: true });
+		}
+		backings.disconnect();
+		for (const node of document.querySelectorAll(`[${STILL$1}]`)) node.removeAttribute(STILL$1);
 		removals.disconnect();
 		tracked.clear();
 		for (const clone of ghosts) clone.remove();
