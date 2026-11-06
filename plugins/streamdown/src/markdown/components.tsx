@@ -5,7 +5,8 @@ import type { Element, ElementContent } from 'hast';
 import { type ReactNode, useCallback, useState } from 'react';
 import type { Components } from 'hast-util-to-jsx-runtime';
 
-import { useStreamdownBlockState } from '../streamdown/index.ts';
+import { useStreamdownBlockFade, useStreamdownBlockState } from '../streamdown/index.ts';
+import { useCodeFade } from './codeFade.ts';
 import { InLinkProvider, useInLink, useMarkdownEnv } from './env.ts';
 import {
   freshImageUrl, imageSource, inlineCodeHttpUrl, nextImageLoad, normalizeUri, parseFileLink, resolveWorkspacePath, fileMediaUrl,
@@ -60,6 +61,7 @@ function Pre({ node }: HastProps) {
   );
   const classes = classList(code);
   const value = hastText(code);
+  const fadeRef = useCodeFade(useStreamdownBlockFade(), value);
   if (classes.includes('math-display')) return <MathView value={value} display streaming={streaming} />;
   const language = classes.find((name) => name.startsWith('language-'))?.slice('language-'.length);
   if (value === '') return <pre><code className={language === undefined ? undefined : `language-${language}`} /></pre>;
@@ -70,6 +72,7 @@ function Pre({ node }: HastProps) {
       code={value}
       lang={lang}
       streaming={streaming}
+      contentRef={fadeRef}
       copyLabel={env.labels.code.copyLabel}
       copiedLabel={env.labels.code.copiedLabel}
       toolbarLabels={env.labels.code.toolbarLabels}

@@ -70,6 +70,20 @@ const StreamdownBlockContext = createContext<BlockState>('revealed');
 /** Queue state of the Streamdown block that renders the calling component. */
 export const useStreamdownBlockState = (): BlockState => useContext(StreamdownBlockContext);
 
+/**
+ * Fork: how components that draw their own DOM (the host code block) should
+ * fade a block's newly displayed text. `new` fades everything the block
+ * shows; `seen` marks a block that was already on screen when the current
+ * fade session started (first mount, replaced source, a page that was
+ * hidden), so only text added after activation fades.
+ */
+export type StreamdownBlockFade = 'off' | 'new' | 'seen';
+
+const StreamdownBlockFadeContext = createContext<StreamdownBlockFade>('off');
+
+/** Fade mode of the Streamdown block that renders the calling component. */
+export const useStreamdownBlockFade = (): StreamdownBlockFade => useContext(StreamdownBlockFadeContext);
+
 interface BlockRuntime extends StreamAnimatedRuntime {
   blockBirth?: number | undefined;
   charCount: number;
@@ -96,8 +110,11 @@ interface UpdateBlockAnimationArgs {
   finishing: boolean;
 }
 
-const MIN_STREAM_CHAR_PACE_MS = 2;
-const MAX_REVEAL_GAP_MS = 160;
+// Fork: exported so the code-block fade paces its tokens like the prose tail.
+/** Per-char stagger of a revealed block, and the upper bound of a streaming one. */
+export const STREAM_CHAR_DELAY = 18;
+export const MIN_STREAM_CHAR_PACE_MS = 2;
+export const MAX_REVEAL_GAP_MS = 160;
 
 // Runs in the render phase: refreshes each visible block's birth pacing in
 // place and resolves its animation meta in one pass. Births themselves are
@@ -262,7 +279,7 @@ const StreamdownBlocks = memo<StreamdownBlocksProps>(
 
     const blockAnimationMeta = animate && streaming ? updateBlockAnimation({
       blocks,
-      charDelay: 18,
+      charDelay: STREAM_CHAR_DELAY,
       getBlockState,
       pluginsCache: blockPluginsRef.current,
       renderNow: getNow(),
@@ -312,20 +329,26 @@ const StreamdownBlocks = memo<StreamdownBlocksProps>(
         {blocks.map((block: BlockInfo, index) => {
           const animationMeta = blockAnimationMeta?.get(block.startOffset);
           const plugins = resolveBlockPlugins(block.startOffset, animationMeta?.settled ?? true);
+          const state = getBlockState(index);
+          const fade: StreamdownBlockFade = !animate || state !== 'streaming'
+            ? 'off'
+            : block.startOffset < animationSession.current.baselineLength ? 'seen' : 'new';
 
           return (
             <StreamdownBlockContext.Provider
               key={`${generatedId}-${block.startOffset}`}
-              value={getBlockState(index)}
+              value={state}
             >
-              <StreamdownBlock
-                {...rest}
-                components={components}
-                rehypePlugins={plugins}
-                remarkPlugins={remarkPlugins}
-              >
-                {block.content}
-              </StreamdownBlock>
+              <StreamdownBlockFadeContext.Provider value={fade}>
+                <StreamdownBlock
+                  {...rest}
+                  components={components}
+                  rehypePlugins={plugins}
+                  remarkPlugins={remarkPlugins}
+                >
+                  {block.content}
+                </StreamdownBlock>
+              </StreamdownBlockFadeContext.Provider>
             </StreamdownBlockContext.Provider>
           );
         })}

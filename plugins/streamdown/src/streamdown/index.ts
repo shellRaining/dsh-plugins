@@ -11,7 +11,16 @@ export {
   resolveBlockAnimationMeta,
   type ResolveBlockAnimationMetaOptions,
 } from './streamAnimationMeta.ts';
-export { default as Streamdown, type StreamdownProps, useStreamdownBlockState } from './Streamdown.tsx';
+export {
+  default as Streamdown,
+  MAX_REVEAL_GAP_MS,
+  MIN_STREAM_CHAR_PACE_MS,
+  STREAM_CHAR_DELAY,
+  type StreamdownBlockFade,
+  type StreamdownProps,
+  useStreamdownBlockFade,
+  useStreamdownBlockState,
+} from './Streamdown.tsx';
 export { STREAM_FADE_DURATION, STREAMDOWN_ANIMATED_CLASS, STREAMDOWN_CSS } from './styles.ts';
 export type { StreamAnimationGranularity, StreamSmoothingPreset } from './types.ts';
 export { countChars, useSmoothStreamContent } from './useSmoothStreamContent.ts';

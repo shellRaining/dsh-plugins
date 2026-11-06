@@ -12,7 +12,7 @@ dsh plugin --profile web add @shellraining/dsh-streamdown
 
 ## 效果与边界
 
-生成中的回复由 Streamdown 的平滑缓冲控制出字节奏，尾块中的普通文字逐字淡入（180 ms），已冻结的块复用解析结果。代码块继续使用宿主 `CodeBlock` 增量高亮，不逐字淡入；公式能解析时使用 KaTeX，没写完时保留上一次可渲染的结果。
+生成中的回复由 Streamdown 的平滑缓冲控制出字节奏，尾块中的普通文字逐字淡入（180 ms），已冻结的块复用解析结果。代码块继续使用宿主 `CodeBlock` 增量高亮，已高亮的代码按 token 淡入（300 ms），出字节奏与正文相同；token 整体淡入，没有正文那样的逐字错开，所以时长比正文长。没有语言标注、语言不支持或语法还在加载的代码块直接显示。html 代码块和其他语言一样经过平滑缓冲。公式能解析时使用 KaTeX，没写完时保留上一次可渲染的结果。
 
 正文和思考各自按当前文本块的状态收尾，不等整轮对话结束。生成完成后为显示缓冲设置 220 ms 的排空期限，连同最后淡入采用 400 ms 的收尾预算，再按原始文本解析最终尾块，不切换整个渲染器；这些是调度预算，浏览器主线程阻塞时可能延后。中断时直接显示已经收到的内容，停止人为延迟。系统开启「减少动态效果」时，关闭平滑延迟和文字动画处理；页面隐藏时直接同步内容，返回后不补播隐藏期间的输出。
 
@@ -38,7 +38,7 @@ dsh plugin --profile web add @shellraining/dsh-streamdown
 插件以优先级 -1 注册 `conversation.chat.node` 的 `assistant-step` 条目，覆盖 ui-chat 的默认渲染器。基础 slot API 缺失时不注册覆盖。普通 slot 组件渲染异常由宿主处理退让，但模块加载失败、Factory 内部错误、样式或行为差异不保证触发官方回退。
 
 - `src/streamdown/`：Streamdown 1.4.4 的 React 18 fork，改动见 [其 README](src/streamdown/README.md)。
-- `src/markdown/`：DSH 适配层。语法扩展、组件、链接规则和样式移植自 ui-primitives 的 `MarkdownText`，公式使用与宿主 KaTeX 样式同版本的 KaTeX 0.18.7。宿主虽然打包了 micromark 和 KaTeX，但没有通过 ModuleLoader 导出，所以插件自带一份。
+- `src/markdown/`：DSH 适配层。语法扩展、组件、链接规则和样式移植自 ui-primitives 的 `MarkdownText`，公式使用与宿主 KaTeX 样式同版本的 KaTeX 0.18.7。宿主虽然打包了 micromark 和 KaTeX，但没有通过 ModuleLoader 导出，所以插件自带一份。代码块淡入（`codeFade.ts`）参考 lobe-ui 的 token 淡入，通过 `CodeBlock` 的 `contentRef` 观察宿主渲染的 `span.line` 内的 token，用 Web Animations 播放淡入，不改宿主节点的属性；结构对不上时不加动画。
 - `src/chat/`：ui-chat 的 `AssistantNodeView`、`AssistantMarkdown` 和 `ReasoningRow` 的移植，负责正文与思考的状态接入。已结束思考和图片分别调用根作用域的 `conversation.chat.reasoning.content`、`conversation.images.content` Factory。摘要预览设置仍通过注册表读取默认 `assistant-step` 条目的私有注入，缺失或读取失败时不显示完成后的摘要，不改变用户的展开状态。工具动效单独观察 `data-chat-call-id` 下工具行的 `data-state` 变化，不接管工具节点。
 - `src/host.ts`：插件依赖的宿主契约。
 
@@ -52,6 +52,7 @@ dsh plugin --profile web add @shellraining/dsh-streamdown
 | --- | --- |
 | ui-chat 的 `AssistantNodeView`、`AssistantMarkdown`、`ReasoningRow` 及其 CSS module | `src/chat/` |
 | ui-primitives 的 `MarkdownText.module.css`、`render`、`parse`、`cjkFriendlyStrong`、`mathCompatibility`、`katex`、`file-link` | `src/markdown/` |
+| ui-primitives `CodeBlock` 的 `contentRef` 和流式高亮 DOM（`span.line` 内的 token span） | `src/markdown/codeFade.ts` |
 | 宿主全局 KaTeX 样式的版本 | 根 `pnpm-workspace.yaml` 里 `katex` 的版本 |
 | ui-tool 的 `data-chat-call-id`、`data-variant`、`data-state` 标记 | `src/chat/toolMotion.ts` |
 

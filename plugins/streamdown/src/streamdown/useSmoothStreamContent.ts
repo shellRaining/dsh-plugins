@@ -21,6 +21,10 @@ interface StreamSmoothingPresetConfig {
    * non-bypass fence opens — smoothing resumes for the rest of the
    * stream. Default `['html']` covers the artifact case that motivated
    * this; tune via preset if you need to bypass `mermaid`, `svg`, etc.
+   *
+   * Fork: DSH renders html fences as ordinary code blocks with no live
+   * preview, so the default list is empty and html streams as smoothly as
+   * every other language.
    */
   bypassFencedLanguages: readonly string[];
   defaultCps: number;
@@ -38,7 +42,7 @@ interface StreamSmoothingPresetConfig {
   targetBufferMs: number;
 }
 
-const DEFAULT_BYPASS_LANGUAGES = ['html'] as const;
+const DEFAULT_BYPASS_LANGUAGES: readonly string[] = [];
 
 const PRESET_CONFIG: Record<StreamSmoothingPreset, StreamSmoothingPresetConfig> = {
   balanced: {
