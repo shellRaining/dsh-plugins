@@ -31,6 +31,20 @@ JavaScript 只用于生成产物和既有维护脚本。空宿主入口也放在
 
 用户内容默认不可信。优先使用 textContent；确需插入 HTML / SVG 时保留现有校验和清理边界。迁移类型不能顺带移除安全限制或扩大文件、网络权限。
 
+## 宿主样式与性能
+
+插件 CSS 不写以 `:has(` 开头的选择器，`:has()` 前面要有具体的元素、类或属性，比如 `.card:has(> img)`，或者限定在某个祖先之下。以 `:has(` 开头的规则作用于页面上每个元素，Chrome 之后在任何位置插入节点再读取布局，都要重算整页样式。
+
+DSH 0.2.2-rc.1 的 `@deepseek-ai/dsh-client-ui-sidebar-files` 带有两条这样的规则，上游源码在 `packages/client/ui-sidebar-files/src/client/FilesBody.module.css`：`:has(> .navigator.fill) > :not(.navigator)`，以及它在 `@media (width < 768px)` 里的变体。有这两条规则时，一次“插入节点再读尺寸”从不到 1 ms 变成约 20 ms。偶尔一次影响不大，循环里反复插入再测量的代码会把页面卡住，Mermaid 测量文字尺寸就是这种情况。
+
+确实需要绕开时，参照 Mermaid 插件的 `src/host-css.ts`：
+
+- 用宿主注入样式时写入的 `data-plugin-css`（格式为 `<包名>/<文件名>.module.css`）找到样式表，再按选择器形状匹配规则，不写带构建 hash 的类名。
+- 只在一次同步渲染期间替换选择器，任务结束前恢复，另用 `requestAnimationFrame` 兜底，保证页面不会在缺少宿主规则时绘制。
+- 找不到目标就什么都不做。上游修复后删除这段处理。
+
+排查这类卡顿时，用 `PerformanceObserver` 观察 `long-animation-frame`，看 `scripts[].forcedStyleAndLayoutDuration` 是否占了大部分时长。再逐个停用样式表，测量“插入节点后读 `offsetHeight`”的耗时，就能找到触发整页重算的规则。
+
 ## 文档与依赖
 
 新增依赖前确认是否可由宿主提供。所有直接依赖版本在根 `pnpm-workspace.yaml` 的 catalog 中维护，各包引用 `catalog:`；peer 兼容范围使用命名 catalog，不与开发时的精确版本混淆。依赖变动同步根 lockfile，不创建子包锁文件。构建工具在根声明，各包保留自身类型和运行时依赖。

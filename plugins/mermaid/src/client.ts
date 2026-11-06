@@ -1,3 +1,4 @@
+import { suspendUnanchoredHas } from './host-css.js';
 import { css } from './styles.js';
 import { themeConfig, sanitizeSvg } from './theme.js';
 
@@ -153,9 +154,12 @@ export function mount(document: Document, load: () => Promise<MermaidRuntime> = 
       else {
         const mermaid=await load();
         if(!valid(state,generation,source,revision)) return;
-        mermaid.initialize(themeConfig(document));
         const id=`dsh-mmd-acrylic-${Date.now()}-${++unique}`;
-        const {svg}=await mermaid.render(id,source);
+        // Theme probing and Mermaid's text measurement both insert then read layout.
+        const restore=suspendUnanchoredHas(document);
+        let svg: string;
+        try {mermaid.initialize(themeConfig(document));({svg}=await mermaid.render(id,source));}
+        finally {restore();}
         if(!valid(state,generation,source,revision)) return;
         rendered={id,svg};cache.set(source,rendered);
         for(const key of cache.keys()) {if(cache.size<=CACHE_LIMIT) break;cache.delete(key);}
