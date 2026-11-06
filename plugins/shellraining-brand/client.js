@@ -147,13 +147,15 @@ function ensureStyles() {
      div.headline
      ├── span.fishHitbox      <- the slot; our mark renders inside it
      └── span.titleGroup      <- headline text + "Preview" badge
-   So: find the headline row that contains our mark, then hide every sibling
-   span that follows the mark's own span. Descendant combinators on both sides
-   keep this working regardless of how many wrapper elements the slot renderer
-   introduces around our mark, and regardless of whether the mark's element is
-   the outermost node the slot renders or one level inside it. */
-div:has([data-shellraining-hero]) > span:has([data-shellraining-hero]) + span,
-div:has([data-shellraining-hero]) > [data-shellraining-hero] + span {
+   So: hide the span that follows the span holding our mark, or the mark
+   itself when it is that span. The descendant argument keeps this working
+   regardless of how many wrapper elements the slot renderer introduces around
+   our mark. No :has() may come before the parent combinator (the former
+   div:has(...) > ... form): with it, each DOM insertion anywhere cost about
+   2.5ms of style recalculation in a long conversation, and Mermaid's text
+   measurement inserts some 85 times per diagram. */
+span:has([data-shellraining-hero]) + span,
+[data-shellraining-hero] + span {
   display: none !important;
 }
 
