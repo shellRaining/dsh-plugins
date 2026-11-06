@@ -918,12 +918,13 @@ function createAdapters(document, modules) {
 }
 // src/motion.ts
 var HOLD = "acrylic-popup-hold";
+var HOVER_CARD = "div[style*=\"--dsh-hover-preview-fade\"]";
 var BACKING_IN = "acrylic-backing-in";
 var POPUP_SELECTOR = [
 	"[data-menu-material]",
 	"body > [role=\"presentation\"]:has(> [role=\"dialog\"][aria-modal=\"true\"])",
 	"body > :is([role=\"dialog\"], [role=\"menu\"], [role=\"listbox\"]):not([aria-modal=\"true\"])",
-	"body > span > div[style*=\"--dsh-hover-preview-fade\"]",
+	`body > span > ${HOVER_CARD}`,
 	"body > ul",
 	"body > div:has(> [role=\"tree\"])",
 	"[role=\"tooltip\"]",
@@ -1026,7 +1027,7 @@ var MOTION_CSS = `
   body[data-acrylic-fluent] :is(${POPUP_SELECTOR}):not([data-acrylic-ghost], ${IN_PHASED}) { animation: ${HOLD} 300ms linear; }
   body[data-acrylic-fluent] > [data-menu-backing]:not(${HOST_PHASED}, [${STILL$1}]) { animation: ${BACKING_IN} ${MOTION.fade}ms linear; }
   /* Preview HoverCards own a closing phase that unmounts after 100ms. */
-  body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { transition: opacity 90ms ${MOTION.exit}; }
+  body[data-acrylic-fluent] > span > ${HOVER_CARD} { transition: opacity 90ms ${MOTION.exit}; }
 }
 @keyframes ${HOLD} { from, to { opacity: 0; } }
 @keyframes ${BACKING_IN} { from { opacity: 0; } }
@@ -1269,7 +1270,7 @@ function createMotion(document, window, { onSettle } = {}) {
 	}
 	function rootOf(popup) {
 		const parent = popup.parentElement;
-		return parent && parent.parentElement === document.body && window.getComputedStyle(parent).display === "contents" ? parent : popup;
+		return parent?.localName === "span" && parent.parentElement === document.body && popup.matches(HOVER_CARD) && window.getComputedStyle(parent).display === "contents" && parent ? parent : popup;
 	}
 	function start(popup) {
 		if (!enabled || !popup.isConnected) return;

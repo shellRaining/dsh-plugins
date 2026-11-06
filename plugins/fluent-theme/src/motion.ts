@@ -13,12 +13,13 @@ import { createStyleSheet } from './style.ts';
 // Popups with an acrylic layer fade that layer and their content separately:
 // opacity < 1 on an ancestor is a backdrop root and would drop the blur.
 const HOLD = 'acrylic-popup-hold';
+const HOVER_CARD = 'div[style*="--dsh-hover-preview-fade"]';
 const BACKING_IN = 'acrylic-backing-in';
 export const POPUP_SELECTOR = [
   '[data-menu-material]', // MenuSurface: menus, pickers, command lists, dock tab menus
   'body > [role="presentation"]:has(> [role="dialog"][aria-modal="true"])', // modals
   'body > :is([role="dialog"], [role="menu"], [role="listbox"]):not([aria-modal="true"])', // portaled panels
-  'body > span > div[style*="--dsh-hover-preview-fade"]', // HoverCard, in its portal span
+  `body > span > ${HOVER_CARD}`, // HoverCard, in its portal span
   'body > ul', 'body > div:has(> [role="tree"])', // portaled catalogs without a popup role
   '[role="tooltip"]',
   `[${POPUP_ATTRIBUTE}]`, // self-drawn popups that opt in (contract.ts)
@@ -76,7 +77,7 @@ export const MOTION_CSS = `
   body[data-acrylic-fluent] :is(${POPUP_SELECTOR}):not([data-acrylic-ghost], ${IN_PHASED}) { animation: ${HOLD} 300ms linear; }
   body[data-acrylic-fluent] > [data-menu-backing]:not(${HOST_PHASED}, [${STILL}]) { animation: ${BACKING_IN} ${MOTION.fade}ms linear; }
   /* Preview HoverCards own a closing phase that unmounts after 100ms. */
-  body[data-acrylic-fluent] > span > div[style*="--dsh-hover-preview-fade"] { transition: opacity 90ms ${MOTION.exit}; }
+  body[data-acrylic-fluent] > span > ${HOVER_CARD} { transition: opacity 90ms ${MOTION.exit}; }
 }
 @keyframes ${HOLD} { from, to { opacity: 0; } }
 @keyframes ${BACKING_IN} { from { opacity: 0; } }
@@ -365,11 +366,13 @@ export function createMotion(document: Document, window: View, { onSettle }: Mot
   }
 
   // HoverCard portals a display:contents span holding the card and its
-  // pointer bridge to body, and unmounts the span, not the card. Wrappers
-  // inside the app tree stay mounted when their popup closes: not roots.
+  // pointer bridge to body, and unmounts the span, not the card. Other
+  // wrappers may stay mounted when their popup closes: not roots.
   function rootOf(popup: Element): Element {
     const parent = popup.parentElement;
-    return parent && parent.parentElement === document.body && window.getComputedStyle(parent).display === 'contents' ? parent : popup;
+    const portal = parent?.localName === 'span' && parent.parentElement === document.body
+      && popup.matches(HOVER_CARD) && window.getComputedStyle(parent).display === 'contents';
+    return portal && parent ? parent : popup;
   }
 
   function start(popup: Element) {
