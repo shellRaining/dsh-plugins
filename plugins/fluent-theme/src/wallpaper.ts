@@ -50,6 +50,10 @@ function wallpaperCss(shell: string): string {
   const TERMINAL_HOST = `${FRAME} :has(> .xterm)`;
   // xterm's own scroll surface, painted only by the DOM renderer.
   const TERMINAL_SURFACE = `${FRAME} .xterm:has(.xterm-rows) :is(.xterm-scrollable-element,.xterm-viewport)`;
+  // The trajectory view root and its details panel (whose resize handle names
+  // the panel). The stats view shares the overlay attribute but paints nothing.
+  const TRAJECTORY = `${FRAME} [data-conversation-composer-overlay]`;
+  const TRAJECTORY_DETAILS = `${TRAJECTORY} aside:has(> [aria-controls="trajectory-detail-panel"])`;
   return `
 body[data-acrylic-wallpaper] { isolation: isolate; --acrylic-tint-rgb: ${TINT.light}; }
 body[data-acrylic-wallpaper][data-ds-dark-theme] { --acrylic-tint-rgb: ${TINT.dark}; }
@@ -111,6 +115,27 @@ ${FLUENT_FRAME}[data-animating]:not([data-rightbar-instant], [data-rightbar-full
   background: ${DOCK_TINT};
   backdrop-filter: none;
 }
+/* The trajectory view paints layer tokens, not the canvas: its root, toolbar,
+   table pane and table with layer-1, the timeline plot with layer-2. Clear the
+   containers so the reading-surface tint shows through, matched by semantic
+   anchors only (the view root is the conversation's composer overlay). Inside
+   the details panel layer-1 is cleared as a token, so its many sections follow;
+   the toolbar's switch thumb and the timeline's selection dimming keep theirs.
+   The plot keeps a faint layer-2 band to stay apart from the table. */
+${TRAJECTORY},
+${TRAJECTORY} > [role="toolbar"],
+${TRAJECTORY} div:has(> [data-trajectory-scroll]),
+${TRAJECTORY} [data-trajectory-scroll] > table { background: transparent; }
+${TRAJECTORY} { --acrylic-opaque-layer-2: var(--dsw-alias-bg-layer-2); }
+${TRAJECTORY} > section[aria-label] { --dsw-alias-bg-layer-2: color-mix(in srgb, var(--acrylic-opaque-layer-2) 30%, transparent); }
+${TRAJECTORY_DETAILS} { --dsw-alias-bg-layer-1: transparent; background: transparent; }
+/* A narrow window lays the details panel over the table: in-app acrylic. */
+@media (width <= 760px) {
+  ${TRAJECTORY_DETAILS} { background: ${CANVAS_RULES.solid}; }
+  @supports (backdrop-filter: blur(1px)) {
+    ${TRAJECTORY_DETAILS} { background: ${CANVAS_RULES.acrylic}; backdrop-filter: blur(30px) saturate(1.2); }
+  }
+}
 /* The narrow-window drawer slides the sidebar over the mask and conversation:
    in-app acrylic on a pseudo-element, as on composer cards, so the column
    gains no containing block for fixed descendants. */
@@ -171,7 +196,10 @@ body[data-acrylic-wallpaper] ${COMPOSER_CARD}::before {
    started the band above the todo dock, which is narrower than the card and
    left the band showing at its sides. The card covers the band's top edge,
    so no fade is needed. The input bar root (the card's parent) carries it as
-   a pseudo-element: position: relative keeps viewport-fixed menus intact. */
+   a pseudo-element: position: relative keeps viewport-fixed menus intact.
+   Only the usage dock under the card shows the band; like the side chat's
+   dock it should read as the column itself, so the band adds no fill and no
+   saturation, only blur that smears transcript scrolled beneath it. */
 ${FRAME} [data-content-phase="active"] [data-composer-seat] div:has(> [data-composer-card]) { position: relative; }
 ${FRAME} [data-content-phase="active"] [data-composer-seat] div:has(> [data-composer-card])::before {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
@@ -182,8 +210,8 @@ ${FRAME} [data-content-phase="active"] [data-composer-seat] div:has(> [data-comp
 }
 @supports (backdrop-filter: blur(1px)) {
   ${FRAME} [data-content-phase="active"] [data-composer-seat] div:has(> [data-composer-card])::before {
-    background: ${CANVAS_RULES.acrylic};
-    backdrop-filter: blur(30px) saturate(1.2);
+    background: transparent;
+    backdrop-filter: blur(30px);
   }
 }
 /* The opaque layer already backs every menu; the macOS menu backing would
