@@ -1,8 +1,8 @@
 {
   "name": "@shellraining/dsh-spinner-throttle",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
-  "description": "降低 DSH 运行中转圈图标的 CPU 占用：旋转交给合成线程，弧长变化每秒只更新 30 次",
+  "description": "降低 DSH 运行中转圈图标的 CPU 占用：旋转和弧长变化每秒只更新 30 次，外观不变",
   "main": "./lib/index.js",
   "exports": {
     ".": "./lib/index.js",
