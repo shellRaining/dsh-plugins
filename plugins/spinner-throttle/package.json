@@ -1,0 +1,37 @@
+{
+  "name": "@shellraining/dsh-spinner-throttle",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "降低 DSH 运行中转圈图标的 CPU 占用：旋转交给合成线程，弧长变化每秒只更新 30 次",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": ["lib", "cordis.patch.yml", "LICENSE", "README.md"],
+  "scripts": {
+    "build": "pnpm run typecheck && node build.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "engines": { "node": ">=24.9.0", "dsh": ">=0.2.2-rc.1 <0.3.0" },
+  "devDependencies": { "typescript": "catalog:" },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": []
+    }
+  },
+  "license": "MIT",
+  "author": "shellRaining",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shellRaining/dsh-plugins.git",
+    "directory": "plugins/spinner-throttle"
+  },
+  "keywords": ["deepseek-harness", "dsh", "dsh-plugin", "performance", "animation"],
+  "publishConfig": { "access": "public" }
+}

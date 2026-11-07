@@ -14,6 +14,7 @@
 | <img src="plugins/session-auto-rename/icon.png" width="36" height="36" alt="" /> | [会话自动命名](plugins/session-auto-rename) | 根据对话自动命名，支持自定义标题格式和摘要语言 | `dsh plugin --profile web add @shellraining/dsh-session-auto-rename` |
 | <img src="plugins/inline-code-copy/icon.png" width="36" height="36" alt="" /> | [行内代码复制](plugins/inline-code-copy) | 点击助手回复中的行内代码即可复制 | `dsh plugin --profile web add @shellraining/dsh-inline-code-copy` |
 | <img src="plugins/shellraining-brand/icon.png" width="36" height="36" alt="" /> | [shellRaining 品牌](plugins/shellraining-brand) | 替换侧栏和首页的品牌标识；fork 后可替换为自己的资源 | `dsh plugin --profile web add @shellraining/dsh-brand` |
+|  | [转圈图标降耗](plugins/spinner-throttle) | 运行中的转圈图标外观不变，渲染进程 CPU 占用降低 | `dsh plugin --profile web add @shellraining/dsh-spinner-throttle` |
 
 新增插件：[布局预设](plugins/layout-presets/README.md)，支持对话区与右栏比例保持、宽度比例预设和双击等分。安装：`dsh plugin --profile web add @shellraining/dsh-layout-presets`，兼容性限制见子包文档。
 

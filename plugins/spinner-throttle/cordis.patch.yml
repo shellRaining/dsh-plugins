@@ -1,0 +1,3 @@
+- insert:
+    - id: spinner-throttle
+      name: '@shellraining/dsh-spinner-throttle'

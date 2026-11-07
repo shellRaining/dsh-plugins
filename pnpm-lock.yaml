@@ -418,6 +418,12 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  plugins/spinner-throttle:
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   plugins/streamdown:
     dependencies:
       hast-util-to-jsx-runtime:
