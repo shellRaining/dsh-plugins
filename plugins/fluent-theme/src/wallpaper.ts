@@ -136,6 +136,24 @@ ${TRAJECTORY_DETAILS} { --dsw-alias-bg-layer-1: transparent; background: transpa
     ${TRAJECTORY_DETAILS} { background: ${CANVAS_RULES.acrylic}; backdrop-filter: blur(30px) saturate(1.2); }
   }
 }
+/* The plugin manager's page header is a sticky bar that hides the list
+   scrolling beneath it by painting the base canvas on a pseudo-element, which
+   the cleared token turns into nothing. Like the conversation header it should
+   read as the page itself, a hairline over the wallpaper, not a slab: no fill,
+   only blur that smears the rows scrolling under it (the bar's own filter would
+   contain its fixed descendants, so it sits on the pseudo-element). The host
+   shrinks that pseudo-element from the resting to the compact height as the
+   page scrolls, which would make the blur band rise and fall; pin it to the
+   compact height, the strip the rows actually slide under once the header has
+   collapsed. Matched by the host's own data-plugin-bar anchor, not a module
+   class. */
+${FRAME} [data-plugin-bar][data-natural]::before { background: transparent; }
+@supports (backdrop-filter: blur(1px)) {
+  ${FRAME} [data-plugin-bar][data-natural]::before {
+    height: var(--plugin-header-compact-height, var(--plugin-header-rest-height));
+    backdrop-filter: blur(30px);
+  }
+}
 /* The narrow-window drawer slides the sidebar over the mask and conversation:
    in-app acrylic on a pseudo-element, as on composer cards, so the column
    gains no containing block for fixed descendants. */
