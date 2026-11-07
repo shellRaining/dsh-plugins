@@ -1,7 +1,7 @@
 import { AssistantNodeView } from './chat/AssistantNodeView.tsx';
+import { installBlockMotion } from './chat/blockMotion.ts';
 import { fileMentionsSource, filePathResolver, officialAssistantFace, presentationSource } from './chat/presentation.ts';
 import { CHAT_CSS } from './chat/styles.ts';
-import { installToolMotion } from './chat/toolMotion.ts';
 import type { ClientContext } from './host.ts';
 import { MARKDOWN_CSS } from './markdown/styles.ts';
 import { STREAMDOWN_CSS } from './streamdown/index.ts';
@@ -22,7 +22,7 @@ export function apply(ctx: ClientContext): void {
     console.warn('dsh-streamdown: unsupported slot API; keeping the host renderer');
     return;
   }
-  ctx.effect(installToolMotion, `${name}: tool state motion`);
+  ctx.effect(installBlockMotion, `${name}: chat block motion`);
   ctx.effect(() => {
     const style = document.createElement('style');
     style.dataset.plugin = name;

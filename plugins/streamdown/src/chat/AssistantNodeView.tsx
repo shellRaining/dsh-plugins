@@ -30,7 +30,12 @@ function ProcessReasoning({ hidden, reveal, useGroupAction, children }: {
   useGroupAction: AssistantNodeProps['useGroupAction'];
   children: ReactNode;
 }) {
-  return <div ref={useGroupAction(hidden, reveal)} data-turn-process-inline={hidden || undefined}>{children}</div>;
+  // data-sd-process-reasoning lets the disclosure motion measure this wrapper before a Turn fold hides it.
+  return (
+    <div ref={useGroupAction(hidden, reveal)} data-turn-process-inline={hidden || undefined} data-sd-process-reasoning="">
+      {children}
+    </div>
+  );
 }
 
 /**

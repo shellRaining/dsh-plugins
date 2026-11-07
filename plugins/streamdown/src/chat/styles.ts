@@ -34,7 +34,9 @@ export const CHAT_CSS = `
   line-height: 18px;
 }
 .dsh-sd-think { flex-direction: column; display: flex; }
-.dsh-sd-think:not([data-expanded]) {
+/* Plugin addition: content leaving through disclosureMotion's exit ghost
+   ([data-sd-exit]) must stay visible until it has folded. */
+.dsh-sd-think:not([data-expanded]):not(:has([data-sd-exit])) {
   contain: size layout;
   height: calc(24px + var(--dsh-content-font-delta, 0px));
 }
