@@ -18,6 +18,8 @@
 
 新增插件：[布局预设](plugins/layout-presets/README.md)，支持对话区与右栏比例保持、宽度比例预设和双击等分。安装：`dsh plugin --profile web add @shellraining/dsh-layout-presets`，兼容性限制见子包文档。
 
+另有 [工作区文件夹](https://github.com/shellRaining/dsh-workspace-folders/tree/main/packages/client/ui-workspace/fork)，在侧栏工作区里新建文件夹给会话分组。它是官方工作区列表的 fork，安装后替换官方列表，每个版本只对应一个 DSH 版本，因此放在单独的仓库里跟随上游同步。安装：`dsh plugin --profile web add @shellraining/dsh-workspace-folders`。
+
 ## 已下线的插件
 
 DSH 0.2.2 起宿主内置了同类功能，以下插件停止维护，npm 上已发布的版本保留：
