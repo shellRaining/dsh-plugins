@@ -33,7 +33,7 @@ JavaScript 只用于生成产物和既有维护脚本。空宿主入口也放在
 
 ## 宿主样式与性能
 
-插件 CSS 里的 `:has()` 最好放在选择器最右边的复合选择器上，也就是被选中的元素本身，并在它前面写上具体的元素、类或属性，比如 `.card:has(> img)`。`:has()` 后面还接子代或后代组合符时，最右边的复合选择器必须带类或属性，比如 `div:has(> [data-a]) > [data-b]`。如果最右边只有 `div`、`span` 这类常见标签，或者只有 `*`、`:not(...)`、`:has(...)`，比如 `div:has(> [data-a]) > div:first-child`、`div:has(> [data-a]) :has(> .x)`、`:has(> .x) > :not(.x)`，Chrome 在页面任何位置插入节点后都要做大范围的样式重算。实测后面只接兄弟组合符的 `span:has(> [data-a]) + span` 没有这个问题。要定位一个没有语义属性的容器，优先用宿主的稳定属性（比如 `data-slot`），或者像 fluent-theme 的 `src/host/modules.ts` 那样在运行时从 `style[data-plugin-css]` 读出 CSS module 的类名，不在源码里写带构建 hash 的类名。
+插件 CSS 里的 `:has()` 最好放在选择器最右边的复合选择器上，也就是被选中的元素本身，并在它前面写上具体的元素、类或属性，比如 `.card:has(> img)`。`:has()` 后面还接子代或后代组合符时，最右边的复合选择器必须带类或属性，比如 `div:has(> [data-a]) > [data-b]`。如果最右边只有 `div`、`span` 这类常见标签，或者只有 `*`、`:not(...)`、`:has(...)`，比如 `div:has(> [data-a]) > div:first-child`、`div:has(> [data-a]) :has(> .x)`、`:has(> .x) > :not(.x)`，Chrome 在页面任何位置插入节点后都要做大范围的样式重算。实测后面只接兄弟组合符的 `span:has(> [data-a]) + span` 没有这个问题。要定位一个没有语义属性的容器，优先用宿主的稳定属性（比如 `data-slot`），或者像 [dsh-fluent-theme](https://github.com/omdsh-dev/dsh-fluent-theme) 的 `src/host/modules.ts` 那样在运行时从 `style[data-plugin-css]` 读出 CSS module 的类名，不在源码里写带构建 hash 的类名。
 
 在一段长对话里，这样一条规则就能让一次“插入节点再读尺寸”从不到 1 ms 变成 2.5 到 15 ms，具体取决于规则形状和页面元素数量。偶尔一次影响不大，循环里反复插入再测量的代码会把页面卡住，Mermaid 测量文字尺寸就是这种情况，一张时序图大约要测 85 次。
 
