@@ -1,0 +1,6 @@
+# Registers the providers only. They stay unavailable until `baseURL` is set,
+# and DSH keeps its current provider until you pin these ids (see README).
+- insert:
+    - id: web-selfhost
+      name: '@shellraining/dsh-web-selfhost'
+      config: {}

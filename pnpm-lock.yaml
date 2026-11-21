@@ -460,6 +460,18 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  plugins/web-selfhost:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
 packages:
 
   '@deepseek-ai/cordis@4.1.0':
