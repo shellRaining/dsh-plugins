@@ -39,7 +39,7 @@ JavaScript 只用于生成产物和既有维护脚本。空宿主入口也放在
 
 DSH 0.2.2-rc.1 的 `@deepseek-ai/dsh-client-ui-sidebar-files` 带有两条这样的规则，上游源码在 `packages/client/ui-sidebar-files/src/client/FilesBody.module.css`：`:has(> .navigator.fill) > :not(.navigator)`，以及它在 `@media (width < 768px)` 里的变体，合计约 20 ms。
 
-确实需要绕开时，参照 Mermaid 插件的 `src/host-css.ts`：
+确实需要绕开时，参照 [独立 Mermaid 插件的宿主样式适配](https://github.com/omdsh-dev/dsh-mermaid/blob/main/src/host-css.ts)：
 
 - 用宿主注入样式时写入的 `data-plugin-css`（格式为 `<包名>/<文件名>.module.css`）找到样式表，再按选择器形状匹配规则，不写带构建 hash 的类名。
 - 只在一次同步渲染期间替换选择器，任务结束前恢复，另用 `requestAnimationFrame` 兜底，保证页面不会在缺少宿主规则时绘制。
