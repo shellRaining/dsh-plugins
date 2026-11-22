@@ -1,0 +1,68 @@
+{
+  "name": "@shellraining/dsh-tool-name-recovery",
+  "version": "0.1.0",
+  "description": "自动还原模型调用中被代理别名污染、丢前缀或轻微拼写漂移的工具名。",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "tool-name",
+    "cliproxyapi",
+    "recovery"
+  ],
+  "author": "shellRaining",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shellRaining/dsh-plugins.git",
+    "directory": "plugins/tool-name-recovery"
+  },
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20",
+    "dsh": ">=0.2.2-rc.1 <0.3.0"
+  },
+  "scripts": {
+    "build": "pnpm run typecheck && node build.ts && tsc -p tsconfig.json --emitDeclarationOnly",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "catalog:peers"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@deepseek-ai/dsh-llm": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  },
+  "homepage": "https://github.com/shellRaining/dsh-plugins/tree/main/plugins/tool-name-recovery#readme",
+  "bugs": "https://github.com/shellRaining/dsh-plugins/issues",
+  "publishConfig": {
+    "access": "public"
+  }
+}

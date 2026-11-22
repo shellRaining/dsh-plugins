@@ -1,0 +1,4 @@
+- insert:
+    - id: tool-name-recovery
+      name: '@shellraining/dsh-tool-name-recovery'
+      config: {}

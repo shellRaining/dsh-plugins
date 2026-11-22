@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Tool name recovery",
+    "description": "Recovers drifted tool call names in LLM streams against the active registered tools. Handles dropped CPA OAuth MCP prefixes, case and separator mismatches, truncated long names, and high-confidence typos with argument-schema verification."
+  }
+}

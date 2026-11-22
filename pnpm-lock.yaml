@@ -460,6 +460,21 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  plugins/tool-name-recovery:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@deepseek-ai/dsh-llm':
+        specifier: 'catalog:'
+        version: 0.2.2-rc.5(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-error@0.2.2-rc.5(@deepseek-ai/cordis@4.1.0))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   plugins/web-selfhost:
     devDependencies:
       '@deepseek-ai/cordis':
