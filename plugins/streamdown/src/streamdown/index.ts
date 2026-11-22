@@ -2,9 +2,12 @@ export { CachedMarkdown } from './CachedMarkdown.tsx';
 export { findOpenFenceLanguage } from './fenceState.ts';
 export { defaultUrlTransform, type MarkdownOptions } from './options.ts';
 export {
+  readStreamInlineCodeBirth,
   rehypeStreamAnimated,
   type StreamAnimatedOptions,
   type StreamAnimatedRuntime,
+  type StreamBirthPacing,
+  type StreamInlineCodeElementData,
 } from './rehypeStreamAnimated.ts';
 export {
   type BlockAnimationMeta,

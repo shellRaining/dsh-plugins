@@ -11,7 +11,8 @@
 - 新增 `streaming` 和 `interrupted` 输入，完成后有限排空并结束尾块动画，再使用原始文本收尾，不替换根组件。中断直接同步已有内容。末尾不再永久保持补全文法和动画状态。
 - 上游以 `useStreamQueue(blocks, true)` 调用块队列，这个模式下只有尾块是 `streaming`，其余块都是 `revealed`。fork 直接按这两种状态判断，`useStreamQueue` 只保留导出；字间隔上限固定为 18 ms，不再按尾块初次出现时的字数缩短。
 - html 代码块默认也经过平滑缓冲。上游让它绕过缓冲，是为了 LobeHub 的 HTML 预览 iframe 及时拿到内容；DSH 的 html 代码块没有预览。
-- 新增 `useStreamdownBlockFade()`，告诉自绘 DOM 的块内组件（宿主代码块）是否淡入新文字，以及块里已有的文字是否算已经显示；同时导出正文尾块的节奏常量，供代码块淡入复用。
+- 新增 `useStreamdownBlockFade()`，告诉自绘 DOM 的块内组件（宿主代码块）是否淡入新文字，以及块里已有的文字是否算已经显示；代码块闭合转入 `revealed` 后在未 `settled` 窗口内保持 `fade` 有效，同时导出正文尾块的节奏常量，供代码块淡入复用。
+- 行内 `<code>`（非数学公式）同样纳入 `rehypeStreamAnimated` 的逐字出生计数与 `StreamTail` 包装，并在首字仍在淡入窗口内时记录 `streamdownCodeBirth` 供外层 `<code>` 同步淡入。
 - 「减少动态效果」同时跳过平滑延迟和动画 AST 处理，页面隐藏时同步内容并停止缓冲调度；偏好监听和调度任务随组件卸载清理。首次挂载已有文本不播放入场动画。
 - 非追加式文本替换重置动画记录；块 memo 比较完整渲染选项，避免设置改变后继续使用旧解析结果。
 - 不再依赖 react-markdown。上游只从它取 `defaultUrlTransform` 和 `Options` 类型，而它的 React peer 会给工作区再装一份 React；这两项改由 `options.ts` 提供，行为与 react-markdown 10.1 相同。

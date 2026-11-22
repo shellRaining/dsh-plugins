@@ -65,7 +65,16 @@ const segmentWords = (value: string): string[] => {
 };
 
 const BLOCK_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'td', 'th']);
-const SKIP_TAGS = new Set(['pre', 'code', 'svg']);
+const SKIP_TAGS = new Set(['pre', 'svg']);
+
+export interface StreamInlineCodeElementData {
+  streamdownCodeBirth?: number;
+}
+
+export const readStreamInlineCodeBirth = (node?: Element): number | undefined => {
+  const birth = (node?.data as StreamInlineCodeElementData | undefined)?.streamdownCodeBirth;
+  return typeof birth === 'number' ? birth : undefined;
+};
 
 function hasClass(node: Element, cls: string): boolean {
   const cn: unknown = node.properties?.className;
@@ -111,7 +120,7 @@ export const rehypeStreamAnimated = (options: StreamAnimatedOptions = {}) => {
     const now = nowOverride ?? (resolvedRuntime ? getNow() : 0);
 
     const shouldSkip = (node: Element): boolean => {
-      return SKIP_TAGS.has(node.tagName) || hasClass(node, 'katex');
+      return SKIP_TAGS.has(node.tagName) || hasClass(node, 'katex') || hasClass(node, 'math-inline') || hasClass(node, 'math-display');
     };
 
     const isSkipped = (index: number): boolean => {
@@ -198,7 +207,15 @@ export const rehypeStreamAnimated = (options: StreamAnimatedOptions = {}) => {
           newChildren.push(wrapTextValue(child.value));
         } else if (child.type === 'element') {
           if (!shouldSkip(child)) {
+            const startIndex = globalCharIndex;
             wrapText(child);
+            if (child.tagName === 'code' && globalCharIndex > startIndex && !isSkipped(startIndex) && !hasFaded(startIndex)) {
+              const birth = resolvedRuntime?.births[startIndex] ?? now;
+              child.data = {
+                ...(child.data as Record<string, unknown> | undefined),
+                streamdownCodeBirth: birth,
+              } as StreamInlineCodeElementData as Element['data'];
+            }
           }
           newChildren.push(child);
         } else {

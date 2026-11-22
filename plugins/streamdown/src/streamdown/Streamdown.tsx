@@ -88,6 +88,7 @@ interface BlockRuntime extends StreamAnimatedRuntime {
   blockBirth?: number | undefined;
   charCount: number;
   charDelay?: number | undefined;
+  lastUpdateTs?: number | undefined;
   rawLength: number;
   settled: boolean;
 }
@@ -196,6 +197,7 @@ const updateBlockAnimation = ({
       }
       runtime.pacing = finishing ? { capMs: 0, pace: 0 } : { capMs, pace };
       runtime.charCount = nextCharCount;
+      runtime.lastUpdateTs = renderNow;
       runtime.rawLength = block.content.length;
     }
 
@@ -206,7 +208,7 @@ const updateBlockAnimation = ({
       // pruned by a stream restart.
       meta = { charDelay: runtime.charDelay ?? charDelay, settled: true };
     } else {
-      const lastBirthTs = runtime.blockBirth ?? births.at(-1) ?? renderNow;
+      const lastBirthTs = runtime.blockBirth ?? births.at(-1) ?? runtime.lastUpdateTs ?? renderNow;
       meta = resolveBlockAnimationMeta({
         currentCharDelay: charDelay,
         fadeDuration: STREAM_FADE_DURATION,
@@ -328,9 +330,10 @@ const StreamdownBlocks = memo<StreamdownBlocksProps>(
       >
         {blocks.map((block: BlockInfo, index) => {
           const animationMeta = blockAnimationMeta?.get(block.startOffset);
-          const plugins = resolveBlockPlugins(block.startOffset, animationMeta?.settled ?? true);
+          const settled = animationMeta?.settled ?? true;
+          const plugins = resolveBlockPlugins(block.startOffset, settled);
           const state = getBlockState(index);
-          const fade: StreamdownBlockFade = !animate || state !== 'streaming'
+          const fade: StreamdownBlockFade = !animate || (state !== 'streaming' && settled)
             ? 'off'
             : block.startOffset < animationSession.current.baselineLength ? 'seen' : 'new';
 

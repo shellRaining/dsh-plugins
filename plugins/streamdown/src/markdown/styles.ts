@@ -76,8 +76,7 @@ export const MARKDOWN_CSS = `
 }
 .dsh-sd-md pre { margin: 16px 0; font-family: var(--ds-font-family-code); overflow: auto; }
 .dsh-sd-md :not(pre) > code {
-  display: inline-flex;
-  align-items: center;
+  display: inline;
   box-sizing: border-box;
   font: var(--dsw-font-markdown-code);
   font-family: var(--ds-font-family-code);
@@ -85,7 +84,9 @@ export const MARKDOWN_CSS = `
   background-color: var(--dsw-alias-markdown-inline-code);
   border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: var(--dsw-radius-sm);
-  padding: 0 5px;
+  padding: 1px 5px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 .dsh-sd-md :where(h1, h2, h3, h4, h5, h6) code { font: inherit; font-family: var(--ds-font-family-code); }
 .dsh-sd-md .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; }

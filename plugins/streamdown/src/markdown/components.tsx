@@ -2,10 +2,12 @@ import {
   classifyLinkPath, CodeBlock, ImageLightbox, LinkIconMedium, useMarkdownDelegate,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { Element, ElementContent } from 'hast';
-import { type ReactNode, useCallback, useState } from 'react';
+import { type CSSProperties, type ReactNode, useCallback, useRef, useState } from 'react';
 import type { Components } from 'hast-util-to-jsx-runtime';
 
-import { useStreamdownBlockFade, useStreamdownBlockState } from '../streamdown/index.ts';
+import {
+  readStreamInlineCodeBirth, STREAM_FADE_DURATION, useStreamdownBlockFade, useStreamdownBlockState,
+} from '../streamdown/index.ts';
 import { useCodeFade } from './codeFade.ts';
 import { InLinkProvider, useInLink, useMarkdownEnv } from './env.ts';
 import {
@@ -80,18 +82,36 @@ function Pre({ node }: HastProps) {
   );
 }
 
-function Code({ node }: HastProps) {
+function Code({ node, children }: HastProps) {
   const env = useMarkdownEnv();
   const inLink = useInLink();
   const streaming = useBlockStreaming();
+  const delayRef = useRef<{ birth: number; style: CSSProperties | null } | null>(null);
   const value = hastText(node);
   if (classList(node).includes('math-inline')) return <MathView value={value} display={false} streaming={streaming} />;
+  const birth = readStreamInlineCodeBirth(node);
+  let codeClass: string | undefined;
+  let codeStyle: CSSProperties | undefined;
+  if (birth !== undefined) {
+    if (delayRef.current?.birth !== birth) {
+      const elapsed = performance.now() - birth;
+      delayRef.current = {
+        birth,
+        style: elapsed >= STREAM_FADE_DURATION ? null : { animationDelay: `${-elapsed}ms` },
+      };
+    }
+    if (delayRef.current.style !== null) {
+      codeClass = 'stream-char';
+      codeStyle = delayRef.current.style;
+    }
+  }
+  const content = children ?? value;
   const href = inlineCodeHttpUrl(value);
-  if (href !== undefined) return <code><SafeLink href={href} glyph>{value}</SafeLink></code>;
+  if (href !== undefined) return <code className={codeClass} style={codeStyle}><SafeLink href={href} glyph>{content}</SafeLink></code>;
   const mention = inLink ? undefined : env.mentions?.resolve(value);
-  if (mention === undefined) return <code>{value}</code>;
+  if (mention === undefined) return <code className={codeClass} style={codeStyle}>{content}</code>;
   return (
-    <code>
+    <code className={codeClass} style={codeStyle}>
       <button
         type="button"
         className={md.fileMention}
@@ -101,7 +121,7 @@ function Code({ node }: HastProps) {
         {...mention.contextMenuProps}
       >
         <LinkIconMedium kind={classifyLinkPath(value)} className={md.linkIcon} />
-        {value}
+        {content}
       </button>
     </code>
   );
