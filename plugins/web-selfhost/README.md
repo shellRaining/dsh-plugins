@@ -35,13 +35,14 @@ dsh 默认使用的 DeepSeek Search API 和 Fetch API 按次计费，换成自�
    ```
 
    第二段也可以不写，改在设置页的「网页搜索与抓取」里选择。
-3. 把 API Key 存到 dsh 凭据库，引用名为 `CRAWL_API_KEY`；也可以在启动 dsh 的环境里设置同名环境变量。
+3. 提供 API Key，三种方式按优先级排列：config 里的 `apiKey`；dsh 凭据库中名为 `CRAWL_API_KEY` 的引用；启动 dsh 的环境里的同名环境变量。`apiKey` 是明文，只适合写进不公开的私有配置，公开仓库里不要写。
 
 ## 配置
 
 | 字段 | 默认值 | 说明 |
 |---|---|---|
 | `baseURL` | 空，未启用 | 服务根地址 |
+| `apiKey` | 空 | 明文 API Key，优先于凭据引用 |
 | `apiKeyEnv` | `CRAWL_API_KEY` | 凭据引用名 |
 | `searchResults` | `10` | 单次搜索最多返回的结果数 |
 | `timeoutMs` | `90000` | 单次请求的超时时间（毫秒） |

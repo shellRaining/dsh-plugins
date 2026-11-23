@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "自建搜索与抓取",
-    "description": "提供基于自建 SearXNG（搜索）和 Crawl4AI（抓取）的 web_search / web_fetch 提供方。配置 baseURL 后在设置页选用即可，API Key 从凭据引用 CRAWL_API_KEY 读取。"
+    "description": "提供基于自建 SearXNG（搜索）和 Crawl4AI（抓取）的 web_search / web_fetch 提供方。配置 baseURL 后在设置页选用即可，API Key 优先读取 config 里的 apiKey，其次是凭据引用 CRAWL_API_KEY。"
   }
 }

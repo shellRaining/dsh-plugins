@@ -2,8 +2,9 @@
  * Search and fetch providers backed by a self-hosted crawl service: SearXNG
  * behind `/search` and Crawl4AI (with its route proxy) behind `/crawl`.
  *
- * The API key is a credential reference, resolved per request from the DSH
- * credential store or the launching environment, so no secret sits in config.
+ * The API key is read from `apiKey` in config when set, otherwise resolved per
+ * request from the DSH credential store or the launching environment under the
+ * `apiKeyEnv` reference.
  */
 import type { Context } from "@deepseek-ai/cordis";
 
@@ -13,6 +14,8 @@ export const inject = ["web"];
 
 export interface Config {
   baseURL?: string;
+  /** Inline API key. Takes precedence over the credential reference below. */
+  apiKey?: string;
   apiKeyEnv?: string;
   searchResults?: number;
   timeoutMs?: number;
@@ -25,6 +28,7 @@ export interface Config {
 
 interface ResolvedConfig {
   baseURL: string;
+  apiKey: string;
   apiKeyEnv: string;
   searchResults: number;
   timeoutMs: number;
@@ -47,6 +51,7 @@ export function resolveConfig(raw: Config | undefined): ResolvedConfig {
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(apiKeyEnv)) throw new Error("web-selfhost: apiKeyEnv must be an identifier");
   return {
     baseURL,
+    apiKey: (c.apiKey ?? "").trim(),
     apiKeyEnv,
     searchResults: positive(c.searchResults, 10, "searchResults"),
     timeoutMs: positive(c.timeoutMs, 90000, "timeoutMs"),
@@ -216,8 +221,11 @@ export function apply(ctx: Context, raw: Config | undefined): void {
   }
 
   async function request(path: string, init: RequestInit, signal?: AbortSignal): Promise<unknown> {
-    const key = (await host.get("credentials")?.resolve(config.apiKeyEnv))?.value ?? process.env[config.apiKeyEnv];
-    if (!key) throw new Error(`web-selfhost: no API key under ${config.apiKeyEnv}`);
+    const key =
+      config.apiKey ||
+      (await host.get("credentials")?.resolve(config.apiKeyEnv))?.value ||
+      process.env[config.apiKeyEnv];
+    if (!key) throw new Error(`web-selfhost: no API key in config apiKey or under ${config.apiKeyEnv}`);
     const timeout = AbortSignal.timeout(config.timeoutMs);
     const res = await fetch(base + path, {
       ...init,

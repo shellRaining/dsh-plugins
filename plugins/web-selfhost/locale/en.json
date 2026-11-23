@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Self-hosted web search and fetch",
-    "description": "Search and fetch providers for web_search and web_fetch backed by a self-hosted SearXNG and Crawl4AI. Set baseURL, then pick them in settings; the API key comes from the CRAWL_API_KEY credential reference."
+    "description": "Search and fetch providers for web_search and web_fetch backed by a self-hosted SearXNG and Crawl4AI. Set baseURL, then pick them in settings; the API key comes from the apiKey config field first, then from the CRAWL_API_KEY credential reference."
   }
 }
