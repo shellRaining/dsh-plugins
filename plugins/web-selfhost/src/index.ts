@@ -82,13 +82,11 @@ interface FetchResult {
   body: { kind: "text"; content: string };
   truncated: boolean;
 }
-interface LocalizedText {
-  en: string;
-  [lang: string]: string;
-}
+type LocalizedText = string | { en: string; [lang: string]: string };
 interface ProviderBase {
   id: string;
-  title?: LocalizedText;
+  /** Plain display name; the settings picker renders it as text, so it cannot be localized. */
+  title?: string;
   description?: LocalizedText;
   available(): boolean;
 }
@@ -246,7 +244,7 @@ export function apply(ctx: Context, raw: Config | undefined): void {
     () =>
       host.web.registerSearchProvider({
         id: SEARCH_PROVIDER_ID,
-        title: { en: "Self-hosted SearXNG", zh: "自建 SearXNG" },
+        title: "Self-hosted SearXNG",
         description: {
           en: "Searches through the self-hosted SearXNG instance; no per-request charge.",
           zh: "通过自建 SearXNG 搜索，不按次计费。",
@@ -269,7 +267,7 @@ export function apply(ctx: Context, raw: Config | undefined): void {
     () =>
       host.web.registerFetchProvider({
         id: FETCH_PROVIDER_ID,
-        title: { en: "Self-hosted Crawl4AI", zh: "自建 Crawl4AI" },
+        title: "Self-hosted Crawl4AI",
         description: {
           en: "Renders pages with the self-hosted Crawl4AI service and its X/Twitter route; no per-request charge.",
           zh: "通过自建 Crawl4AI 渲染网页（含推文专用路由），不按次计费。",
