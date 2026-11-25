@@ -33,16 +33,17 @@ JavaScript 只用于生成产物和既有维护脚本。空宿主入口也放在
 
 ## 宿主样式与性能
 
-插件 CSS 里的 `:has()` 最好放在选择器最右边的复合选择器上，也就是被选中的元素本身，并在它前面写上具体的元素、类或属性，比如 `.card:has(> img)`。`:has()` 后面还接子代或后代组合符时，最右边的复合选择器必须带类或属性，比如 `div:has(> [data-a]) > [data-b]`。如果最右边只有 `div`、`span` 这类常见标签，或者只有 `*`、`:not(...)`、`:has(...)`，比如 `div:has(> [data-a]) > div:first-child`、`div:has(> [data-a]) :has(> .x)`、`:has(> .x) > :not(.x)`，Chrome 在页面任何位置插入节点后都要做大范围的样式重算。实测后面只接兄弟组合符的 `span:has(> [data-a]) + span` 没有这个问题。要定位一个没有语义属性的容器，优先用宿主的稳定属性（比如 `data-slot`），或者像 [dsh-fluent-theme](https://github.com/omdsh-dev/dsh-fluent-theme) 的 `src/host/modules.ts` 那样在运行时从 `style[data-plugin-css]` 读出 CSS module 的类名，不在源码里写带构建 hash 的类名。
+插件 CSS 里的 `:has()` 最好放在选择器最右边的复合选择器上，也就是被选中的元素本身，并在它前面写上具体的元素、类或属性，比如 `.card:has(> img)`。`:has()` 后面还接子代或后代组合符时，最右边的复合选择器必须带类或属性，比如 `div:has(> [data-a]) > [data-b]`。如果最右边只有 `div`、`span` 这类常见标签，或者只有 `*`、`:not(...)`、`:has(...)`，比如 `div:has(> [data-a]) > div:first-child`、`div:has(> [data-a]) :has(> .x)`、`:has(> .x) > :not(.x)`，Chrome 在页面任何位置插入节点后都要做大范围的样式重算。实测后面只接兄弟组合符的 `span:has(> [data-a]) + span` 没有这个问题。要定位一个没有语义属性的容器，优先用宿主的稳定属性（比如 `data-slot`），或者像 [dsh-fluent-theme](https://github.com/omdsh-dev/dsh-fluent-theme) 的 `src/host/modules.ts` 那样在运行时从宿主注入的样式表读出 CSS module 的类名，不在源码里写带构建 hash 的类名。
 
 在一段长对话里，这样一条规则就能让一次“插入节点再读尺寸”从不到 1 ms 变成 2.5 到 15 ms，具体取决于规则形状和页面元素数量。偶尔一次影响不大，循环里反复插入再测量的代码会把页面卡住，Mermaid 测量文字尺寸就是这种情况，一张时序图大约要测 85 次。
 
-DSH 0.2.2-rc.1 的 `@deepseek-ai/dsh-client-ui-sidebar-files` 带有两条这样的规则，上游源码在 `packages/client/ui-sidebar-files/src/client/FilesBody.module.css`：`:has(> .navigator.fill) > :not(.navigator)`，以及它在 `@media (width < 768px)` 里的变体，合计约 20 ms。
+DSH 0.2.2-rc.1 的 `@deepseek-ai/dsh-client-ui-sidebar-files` 带有两条这样的规则，上游源码在 `packages/client/ui-sidebar-files/src/client/FilesBody.module.css`：`:has(> .navigator.fill) > :not(.navigator)`，以及它在 `@media (width < 768px)` 里的变体，合计约 20 ms。0.2.2-rc.2 到 rc.5 在规则前加了 `[data-files-navigator-row]`，最右边仍是 `> :not(.navigator)`，问题还在；0.2.3-alpha.1 起改为只在行本身用 `:has()` 设置自定义属性，不再触发大范围重算。
 
 确实需要绕开时，参照 [独立 Mermaid 插件的宿主样式适配](https://github.com/omdsh-dev/dsh-mermaid/blob/main/src/host-css.ts)：
 
-- 用宿主注入样式时写入的 `data-plugin-css`（格式为 `<包名>/<文件名>.module.css`）找到样式表，再按选择器形状匹配规则，不写带构建 hash 的类名。
+- 用宿主注入样式时写在 `<style>` 上的属性找到样式表，再按选择器形状匹配规则，不写带构建 hash 的类名。DSH 0.2.3 起是 `data-plugin="<包名>"` 加 `data-path="src/…/<文件名>.module.css"`，0.2.2 是 `data-plugin-css="<包名>/<文件名>.module.css"`；两种都要识别。0.2.3 的类名也改成了 `<hash>_<原名>` 前缀形式，按类名形状匹配时不要假设 hash 在后。
 - 只在一次同步渲染期间替换选择器，任务结束前恢复，另用 `requestAnimationFrame` 兜底，保证页面不会在缺少宿主规则时绘制。
+- 匹配条件要跟着上游规则的写法走。Mermaid 的适配只认以 `:has(` 开头的选择器，上游在 rc.2 加了属性前缀后就匹配不到了；每次升级 DSH 都要确认适配仍能命中，或者已经不再需要。
 - 找不到目标就什么都不做。上游修复后删除这段处理。
 
 排查这类卡顿时，用 `PerformanceObserver` 观察 `long-animation-frame`，看 `scripts[].forcedStyleAndLayoutDuration` 是否占了大部分时长。再测量“插入节点后读 `offsetHeight` 或 `getBBox()`”的耗时，逐个停用样式表找出触发重算的规则。几条规则各自都能触发重算时，单独停用一个样式表看不出差别，这时先停用所有插件样式表，再把规则逐条放进一个临时 `<style>` 里测。

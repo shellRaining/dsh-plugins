@@ -54,7 +54,7 @@ Cordis 配置 ID `acrylic-wallpaper`、`local-annotation`、`session-title-layou
 
 ## 兼容性
 
-插件按 DSH `0.2.2-rc.5`（`@deepseek-ai/dsh-* 0.2.2-rc.5`、`@deepseek-ai/cordis 4.1.0`）开发。Streamdown 和侧边对话依赖 0.2.2 新增的宿主接口，要求 DSH `>=0.2.2-rc.1 <0.3.0`，各包 `engines.dsh` 已声明。DSH 的 client 注入 API 仍在 rc 阶段，升级 DSH 后如插件报 token 缺失，等待本仓库适配即可。
+插件按 DSH `0.2.3-alpha.2`（`@deepseek-ai/dsh-* 0.2.3-alpha.2`、`@deepseek-ai/cordis 4.2.0-alpha.1`）开发。Streamdown 和侧边对话依赖 0.2.2 新增的宿主接口，要求 DSH `>=0.2.2-rc.1 <0.3.0`，各包 `engines.dsh` 已声明。DSH 的 client 注入 API 仍在 rc 阶段，升级 DSH 后如插件报 token 缺失，等待本仓库适配即可。
 
 ## 开发
 
