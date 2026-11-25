@@ -17,8 +17,8 @@ export interface MarkdownEnv {
   /** Inline-code file links; the host provides them once the turn closes. */
   mentions: MarkdownFileMentions | undefined;
   openFile: ((path: string, options?: { line: number }) => void) | undefined;
-  /** Workspace root for relative file-image destinations. */
-  cwd: string | undefined;
+  /** Resolve a relative file-image destination against the Session's current directory. */
+  resolvePath: (path: string) => string;
 }
 
 const EnvContext = createContext<MarkdownEnv | null>(null);

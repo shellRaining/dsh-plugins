@@ -1,7 +1,9 @@
 /**
  * Visual parity with the host Markdown sheet: ui-primitives
- * `MarkdownText.module.css` 0.2.1-rc.3 (MIT, Copyright (c) 2026 DeepSeek),
+ * `MarkdownText.module.css` 0.2.3-alpha.2 (MIT, Copyright (c) 2026 DeepSeek),
  * body and compact variants, with the CSS-module classes renamed to `dsh-sd-*`.
+ * Inline code stays `display: inline` with cloned box decoration (plugin
+ * change) so streamed characters wrap and fade inside the chip.
  * Re-diff this block against the host sheet on every DSH upgrade.
  */
 export const MARKDOWN_CSS = `
@@ -20,7 +22,9 @@ export const MARKDOWN_CSS = `
 .dsh-sd-md :where(h1, h2, h3, h4, h5, h6) strong { font-weight: inherit; }
 .dsh-sd-md p { margin: 16px 0; }
 .dsh-sd-md :where(h4, h5, h6) + :where(ul, ol) { margin-top: 8px; }
-.dsh-sd-md :where(h4, h5, h6):has(+ :where(ul, ol)) { margin-bottom: 8px; }
+.dsh-sd-md :where(h4):has(+ :where(ul, ol)),
+.dsh-sd-md :where(h5):has(+ :where(ul, ol)),
+.dsh-sd-md :where(h6):has(+ :where(ul, ol)) { margin-bottom: 8px; }
 .dsh-sd-md a,
 .dsh-sd-md .dsh-sd-file-link {
   color: var(--dsw-alias-link);
@@ -35,11 +39,17 @@ export const MARKDOWN_CSS = `
   margin-left: -3px;
   margin-right: -3px;
 }
-.dsh-sd-md a:hover,
 .dsh-sd-md a:focus {
   outline: none;
   text-decoration: underline dotted var(--dsw-alias-link);
   text-underline-offset: 3px;
+}
+@media (hover: hover) {
+  .dsh-sd-md a:hover {
+    outline: none;
+    text-decoration: underline dotted var(--dsw-alias-link);
+    text-underline-offset: 3px;
+  }
 }
 .dsh-sd-md a[aria-disabled] { text-decoration: none; cursor: default; }
 .dsh-sd-md a:focus-visible,
@@ -50,9 +60,10 @@ export const MARKDOWN_CSS = `
   flex: none;
   width: 1.1em;
   height: 1.1em;
-  vertical-align: -0.25em;
-  margin-right: 5px;
+  vertical-align: calc(0.5cap - 0.55em);
+  margin-inline: 0.25em 0.125em;
 }
+.dsh-sd-md code .dsh-sd-link-icon { margin-inline-start: 0; }
 .dsh-sd-md :where(ul, ol) { margin: 16px 0; padding-left: 18px; }
 .dsh-sd-md li:not(:first-child) { margin-top: 6px; }
 .dsh-sd-md li > :where(ul, ol) { margin-top: 4px; }
@@ -92,9 +103,11 @@ export const MARKDOWN_CSS = `
 .dsh-sd-md .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
 .dsh-sd-md input[type='checkbox'] { margin: 0 8px 0 0; accent-color: var(--dsw-alias-label-secondary); }
 .dsh-sd-table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
-.dsh-sd-table-scroll.md-table-wide { overflow-x: hidden; padding-bottom: var(--dsh-scrollbar-width, 5px); }
-.dsh-sd-table-scroll.md-table-wide:hover,
 .dsh-sd-table-scroll.md-table-wide:focus-visible { overflow-x: scroll; padding-bottom: 0; }
+@media (hover: hover) {
+  .dsh-sd-table-scroll.md-table-wide { overflow-x: hidden; padding-bottom: var(--dsh-scrollbar-width, 5px); }
+  .dsh-sd-table-scroll.md-table-wide:hover { overflow-x: scroll; padding-bottom: 0; }
+}
 .dsh-sd-table-scroll:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
@@ -150,11 +163,17 @@ export const MARKDOWN_CSS = `
   cursor: pointer;
 }
 .dsh-sd-file-link { max-width: 100%; text-align: inherit; }
-.dsh-sd-file-mention:hover,
 .dsh-sd-file-mention:focus {
   outline: none;
   text-decoration: underline dotted var(--dsw-alias-link);
   text-underline-offset: 3px;
+}
+@media (hover: hover) {
+  .dsh-sd-file-mention:hover {
+    outline: none;
+    text-decoration: underline dotted var(--dsw-alias-link);
+    text-underline-offset: 3px;
+  }
 }
 .dsh-sd-image-button {
   display: inline-block;
@@ -192,10 +211,12 @@ export const MARKDOWN_CSS = `
 .dsh-sd-md-compact hr { margin: 8px 0; }
 .dsh-sd-md-compact a,
 .dsh-sd-md-compact .dsh-sd-file-mention { font-weight: inherit; color: inherit; text-decoration: underline dotted; }
-.dsh-sd-md-compact a:hover,
 .dsh-sd-md-compact a:focus,
-.dsh-sd-md-compact .dsh-sd-file-mention:hover,
 .dsh-sd-md-compact .dsh-sd-file-mention:focus { text-decoration-color: currentColor; }
+@media (hover: hover) {
+  .dsh-sd-md-compact a:hover,
+  .dsh-sd-md-compact .dsh-sd-file-mention:hover { text-decoration-color: currentColor; }
+}
 .dsh-sd-md-compact :not(pre) > code {
   display: inline;
   font: inherit;
@@ -206,7 +227,7 @@ export const MARKDOWN_CSS = `
   box-decoration-break: clone;
 }
 .dsh-sd-md.dsh-sd-md-compact .md-code-block { margin: 4px 0; color: inherit; }
-.dsh-sd-md-compact .md-code-block > :has(> [data-code-block-banner]) { position: static; z-index: auto; }
+.dsh-sd-md-compact .md-code-block > div:has(> [data-code-block-banner]) { position: static; z-index: auto; }
 .dsh-sd-md-compact pre,
 .dsh-sd-md-compact pre :is(code, span) { color: inherit !important; }
 .dsh-sd-md.dsh-sd-md-compact .dsh-sd-table-scroll {
@@ -219,7 +240,15 @@ export const MARKDOWN_CSS = `
 .dsh-sd-md-compact :is(th, td) { padding: 4px 8px; font: inherit; }
 .dsh-sd-md-compact th { font-weight: 600; }
 .dsh-sd-md-compact .katex { font-size: 1em; }
-.dsh-sd-md-compact :is(p, h1, h2, h3, h4, h5, h6, ul, ol):has(.katex) {
+.dsh-sd-md-compact p:has(.katex),
+.dsh-sd-md-compact h1:has(.katex),
+.dsh-sd-md-compact h2:has(.katex),
+.dsh-sd-md-compact h3:has(.katex),
+.dsh-sd-md-compact h4:has(.katex),
+.dsh-sd-md-compact h5:has(.katex),
+.dsh-sd-md-compact h6:has(.katex),
+.dsh-sd-md-compact ul:has(.katex),
+.dsh-sd-md-compact ol:has(.katex) {
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 1px;

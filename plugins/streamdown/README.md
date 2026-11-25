@@ -46,7 +46,7 @@ dsh plugin --profile web add @shellraining/dsh-streamdown
 
 ## 升级 DSH 时
 
-插件复刻了 DSH 0.2.2-rc.1 的组件、语法和链接规则，不依赖某次构建的资源哈希；`src/markdown/styles.ts` 仍基于 0.2.1-rc.3 的 `MarkdownText.module.css`，尚未同步 0.2.2 把悬停样式收进 `@media (hover: hover)` 的改动。宿主仅重新构建通常不需要改插件；修改 slot、节点数据、模块导出、设计变量或 Markdown 行为后需要重新核对。当前没有稳定的正文引擎替换接口，仍需维护消息组件适配；类型检查通过不代表新宿主运行时兼容。
+插件复刻了 DSH 0.2.3-alpha.2 的组件、语法、链接规则和 `MarkdownText.module.css`，不依赖某次构建的资源哈希。行内代码保持 `display: inline` 并克隆边框装饰，以便流式字符在胶囊内折行和淡入，这是有意保留的差异。宿主仅重新构建通常不需要改插件；修改 slot、节点数据、模块导出、设计变量或 Markdown 行为后需要重新核对。当前没有稳定的正文引擎替换接口，仍需维护消息组件适配；类型检查通过不代表新宿主运行时兼容。
 
 升级后按下表对照官方源码：
 

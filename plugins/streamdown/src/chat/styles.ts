@@ -1,6 +1,6 @@
 /**
  * Layout of the official assistant message and reasoning row, ported from
- * ui-chat 0.2.2-rc.1 `AssistantMarkdown.module.css` and
+ * ui-chat 0.2.3-alpha.2 `AssistantMarkdown.module.css` and
  * `ReasoningRow.module.css` (MIT, Copyright (c) 2026 DeepSeek) with the
  * CSS-module classes renamed to `dsh-sd-*`. Re-diff on every DSH upgrade.
  */
@@ -12,7 +12,8 @@ export const CHAT_CSS = `
   flex-direction: column;
   display: flex;
 }
-.dsh-sd-body { flex-direction: column; gap: 16px; display: flex; }
+.dsh-sd-body { --dsh-assistant-block-gap: 16px; flex-direction: column; gap: var(--dsh-assistant-block-gap); display: flex; }
+[data-chat-group-part="reasoning"] .dsh-sd-body { --dsh-assistant-block-gap: 4px; }
 .dsh-sd-body .md-table-wide {
   --dsh-table-spare: max(0px, calc((100cqw - var(--dsh-chat-content-width)) / 2));
   --dsh-table-lead: calc(var(--dsh-table-spare) + min(var(--dsh-chat-content-width), 100cqw) - 100%);
@@ -23,7 +24,8 @@ export const CHAT_CSS = `
   padding-left: var(--dsh-table-lead);
 }
 .dsh-sd-body .md-table-wide > table { z-index: 1; position: relative; }
-.dsh-sd-body > [data-turn-process-inline][hidden] { margin-bottom: -16px; }
+.dsh-sd-body > [data-turn-process-inline][hidden],
+.dsh-sd-body > .dsh-sd-reasoning:empty { margin-bottom: calc(-1 * var(--dsh-assistant-block-gap)); }
 .dsh-sd-stopped {
   border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-interactive-bg-hover);

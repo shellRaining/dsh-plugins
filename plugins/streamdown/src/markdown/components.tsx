@@ -11,7 +11,7 @@ import {
 import { useCodeFade } from './codeFade.ts';
 import { InLinkProvider, useInLink, useMarkdownEnv } from './env.ts';
 import {
-  freshImageUrl, imageSource, inlineCodeHttpUrl, nextImageLoad, normalizeUri, parseFileLink, resolveWorkspacePath, fileMediaUrl,
+  freshImageUrl, imageSource, inlineCodeHttpUrl, nextImageLoad, normalizeUri, parseFileLink, fileMediaUrl,
   sanitizeUrl,
   type FileLink,
 } from './links.ts';
@@ -191,12 +191,12 @@ function Anchor({ node, href, children }: HastProps & { href?: string | undefine
 }
 
 function Image({ src, alt }: HastProps & { src?: string | undefined; alt?: string | undefined }) {
-  const { cwd } = useMarkdownEnv();
+  const { resolvePath } = useMarkdownEnv();
   const inLink = useInLink();
   const [load] = useState(nextImageLoad);
   const destination = src ?? '';
   const file = parseFileLink(destination);
-  const resolved = file === undefined ? undefined : fileMediaUrl(document.baseURI, resolveWorkspacePath(cwd, file.path));
+  const resolved = file === undefined ? undefined : fileMediaUrl(document.baseURI, resolvePath(file.path));
   const source = resolved === undefined ? imageSource(destination, load) : freshImageUrl(resolved, load);
   if (source === undefined) return <span className={md.imageAlt}>{alt ?? ''}</span>;
   return <LoadedImage key={source} src={source} alt={alt ?? ''} destination={destination} preview={!inLink} />;

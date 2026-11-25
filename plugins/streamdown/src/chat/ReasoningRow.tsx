@@ -7,6 +7,24 @@ import { StreamMarkdown } from '../markdown/StreamMarkdown.tsx';
 
 const THINK_ICON = <IconThinkOutlineRegular size={14} />;
 
+/** Port of ui-chat `reasoningText`: drop a leading `<signature>…</signature>` block from display text. */
+function reasoningText(text: string): string {
+  if (text[0] !== '<') return text;
+  const opening = '<signature>';
+  if (opening.startsWith(text)) return '';
+  if (!text.startsWith(opening)) return text;
+  const closing = '</signature>';
+  const end = text.indexOf(closing, opening.length);
+  if (end === -1) return '';
+  let start = end + closing.length;
+  while (start < text.length) {
+    if (text[start] === '\n') start++;
+    else if (text[start] === '\r' && text[start + 1] === '\n') start += 2;
+    else break;
+  }
+  return text.slice(start);
+}
+
 function firstLine(text: string): string {
   const newline = text.indexOf('\n');
   return newline === -1 ? text : text.slice(0, newline);
@@ -50,12 +68,17 @@ type ReasoningRowProps = ReasoningBodyProps & Pick<AssistantNodeProps, 'usePrese
 };
 
 /**
- * Port of ui-chat's ReasoningRow (0.2.2-rc.1, MIT, DeepSeek). Reasoning opened
+ * Port of ui-chat's ReasoningRow (0.2.3-alpha.2, MIT, DeepSeek). Reasoning opened
  * while running keeps StreamMarkdown until collapsed. Already settled content
  * uses the root Factory; this entry still cannot own the official body slot.
+ * Signature-only reasoning renders nothing, as in ui-chat.
  */
-export const ReasoningRow = memo(function ReasoningRow({ text, running, env, interrupted, textInteractionSource, usePresentation, useDisclosure, renderFactorySlot, t }: ReasoningRowProps) {
+export const ReasoningRow = memo(function ReasoningRow({ text: rawText, running, env, interrupted, textInteractionSource, usePresentation, useDisclosure, renderFactorySlot, t }: ReasoningRowProps) {
   const { expanded, toggle } = useDisclosure();
+  const { text, hidden } = useMemo(() => {
+    const display = reasoningText(rawText);
+    return { text: display, hidden: display !== rawText && display.trim() === '' };
+  }, [rawText]);
   const summary = useMemo(() => (
     running ? latestCompletedParagraphFirstLine(text) : firstLine(text)
   ).replaceAll('**', ''), [running, text]);
@@ -75,6 +98,7 @@ export const ReasoningRow = memo(function ReasoningRow({ text, running, env, int
       <ReasoningBody text={text} running={running} env={env} interrupted={interrupted} renderFactorySlot={renderFactorySlot} />
     </div>
   ) : undefined;
+  if (hidden) return null;
   return (
     <div
       className="dsh-sd-think"

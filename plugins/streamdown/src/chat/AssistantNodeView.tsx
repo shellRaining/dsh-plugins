@@ -32,14 +32,14 @@ function ProcessReasoning({ hidden, reveal, useGroupAction, children }: {
 }) {
   // data-sd-process-reasoning lets the disclosure motion measure this wrapper before a Turn fold hides it.
   return (
-    <div ref={useGroupAction(hidden, reveal)} data-turn-process-inline={hidden || undefined} data-sd-process-reasoning="">
+    <div ref={useGroupAction(hidden, reveal)} className="dsh-sd-reasoning" data-turn-process-inline={hidden || undefined} data-sd-process-reasoning="">
       {children}
     </div>
   );
 }
 
 /**
- * Port of ui-chat's AssistantNodeView + AssistantMarkdown (0.2.2-rc.1, MIT,
+ * Port of ui-chat's AssistantNodeView + AssistantMarkdown (0.2.3-alpha.2, MIT,
  * DeepSeek). Text of a step that was producing output when this instance
  * mounted renders through StreamMarkdown for its whole lifetime, so the reply
  * never swaps renderers when it settles. Steps that were already settled at
@@ -54,14 +54,17 @@ export const AssistantNodeView = memo(function AssistantNodeView({
   // plugin is absent is safe.
   const menu = (useContextMenu ?? NO_CONTEXT_MENU)();
   const getTriggerProps = menu?.getTriggerProps;
+  // Degraded path only: without the official resolveFilePath this joins the
+  // owner cwd, whereas ui-chat resolves against the Session's live directory
+  // (0.2.3 also uses it for chat file images).
+  const resolvePath = useMemo(
+    () => resolveFilePath ?? ((path: string) => resolveWorkspacePath(cwd, path)),
+    [cwd, resolveFilePath],
+  );
   const getFileTriggerProps = useMemo(() => {
     if (getTriggerProps === undefined || sessionId === undefined) return undefined;
-    // Degraded path only: without the official resolveFilePath this joins the
-    // owner cwd, whereas ui-chat's sessionFilePath prefers the session's live
-    // workingDirectory projection.
-    const resolve = resolveFilePath ?? ((path: string) => resolveWorkspacePath(cwd, path));
-    return (path: string) => getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: resolve(path) } }));
-  }, [cwd, getTriggerProps, resolveFilePath, sessionId]);
+    return (path: string) => getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: resolvePath(path) } }));
+  }, [getTriggerProps, resolvePath, sessionId]);
   const data = node.data;
   const [live] = useState(() => data.status === 'running');
   const turn = node.location.kind === 'turn' || node.location.kind === 'step' ? node.location.turn : undefined;
@@ -95,8 +98,8 @@ export const AssistantNodeView = memo(function AssistantNodeView({
   const labels = useMemo(() => markdownLabels(t), [t]);
   const images = useMemo(() => imageLabels(t), [t]);
   const settledEnv = useMemo<MarkdownEnv>(() => ({
-    streaming: false, labels, imageLabels: images, mentions, openFile, cwd,
-  }), [cwd, images, labels, mentions, openFile]);
+    streaming: false, labels, imageLabels: images, mentions, openFile, resolvePath,
+  }), [images, labels, mentions, openFile, resolvePath]);
   const streamingEnv = useMemo<MarkdownEnv>(() => ({ ...settledEnv, streaming: true }), [settledEnv]);
 
   if (!(streaming || interrupted || blocks.some((block) => block.kind !== 'tool-call'))) return null;

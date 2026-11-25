@@ -1,10 +1,10 @@
 import type { MarkdownFileMentions } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { ComponentType, HTMLAttributes, ReactNode, Ref } from 'react';
 
-// Minimal structural slice of the DSH 0.2.2-rc.1 client contracts this
-// plugin consumes: the keyed `conversation.chat.node` seat of ui-chat, its
-// assistant-step node and entry inject, the root `useContextMenu` prop, and
-// the root-scoped content Factories. Re-check these against ui-chat's
+// Minimal structural slice of the DSH client contracts this plugin consumes
+// (checked against 0.2.3-alpha.2): the keyed `conversation.chat.node` seat of
+// ui-chat, its assistant-step node and entry inject, the root `useContextMenu`
+// prop, and the root-scoped content Factories. Re-check these against ui-chat's
 // AssistantNodeView and its assistant-step registration on every DSH upgrade.
 
 export interface Observable<T> {
