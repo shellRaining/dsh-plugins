@@ -3,7 +3,7 @@
 // the command as its first message. The line is settled in the browser: it
 // never reaches the host command registry, the main transcript or the model.
 import { IconNewChatOutlineRegular, IconQuestionOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
-import { rankByName } from './rank.ts';
+import { TextSearchIndex } from '@deepseek-ai/dsh-util-text-search';
 import type {
   CommandClaim,
   CommandOutcome,
@@ -23,6 +23,16 @@ const LEADING_COMMAND = /^\/([a-z0-9_-]+)(?=\s|$)/;
 function commandOf(token: string): CommandName | undefined {
   const name = LEADING_COMMAND.exec(token)?.[1];
   return COMMANDS.find(command => command === name);
+}
+
+/**
+ * 与宿主命令菜单相同的过滤与排序：只对命令名和标题做模糊匹配。`/` 菜单的默认高亮跨越多个来源，
+ * 不匹配说明，免得说明里的命中抢走另一组名称命中的 Enter。
+ * DSH 0.2.3-alpha.2 删除了 ui-primitives 的 rankByName，改由 dsh-util-text-search 提供，
+ * 该库随本插件打包。
+ */
+function rankRows(rows: readonly TriggerCandidate[], query: string): readonly TriggerCandidate[] {
+  return new TextSearchIndex(rows, row => ({ fuzzy: [row.name, row.label ?? ''] })).search(query);
 }
 
 export interface SideChatCommandOptions {
@@ -68,7 +78,7 @@ export function sideChatSource({ t, eligible, open }: SideChatCommandOptions): T
     showGroupTitle: false,
     candidates: (session, request) => {
       if (request.position !== 'leading' || !eligible(session.sessionId)) return Promise.resolve([]);
-      return Promise.resolve(rankByName(rows(), request.query));
+      return Promise.resolve(rankRows(rows(), request.query));
     },
     onPick: ({ candidate, session }): TriggerOutcome => {
       const found = claimOf(session, `/${candidate.name}`);

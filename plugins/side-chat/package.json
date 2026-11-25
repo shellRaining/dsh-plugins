@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-side-chat",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "type": "module",
   "description": "从当前会话派生临时侧边对话，可能修改工作区文件。",
   "main": "./lib/index.js",
@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/dsh-client-ui-primitives": "catalog:",
+    "@deepseek-ai/dsh-util-text-search": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "typescript": "catalog:"
