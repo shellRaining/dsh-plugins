@@ -309,6 +309,18 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  plugins/effort-picker:
+    devDependencies:
+      '@deepseek-ai/dsh-client-ui-primitives':
+        specifier: 'catalog:'
+        version: 0.2.3-alpha.2(@deepseek-ai/cordis@4.2.0-alpha.1)
+      '@types/react':
+        specifier: 'catalog:'
+        version: 18.3.31
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   plugins/layout-presets:
     devDependencies:
       typescript:
@@ -471,6 +483,12 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  plugins/vim-menu-keys:
+    devDependencies:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

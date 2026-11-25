@@ -1,0 +1,3 @@
+- insert:
+    - id: effort-picker
+      name: '@shellraining/dsh-effort-picker'

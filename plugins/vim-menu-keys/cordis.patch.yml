@@ -1,0 +1,3 @@
+- insert:
+    - id: vim-menu-keys
+      name: '@shellraining/dsh-vim-menu-keys'
