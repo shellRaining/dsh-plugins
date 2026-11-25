@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-effort-picker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "用 /effort 选择思考强度，切换模型后立即弹出强度选择，全程键盘操作",
   "main": "./lib/index.js",

@@ -1,6 +1,6 @@
 {
   "name": "@shellraining/dsh-vim-menu-keys",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "在 DSH 的弹出菜单和选择框里用 Ctrl-n / Ctrl-p、Ctrl-j / Ctrl-k 上下移动",
   "main": "./lib/index.js",
