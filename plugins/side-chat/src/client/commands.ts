@@ -2,7 +2,8 @@
 // leading-input claim opens a new side-chat tab and hands it the text after
 // the command as its first message. The line is settled in the browser: it
 // never reaches the host command registry, the main transcript or the model.
-import { IconNewChatOutlineRegular, IconQuestionOutlineRegular, rankByName } from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconNewChatOutlineRegular, IconQuestionOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
+import { rankByName } from './rank.ts';
 import type {
   CommandClaim,
   CommandOutcome,
